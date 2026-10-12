@@ -1,0 +1,36 @@
+{
+  "name": "Campfire",
+  "short_name": "Campfire",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "description": "Character sheets, dice, encounters, maps and handouts for fifth-edition tabletop games, synced between your group's devices.",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14100D",
+  "theme_color": "#14100D",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
