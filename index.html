@@ -507,6 +507,10 @@ mark,.hl{background:linear-gradient(100deg,transparent 0 2px,var(--marker) 3px c
 .ring{position:relative}
 .ring.insp::after{content:"";position:absolute;right:-3px;top:-3px;width:16px;height:16px;border-radius:50%;background:var(--ember);border:2px solid var(--bg);box-shadow:0 0 10px var(--ember-glow)}
 
+.imgbtn{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.imgbtn img{display:block;width:100%}
+.ho-full .body.rt p{margin:0 0 .6em}
+
 </style>
 </head>
 <body>
@@ -3084,7 +3088,7 @@ function renderPInbox() {
 }
 function openHandoutView(x, mark) {
   if (mark && S.role === 'player') { const seen = Object.assign({}, S.ustate.seen || {}, { [x._id]: x.at || Date.now() }); S.ustate.seen = seen; writeDoc('data/users/' + ME.id + '/state', { seen }); refresh(); }
-  openSheet(x.title || 'Handout', () => h('div', { class: 'ho-full' }, x.img ? imgTag(x.img, { alt: x.title || 'Handout image' }) : null, x.body ? h('div', { class: 'body' }, x.body) : null, !x.img && !x.body ? h('p', { class: 'muted' }, 'This handout is empty.') : null));
+  openSheet(x.title || 'Handout', () => h('div', { class: 'ho-full' }, x.img ? h('button', { class: 'imgbtn', 'aria-label': 'Open the picture full screen', onclick: () => openImageViewer(x.img, x.title) }, imgTag(x.img, { alt: x.title || 'Handout image' })) : null, x.body ? hoBody(x.body, false) : null, !x.img && !x.body ? h('p', { class: 'muted' }, 'This handout is empty.') : null));
 }
 
 function chooseMagicInitiate(cls) {
@@ -3241,6 +3245,7 @@ function setupGM() {
     refresh();
   });
   sub(DB.collection('dm'), s => { S.threads = mapOf(s); refresh(); });
+  sub(DB.doc('gm/packs'), s => { S.packs = (s.exists && s.data()) || {}; });
   sub(DB.doc('gm/bestiary'), s => { const d = (s.exists && s.data()) || {}; S.best = { art: Object.assign({}, d.art), notes: Object.assign({}, d.notes) }; refresh(); });
   sub(DB.collection('gm/meta/encounters'), s => { S.encs = docsOf(s); setTimeout(applyInitResponses); refresh(); });
   sub(DB.collection('gm/meta/maps'), s => { S.maps = docsOf(s); if (!S.mapEd) refresh(); });
@@ -3650,7 +3655,7 @@ function renderGHandouts() {
       toast('Saving picture…');
       const ref = await saveImage(f, 1800, 'gm'); if (!ref) return;
       editHandout(null, { img: ref, title: (f.name || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 120) });
-    } }, icon('image'), 'Picture handout')));
+    } }, icon('image'), 'Picture handout'), h('button', { class: 'btn', onclick: openPacks }, icon('journal'), 'Adventure packs')));
   const list = S.hlib.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0));
   if (!list.length) root.append(h('div', { class: 'empty' }, h('b', null, 'No handouts yet'), 'Write a letter or upload a picture, then send it to the whole party or to one player in secret. Maps are shared from the Maps tab.'));
   list.forEach(x => root.append(h('div', { class: 'ho', role: 'button', tabindex: 0, style: { position: 'relative' }, onclick: () => openGHandout(x._id), onkeydown: e => { if (e.key === 'Enter') openGHandout(x._id); } },
@@ -3695,7 +3700,8 @@ function openGHandout(id) {
     add(rec.foot, [h('button', { class: 'btn', onclick: () => editHandout(id) }, icon('edit'), 'Edit'), h('button', { class: 'btn primary', onclick: () => sendHandoutSheet(x, setSent) }, icon('send'), 'Send')]);
     return h('div', null,
       hoSentText(x) ? h('p', { class: 'sentto', style: { marginTop: 0 } }, hoSentText(x)) : h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Only you can see this until you send it.'),
-      h('div', { class: 'ho-full' }, x.img ? imgTag(x.img, { alt: '' }) : null, x.body ? h('div', { class: 'body' }, x.body) : null),
+      x.gmOnly ? h('p', { class: 'helper', style: { marginTop: 0 } }, 'Game Master notes from an adventure pack: you probably don’t want to send this one.') : null,
+      h('div', { class: 'ho-full' }, x.img ? h('button', { class: 'imgbtn', 'aria-label': 'Open the picture full screen', onclick: () => openImageViewer(x.img, x.title) }, imgTag(x.img, { alt: '' })) : null, x.body ? hoBody(x.body, true) : null),
       h('div', { class: 'row mt2' },
         (s.party || (s.to || []).length) ? h('button', { class: 'btn sm', onclick: async () => { if (!(await confirmSheet('Take it back?', 'Removes this handout from every player who received it.', 'Recall', false))) return; sentDests(s).forEach(d => withdrawHandout(id, d)); setSent({ party: false, to: [] }); toast('Handout recalled'); } }, 'Recall from players') : null,
         h('button', { class: 'btn sm danger', onclick: async () => { if (!(await confirmSheet('Delete handout?', 'Deletes it from your library and from every player who has it.'))) return; sentDests(s).forEach(d => withdrawHandout(id, d)); await delDoc(hoPath(id)); dropImg(x.img); closeSheet(rec); } }, icon('trash'), 'Delete')));
@@ -5264,8 +5270,7 @@ function sheetPrintHTML(c, o = {}) {
       ${o.fullText ? `<div class="box feats"><div class="t">Spell descriptions</div>${spells.length ? spells.map(s => { const sp = SPL_BY[s.i]; return `<div class="feat"><div class="fn">${esc(sp.n)} <small>${sp.l ? ordinal(+sp.l) + '-level ' : ''}${esc(sp.s)}${sp.l ? '' : ' cantrip'}</small></div><div class="fd">${mdLite(sp.d)}${sp.hl ? mdLite('**Using a higher-level spell slot.** ' + sp.hl) : ''}</div></div>`; }).join('') : ''}</div>` : ''}
       <footer>${esc(c.name || '')} · page 3</footer></section>`;
   }
-  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(c.name || 'Character')} character sheet</title><style>${printFontCSS()}${PRINT_CSS.replace('__PAGE__', o.paper === 'Letter' ? 'letter' : 'A4')}${o.fit && o.fit < 1 ? `@media screen{body{zoom:${o.fit.toFixed(3)};padding:6px}}` : ''}</style></head><body>${html}<script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
-</body></html>`;
+  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(c.name || 'Character')} character sheet</title><style>${printFontCSS()}${PRINT_CSS.replace('__PAGE__', o.paper === 'Letter' ? 'letter' : 'A4')}${o.fit && o.fit < 1 ? `@media screen{body{zoom:${o.fit.toFixed(3)};padding:6px}}` : ''}</style></head><body>${html}</body></html>`;
 }
 function printFontCSS() {
   try { return [...document.querySelectorAll('style')].map(s => s.textContent).join('\n').match(/@font-face\s*{[^}]*}/g).join('\n'); } catch (e) { return ''; }
@@ -5374,7 +5379,113 @@ function openPrintSheet(c, ctx = {}) {
   });
 }
 
+/* ================= Adventure packs =================
+   A pack is one JSON file: adventures with their pictures, handouts, maps, homebrew creatures and encounters, plus credits.
+   Importing copies everything into the GM's campaign; nothing is sent to players until the GM shares it. */
+const PACK_SYSTEM = 'dnd2024';
+const PACK_SYSTEM_NAME = { dnd2024: 'D&D 2024 (Campfire)', pf2e: 'Pathfinder 2e (The Tavern)' };
+function dataUrlBlob(u) {
+  const m = String(u).match(/^data:([^;,]+);base64,(.*)$/); if (!m) return null;
+  const bin = atob(m[2]), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: m[1] });
+}
+async function storePackImage(im) {
+  if (!im || !im.data) return null;
+  if (im.data.length <= IMG_LIMIT) { const path = 'gm/img/x/' + nid(); IMGV[path] = im.data; writeDoc(path, { data: im.data, w: im.w, h: im.h }); return { doc: path, w: im.w, h: im.h }; }
+  const b = dataUrlBlob(im.data); return b ? saveImage(b, 2000, 'gm') : null;
+}
+const readText = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result || '')); r.onerror = rej; r.readAsText(f); });
+function openPacks() {
+  openSheet('Adventure packs', rec => {
+    const st = rec.state;
+    if (st.busy) return h('div', { class: 'center', style: { padding: '28px 0' } }, h('p', { style: { fontWeight: 800, fontSize: '18px' } }, 'Importing…'), h('p', { class: 'muted' }, st.busy));
+    if (!st.pack) {
+      add(rec.foot, [h('button', { class: 'btn primary', onclick: async () => {
+        const f = await pickFile('.json,application/json'); if (!f) return;
+        let p = null; try { p = JSON.parse(await readText(f)); } catch (e) { toast('That file isn’t an adventure pack.'); return; }
+        if (!p || p.format !== 'campfire-pack' || !Array.isArray(p.adventures)) { toast('That file isn’t an adventure pack.'); return; }
+        if (p.system !== PACK_SYSTEM) { toast(`That pack is for ${PACK_SYSTEM_NAME[p.system] || p.system}, not this app.`, 4200); return; }
+        st.pack = p; st.sel = new Set(p.adventures.map(a => a.id)); fillSheet(rec);
+      } }, icon('plus'), 'Choose a pack file')]);
+      const done = (S.packs && Object.values(S.packs)) || [];
+      return h('div', null, h('p', { style: { marginTop: 0 } }, 'Adventure packs add ready-to-run adventures to this campaign: maps, handouts, notes for you, homebrew creatures and prepared encounters.'),
+        h('p', { class: 'small muted' }, 'Download a pack file (it ends in .campfire-pack.json), then choose it here. Everything goes into your Game Master tabs; players only see what you share.'),
+        done.length ? [h('h2', { class: 'sec' }, 'Imported'), h('div', { class: 'list' }, done.map(x => h('div', { class: 'li', style: { cursor: 'default' } }, h('div', { class: 'grow' }, h('div', { class: 't' }, x.title), h('div', { class: 's' }, `${x.n} adventure${x.n === 1 ? '' : 's'}, ${new Date(x.at).toLocaleDateString()}`)))))] : null);
+    }
+    const p = st.pack;
+    add(rec.foot, [h('button', { class: 'btn', onclick: () => { st.pack = null; fillSheet(rec); } }, 'Back'), h('button', { class: 'btn primary', disabled: st.sel.size ? null : true, onclick: () => importPack(p, st, rec) }, `Import ${st.sel.size} adventure${st.sel.size === 1 ? '' : 's'}`)]);
+    const again = S.packs && S.packs[p.id];
+    return h('div', null, h('h2', { style: { font: '400 24px/1.15 var(--display)', margin: '0 0 6px' } }, p.title), h('p', { class: 'muted', style: { marginTop: 0 } }, p.description || ''),
+      again ? h('p', { class: 'helper' }, 'You imported this pack before. Importing again adds a second copy.') : null,
+      h('div', null, p.adventures.map(a => h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: st.sel.has(a.id), onchange: e => { e.target.checked ? st.sel.add(a.id) : st.sel.delete(a.id); fillSheet(rec); } }),
+        h('div', { class: 'grow' }, h('div', { style: { fontWeight: 800 } }, a.title), h('div', { class: 'small muted' }, `${a.award}. Levels ${a.levels}.`), h('div', { class: 'tiny muted' }, `By ${a.author}. ${a.licence ? a.licence.name : ''}`))))),
+      h('details', { class: 'feat mt' }, h('summary', null, 'Credits and licences'), h('div', { class: 'rt', style: { whiteSpace: 'pre-wrap', fontSize: '14px' } }, p.credits || '')));
+  });
+}
+async function importPack(p, st, rec) {
+  const list = p.adventures.filter(a => st.sel.has(a.id)); let n = 0;
+  try {
+    for (const a of list) {
+      n++; st.busy = `${a.title} (${n} of ${list.length})`; fillSheet(rec);
+      const imgs = {}; for (const k of Object.keys(a.images || {})) imgs[k] = await storePackImage(a.images[k]);
+      const cmap = {};
+      (a.creatures || []).forEach(c => {
+        const id = nid(); cmap[c.key] = id;
+        const out = Object.assign({}, c, { tr: parseBlocks(c.raw.tr), ac2: parseBlocks(c.raw.ac2), ba: parseBlocks(c.raw.ba), re: parseBlocks(c.raw.re), la: parseBlocks(c.raw.la), pb: Math.max(2, Math.ceil((+c.cr || 0) / 4) + 1), pp: 10 + mod(c.ab[4]), notes: `From ${a.title}. ${a.licence ? a.licence.name : ''}`, pack: p.id, upd: Date.now() });
+        delete out.key; writeDoc('gm/meta/custom/' + id, out); S.custom.push(Object.assign({ _id: id }, out));
+      });
+      (a.handouts || []).forEach((x, i) => writeDoc(hoPath(nid()), { title: x.title, body: x.body || '', img: x.img ? imgs[x.img] || null : null, pack: p.id, gmOnly: !!x.gm, upd: Date.now() - i }));
+      (a.maps || []).forEach(m => { const ref = imgs[m.img]; if (!ref) return; const id = nid(), cols = m.cols || 24;
+        writeDoc(dataPath(id), { cells: {}, strokes: [], labels: [], tokens: [] }); writeDoc(metaPath(id), { name: m.name, cols, rows: m.rows || Math.max(4, Math.round(cols * ref.h / ref.w)), grid: false, bg: ref, pack: p.id, upd: Date.now() }); });
+      (a.encounters || []).forEach(x => { const e = { _id: nid(), name: x.name, round: 1, turn: null, list: [], created: Date.now(), pack: p.id };
+        x.list.forEach(r => { const m = r.ref.startsWith('hb:') ? getMon('c:' + cmap[r.ref.slice(3)]) : getMon(r.ref); if (m) addMonstersTo(e, m, r.n || 1, 'avg'); });
+        saveEnc(e); });
+    }
+    writeDoc(hoPath(nid()), { title: p.title + ': credits and licences', body: p.credits || '', pack: p.id, gmOnly: true, upd: Date.now() + 1 });
+    writeDoc('gm/packs', { [p.id]: { title: p.title, n: list.length, at: Date.now() } }, 'update');
+    S.packs = Object.assign({}, S.packs, { [p.id]: { title: p.title, n: list.length, at: Date.now() } });
+    st.busy = null; st.pack = null; closeSheet(rec);
+    toast(`Imported ${list.length} adventure${list.length === 1 ? '' : 's'}. Look in Handouts, Maps, Turns and Bestiary.`, 5200);
+  } catch (e) { console.warn(e); st.busy = null; fillSheet(rec); toast('The import stopped part-way. Check your connection and storage space.', 4200); }
+}
+/* full-screen picture viewer with pinch and double-tap zoom, for maps and dense handouts */
+function openImageViewer(ref, title) {
+  const src = imgSrc(ref); const img = h('img', { alt: title || '', draggable: 'false', style: { maxWidth: '100%', maxHeight: '100%', transformOrigin: '0 0', userSelect: 'none', touchAction: 'none' } });
+  if (src) img.src = src; else loadImg(ref).then(s => { if (s) img.src = s; });
+  const stage = h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', touchAction: 'none' } }, img);
+  const wrap = h('div', { class: 'imgviewer', role: 'dialog', 'aria-label': title || 'Picture', style: { position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,.94)' } }, stage,
+    h('button', { class: 'icon-btn', 'aria-label': 'Close', style: { position: 'absolute', top: 'calc(env(safe-area-inset-top,0px) + 12px)', right: '12px', zIndex: 2 }, onclick: () => wrap.remove() }, icon('close')),
+    h('div', { class: 'tiny', style: { position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom,0px) + 12px)', left: 0, right: 0, textAlign: 'center', color: '#bbb' } }, 'Pinch or double-tap to zoom. Drag to move.'));
+  let s = 1, tx = 0, ty = 0; const pts = new Map(); let base = null, lastTap = 0;
+  const apply = () => { img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
+  const rect = () => img.getBoundingClientRect();
+  const zoomAt = (ns, cx, cy) => { ns = Math.max(1, Math.min(6, ns)); const r = rect(); const ox = r.left - tx, oy = r.top - ty; const px = (cx - r.left) / s, py = (cy - r.top) / s; s = ns; tx = cx - ox - px * s; ty = cy - oy - py * s; if (s === 1) { tx = 0; ty = 0; } apply(); };
+  stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1) { const now = Date.now(); if (now - lastTap < 300) zoomAt(s > 1.5 ? 1 : 2.5, e.clientX, e.clientY); lastTap = now; }
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; base = { d: Math.hypot(a.x - b.x, a.y - b.y), s }; } });
+  stage.addEventListener('pointermove', e => { const p = pts.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && base) { const [a, b] = [...pts.values()]; zoomAt(base.s * Math.hypot(a.x - b.x, a.y - b.y) / base.d, (a.x + b.x) / 2, (a.y + b.y) / 2); }
+    else if (pts.size === 1 && s > 1) { tx += dx; ty += dy; apply(); } });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) base = null; };
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  stage.addEventListener('wheel', e => { e.preventDefault(); zoomAt(s * (e.deltaY < 0 ? 1.2 : 1 / 1.2), e.clientX, e.clientY); }, { passive: false });
+  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { wrap.remove(); document.removeEventListener('keydown', esc); } });
+  document.body.append(wrap);
+}
+/* handout text: paragraphs, **bold**, bullet lists and (for the GM) tappable dice */
+function hoBody(text, gm) {
+  const t = String(text || ''); if (!/\*\*|\n- /.test(t)) return h('div', { class: 'body' }, t);
+  const wrap = h('div', { class: 'body rt', style: { whiteSpace: 'normal' } }); let ul = null;
+  const inline = s => gm ? rtInline(s, {}) : s.split(/(\*\*[^*]+\*\*)/).map(x => /^\*\*.*\*\*$/.test(x) ? h('b', null, x.slice(2, -2)) : x);
+  t.split('\n').forEach(line => { const l = line.trim(); if (!l) { ul = null; return; }
+    if (/^- /.test(l)) { if (!ul) { ul = h('ul', { style: { margin: '0 0 .6em', paddingLeft: '20px' } }); wrap.append(ul); } ul.append(h('li', null, inline(l.slice(2)))); return; }
+    ul = null; wrap.append(h('p', null, inline(l))); });
+  return wrap;
+}
+
 boot();
 </script>
+<script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>
