@@ -511,6 +511,13 @@ mark,.hl{background:linear-gradient(100deg,transparent 0 2px,var(--marker) 3px c
 .imgbtn img{display:block;width:100%}
 .ho-full .body.rt p{margin:0 0 .6em}
 
+.tsize{flex:none;min-height:40px;align-self:center;border:1px solid var(--line-2);border-radius:10px;background:var(--surface);color:var(--ink);font:700 14px var(--sans);padding:0 8px}
+
+.oslide{display:flex;align-items:center;gap:6px;flex:none;font:700 13px var(--sans);color:var(--ink-3);padding:0 6px;white-space:nowrap}
+.oslider{accent-color:var(--ember);width:96px}
+.oslider.wide{width:100%;margin:6px 0}
+.olab{min-width:36px;color:var(--ink);font-variant-numeric:tabular-nums}
+
 </style>
 </head>
 <body>
@@ -689,6 +696,7 @@ const ICONS = {
   sound: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   spark: '<path d="M12 3l1.8 5.5L19.5 10l-5.7 1.6L12 17l-1.8-5.4L4.5 10l5.7-1.5z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
   print: '<path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/>',
+  aoe: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
   d20: '<path d="M12 2.5l8.5 4.9v9.2L12 21.5l-8.5-4.9V7.4z"/><path d="M12 2.5L7.6 14.3h8.8zM3.5 7.4l4.1 6.9M20.5 7.4l-4.1 6.9M7.6 14.3L12 21.5l4.4-7.2M3.5 16.6l4.1-2.3M20.5 16.6l-4.1-2.3"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
@@ -3844,8 +3852,18 @@ function awardInspiration(uid) {
 /* ================= Battle maps ================= */
 const CS = 48;
 const MAP_COLORS = [['#2B2118', 'Ink'], ['#7D7468', 'Stone'], ['#D6BF92', 'Sand'], ['#4F8FB8', 'Water'], ['#6E9455', 'Grass'], ['#B8402E', 'Ember red'], ['#E08A3A', 'Ember'], ['#FBF6EC', 'Chalk']];
-const PLAYER_MAP_TOOLS = [['pan', 'Move', 'pan'], ['ruler', 'Ruler', 'ruler']];
-const MAP_TOOLS = [['pan', 'Move', 'pan'], ['ruler', 'Ruler', 'ruler'], ['paint', 'Fill', 'paint'], ['pen', 'Pen', 'pen'], ['line', 'Wall', 'line'], ['rect', 'Room', 'rect'], ['erase', 'Erase', 'erase'], ['text', 'Label', 'text'], ['token', 'Token', 'token']];
+const PLAYER_MAP_TOOLS = [['pan', 'Move', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe']];
+/* areas of effect: circles, cones and lines anyone can lay over the map */
+const AOE_COLORS = [['#E2553A', 'Fire'], ['#F2C94C', 'Light'], ['#6FBF4A', 'Acid'], ['#4FA3E0', 'Cold'], ['#9B6BD6', 'Force'], ['#2E2E36', 'Darkness']];
+const AOE_SHAPES = [['circle', 'Circle'], ['cone', 'Cone'], ['line', 'Line']];
+const AOE_CONE_HALF = Math.atan(0.5), AOE_CONE_ARC = false; /* D&D 2024: a cone is as wide as its distance from the point of origin */
+/* creature sizes, the same in D&D 2024 and Pathfinder 2e: key, name, squares across, space */
+const TOKEN_SIZES = [['tiny', 'Tiny', 0.5, '2½ by 2½ feet (up to four share a square)'], ['sm', 'Small', 1, '5 by 5 feet'], ['med', 'Medium', 1, '5 by 5 feet'], ['lg', 'Large', 2, '10 by 10 feet (2 by 2 squares)'], ['huge', 'Huge', 3, '15 by 15 feet (3 by 3 squares)'], ['garg', 'Gargantuan', 4, '20 by 20 feet or more (4 by 4 squares)']];
+const TOKEN_SIZE = Object.fromEntries(TOKEN_SIZES.map(s => [s[0], s]));
+const tokSz = t => t.sz && TOKEN_SIZE[t.sz] ? t.sz : ({ 0.5: 'tiny', 2: 'lg', 3: 'huge', 4: 'garg' }[t.z] || 'med');
+const tokZ = t => TOKEN_SIZE[tokSz(t)][2];
+const tokR = t => CS * tokZ(t) * (tokSz(t) === 'sm' ? 0.34 : 0.42);
+const MAP_TOOLS = [['pan', 'Move', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['paint', 'Fill', 'paint'], ['pen', 'Pen', 'pen'], ['line', 'Wall', 'line'], ['rect', 'Room', 'rect'], ['erase', 'Erase', 'erase'], ['text', 'Label', 'text'], ['token', 'Token', 'token']];
 const metaPath = id => 'gm/meta/maps/' + id, dataPath = id => 'gm/meta/mapdata/' + id;
 /* Maps are shared with players straight from the Maps section; they never appear in the Handouts library. */
 const mapShareId = id => 'map-' + id;
@@ -3899,7 +3917,7 @@ function renderGMaps(main) {
 }
 function MapEditor(meta0, opts = {}) {
   const PLAYER = !!opts.player;
-  const ed = { id: meta0._id, meta: clone(meta0), data: { cells: {}, strokes: [], labels: [], tokens: [] }, loaded: false, view: { s: 1, tx: 0, ty: 0 }, tool: 'pan', color: 0, undo: [], redo: [], dirty: false, bg: null, pt: {}, ruler: null, unsubs: [] };
+  const ed = { id: meta0._id, meta: clone(meta0), data: { cells: {}, strokes: [], labels: [], tokens: [], aoes: [] }, pa: {}, aoeK: 'circle', aoeC: 0, aoeO: 0.35, loaded: false, view: { s: 1, tx: 0, ty: 0 }, tool: 'pan', color: 0, undo: [], redo: [], dirty: false, bg: null, pt: {}, ruler: null, unsubs: [] };
   delete ed.meta._id;
   /* where each player-owned token is: players move their own, and everyone sees it live */
   const tokPos = t => { const p = t.uid && ed.pt[t.uid] && ed.pt[t.uid][ed.id] && ed.pt[t.uid][ed.id][t.id]; return p ? { gx: p.gx, gy: p.gy } : { gx: t.gx, gy: t.gy }; };
@@ -3922,8 +3940,10 @@ function MapEditor(meta0, opts = {}) {
     tbar.textContent = '';
     (PLAYER ? PLAYER_MAP_TOOLS : MAP_TOOLS).forEach(([k, l, ic]) => tbar.append(h('button', { 'aria-pressed': ed.tool === k ? 'true' : 'false', onclick: () => { ed.tool = k; if (k !== 'ruler') ed.ruler = null; drawTools(); draw(); } }, icon(ic), l)));
     if (ed.ruler) tbar.append(h('span', { class: 'rulerread', 'aria-live': 'polite' }, rulerText()));
+    if (ed.tool === 'aoe') { tbar.append(...aoeTools()); if (PLAYER) return; }
     if (PLAYER) { tbar.append(h('span', { class: 'sep' }), h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, (ed.data.tokens || []).some(t => t.uid === ME.id) ? 'Drag your token to move it.' : 'Pinch or drag to look around.')); return; }
     tbar.append(h('span', { class: 'sep' }));
+    if (ed.tool === 'token') tbar.append(h('select', { class: 'tsize', 'aria-label': 'Size of new tokens', title: 'Size of new tokens', onchange: e => { ed.tokSize = e.target.value; } }, TOKEN_SIZES.map(([k, n]) => h('option', { value: k, selected: (ed.tokSize || 'med') === k ? true : null }, n))), h('span', { class: 'sep' }));
     MAP_COLORS.forEach(([c, n], i) => tbar.append(h('button', { class: 'sw', style: { background: c }, 'aria-label': n, title: n, 'aria-pressed': ed.color === i ? 'true' : 'false', onclick: () => { ed.color = i; drawTools(); } })));
     tbar.append(h('span', { class: 'sep' }));
     tbar.append(h('button', { onclick: undo, disabled: !ed.undo.length, 'aria-label': 'Undo' }, icon('undo'), 'Undo'), h('button', { onclick: redo, disabled: !ed.redo.length, 'aria-label': 'Redo' }, icon('redo'), 'Redo'));
@@ -3990,13 +4010,27 @@ function MapEditor(meta0, opts = {}) {
       x.fillStyle = (MAP_COLORS[lb.c] || MAP_COLORS[0])[0]; if (lb.c === 7) x.fillStyle = '#2B2118'; x.fillText(lb.t, lb.x, lb.y);
     });
     (ed.data.tokens || []).forEach(t => {
-      const tp = tokPos(t), z = t.z || 1, cx = (tp.gx + z / 2) * CS, cy = (tp.gy + z / 2) * CS, r = CS * z * 0.42;
+      const tp = tokPos(t), z = tokZ(t), cx = (tp.gx + z / 2) * CS, cy = (tp.gy + z / 2) * CS, r = tokR(t);
       if (t.uid && !exporting) { x.beginPath(); x.arc(cx, cy, r + 5, 0, Math.PI * 2); x.strokeStyle = t.uid === ME.id ? '#F08A3C' : 'rgba(240,138,60,.45)'; x.lineWidth = 3; x.stroke(); }
       x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fillStyle = (MAP_COLORS[t.c] || MAP_COLORS[5])[0]; x.fill();
       x.lineWidth = 3; x.strokeStyle = '#FFFFFF'; x.stroke(); x.lineWidth = 1; x.strokeStyle = 'rgba(0,0,0,.35)'; x.stroke();
-      x.fillStyle = (t.c === 7 || t.c === 2 || t.c === 6) ? '#2B2118' : '#FFFFFF'; x.font = `800 ${Math.round(CS * z * (t.l && t.l.length > 2 ? 0.26 : 0.38))}px "CF Sans", "Alegreya Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.fillText((t.l || '').slice(0, 4), cx, cy + 1);
+      x.fillStyle = (t.c === 7 || t.c === 2 || t.c === 6) ? '#2B2118' : '#FFFFFF'; x.font = `800 ${Math.max(9, Math.round(r * 2 * (t.l && t.l.length > 2 ? 0.31 : 0.45)))}px "CF Sans", "Alegreya Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText((t.l || '').slice(0, z < 1 ? 2 : 4), cx, cy + 1);
     });
+    if (!exporting) {
+      let list = allAoes(); const live = ed.cur && ed.cur.aoe ? ed.cur.aoe : ed.aoePrev && document.body.contains(ed.aoePrev.rec.foot) ? ed.aoePrev.a : null;
+      if (live) list = list.filter(a => a.id !== live.id).concat(live.s ? [live] : []);
+      const s2 = ed.view.s;
+      list.forEach(a => {
+        const col = (AOE_COLORS[a.c] || AOE_COLORS[0])[0]; aoePath(x, a);
+        x.save(); x.globalAlpha = clamp(+a.o, 0, 1); x.fillStyle = col; x.fill(); x.restore();
+        x.lineWidth = 3 / s2; x.strokeStyle = col; x.setLineDash([]); x.stroke();
+        const g = aoeGeo(a); x.beginPath(); x.arc(g.ox, g.oy, 5 / s2, 0, Math.PI * 2); x.fillStyle = col; x.fill(); x.lineWidth = 1.5 / s2; x.strokeStyle = '#FFFFFF'; x.stroke();
+        const tag = (a === live && ed.cur && ed.cur.type === 'aoe-new') ? aoeText(a) : a.l;
+        if (tag) { x.font = `800 ${14 / s2}px "CF Sans", system-ui, sans-serif`; x.textAlign = 'left'; x.textBaseline = 'middle'; const tw = x.measureText(tag).width, bx = g.ox + 10 / s2, by = g.oy - 18 / s2;
+          x.fillStyle = 'rgba(20,16,13,.85)'; x.fillRect(bx - 5 / s2, by - 11 / s2, tw + 10 / s2, 22 / s2); x.fillStyle = '#FFFFFF'; x.fillText(tag, bx, by); }
+      });
+    }
     if (ed.ruler && !exporting) {
       const { a, b } = ed.ruler; const s2 = ed.view.s;
       x.save(); x.strokeStyle = '#B9531A'; x.lineWidth = 4 / s2; x.setLineDash([10 / s2, 7 / s2]); x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke(); x.setLineDash([]);
@@ -4006,6 +4040,62 @@ function MapEditor(meta0, opts = {}) {
       x.fillStyle = 'rgba(20,16,13,.88)'; x.beginPath(); x.roundRect ? x.roundRect(bx, by, tw + 16 / s2, 24 / s2, 8 / s2) : x.rect(bx, by, tw + 16 / s2, 24 / s2); x.fill();
       x.fillStyle = '#F4EADB'; x.textAlign = 'left'; x.textBaseline = 'middle'; x.fillText(txt, bx + 8 / s2, by + 12 / s2); x.restore();
     }
+  }
+  /* ---- areas of effect ---- */
+  const ftSq = () => ed.meta.ft || 5;
+  const myOwn = () => PLAYER ? ME.id : 'gm';
+  const allAoes = () => (ed.data.aoes || []).map(a => Object.assign({}, a, { own: 'gm' })).concat(...Object.entries(ed.pa || {}).map(([u, l]) => (l || []).map(a => Object.assign({}, a, { own: u }))));
+  const canEditAoe = a => !PLAYER || a.own === ME.id;
+  const aoeText = a => `${a.s}-foot ${a.k === 'circle' ? 'radius' : a.k}`;
+  function aoeGeo(a) { return { ox: a.x * CS, oy: a.y * CS, r: a.s / ftSq() * CS, ang: (a.a || 0) * Math.PI / 180, w: (a.w || 5) / ftSq() * CS }; }
+  function aoePath(x, a) {
+    const g = aoeGeo(a), dx = Math.cos(g.ang), dy = Math.sin(g.ang), px = -dy, py = dx; x.beginPath();
+    if (a.k === 'circle') x.arc(g.ox, g.oy, g.r, 0, Math.PI * 2);
+    else if (a.k === 'cone') { x.moveTo(g.ox, g.oy); if (AOE_CONE_ARC) x.arc(g.ox, g.oy, g.r, g.ang - AOE_CONE_HALF, g.ang + AOE_CONE_HALF); else { const hw = g.r * Math.tan(AOE_CONE_HALF); x.lineTo(g.ox + dx * g.r + px * hw, g.oy + dy * g.r + py * hw); x.lineTo(g.ox + dx * g.r - px * hw, g.oy + dy * g.r - py * hw); } x.closePath(); }
+    else { const hw = g.w / 2; x.moveTo(g.ox + px * hw, g.oy + py * hw); x.lineTo(g.ox + px * hw + dx * g.r, g.oy + py * hw + dy * g.r); x.lineTo(g.ox - px * hw + dx * g.r, g.oy - py * hw + dy * g.r); x.lineTo(g.ox - px * hw, g.oy - py * hw); x.closePath(); }
+  }
+  function aoeAt(w) { const l = allAoes(); for (let i = l.length - 1; i >= 0; i--) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); aoePath(ctx, l[i]); const hit = ctx.isPointInPath(w.x, w.y); ctx.restore(); if (hit) return l[i]; } return null; }
+  const aoeList = own => own === 'gm' ? (ed.data.aoes || []) : ((ed.pa || {})[own] || []);
+  function writeAoes(own, list) {
+    const clean = list.map(a => { const b = Object.assign({}, a); delete b.own; return b; });
+    if (own === 'gm') { if (PLAYER) return; pushUndo(); ed.data.aoes = clean; changed(); return; }
+    ed.pa = Object.assign({}, ed.pa, { [own]: clean }); writeDoc('ptok/' + own, { aoe: { [ed.id]: clean }, at: Date.now() }, 'update'); draw();
+  }
+  const addAoe = a => { const own = myOwn(); writeAoes(own, aoeList(own).concat([a])); };
+  const putAoe = a => { const own = a.own || myOwn(); writeAoes(own, aoeList(own).map(x => x.id === a.id ? Object.assign({}, x, a) : x)); };
+  const delAoe = a => { const own = a.own || myOwn(); writeAoes(own, aoeList(own).filter(x => x.id !== a.id)); };
+  function aoeSheet(a0) {
+    const edit = canEditAoe(a0);
+    openSheet('Area of effect', rec => {
+      const st = rec.state; if (!st.a) { st.a = clone(a0); ed.aoePrev = { a: st.a, rec }; } const a = st.a;
+      const live = () => draw();
+      if (edit) add(rec.foot, [h('button', { class: 'btn danger', onclick: () => { ed.aoePrev = null; delAoe(a0); closeSheet(rec); } }, icon('trash'), 'Remove'), h('button', { class: 'btn primary', onclick: () => { ed.aoePrev = null; putAoe(Object.assign({}, a, { own: a0.own })); closeSheet(rec); } }, 'Save')]);
+      const dis = edit ? null : true, opLab = h('b', null, Math.round(a.o * 100) + '%'), dirLab = h('b', null, (a.a || 0) + '°');
+      return h('div', null,
+        h('p', { class: 'small muted', style: { marginTop: 0 } }, `Placed by ${a0.own === 'gm' ? 'the Game Master' : pcName(a0.own)}. ${aoeText(a)}.`),
+        h('label', { class: 'f' }, 'Shape'), h('div', { class: 'seg' }, AOE_SHAPES.map(([k, n]) => h('button', { 'aria-pressed': a.k === k ? 'true' : 'false', disabled: dis, onclick: () => { a.k = k; fillSheet(rec); live(); } }, n))),
+        h('label', { class: 'f' }, a.k === 'circle' ? 'Radius' : 'Length'), h('div', { class: 'stepper' }, h('button', { disabled: dis, onclick: () => { a.s = Math.max(5, a.s - 5); fillSheet(rec); live(); } }, '−'), h('span', { class: 'v' }, a.s + ' ft'), h('button', { disabled: dis, onclick: () => { a.s = Math.min(500, a.s + 5); fillSheet(rec); live(); } }, '+')),
+        a.k === 'line' ? [h('label', { class: 'f' }, 'Width'), h('div', { class: 'seg' }, [5, 10, 15, 20].map(wd => h('button', { 'aria-pressed': (a.w || 5) === wd ? 'true' : 'false', disabled: dis, onclick: () => { a.w = wd; fillSheet(rec); live(); } }, wd + ' ft')))] : null,
+        a.k !== 'circle' ? [h('label', { class: 'f' }, 'Direction ', dirLab), h('input', { type: 'range', class: 'oslider wide', min: 0, max: 355, step: 5, value: ((a.a || 0) % 360 + 360) % 360, disabled: dis, oninput: e => { a.a = +e.target.value; dirLab.textContent = a.a + '°'; live(); } })] : null,
+        h('label', { class: 'f' }, 'Colour'), h('div', { class: 'chips' }, AOE_COLORS.map(([c, n], i) => h('button', { class: 'chip', disabled: dis, 'aria-pressed': a.c === i ? 'true' : 'false', style: { borderLeft: `14px solid ${c}` }, onclick: () => { a.c = i; fillSheet(rec); live(); } }, n))),
+        h('label', { class: 'f' }, 'Fill opacity ', opLab), h('input', { type: 'range', class: 'oslider wide', min: 0, max: 100, step: 5, value: Math.round(a.o * 100), disabled: dis, oninput: e => { a.o = +e.target.value / 100; opLab.textContent = e.target.value + '%'; live(); } }),
+        h('p', { class: 'tiny muted', style: { margin: '4px 0 0' } }, 'The outline always shows, even at 0%.'),
+        h('label', { class: 'f' }, 'Label (optional)'), h('input', { class: 'in', maxlength: 24, value: a.l || '', disabled: dis, placeholder: 'e.g. Fireball', oninput: e => { a.l = e.target.value; live(); } }));
+    });
+  }
+  function aoeTools() {
+    const out = [h('span', { class: 'sep' })];
+    AOE_SHAPES.forEach(([k, n]) => out.push(h('button', { 'aria-pressed': ed.aoeK === k ? 'true' : 'false', onclick: () => { ed.aoeK = k; drawTools(); } }, n)));
+    out.push(h('span', { class: 'sep' }));
+    AOE_COLORS.forEach(([c, n], i) => out.push(h('button', { class: 'sw', style: { background: c }, 'aria-label': n, title: n, 'aria-pressed': ed.aoeC === i ? 'true' : 'false', onclick: () => { ed.aoeC = i; drawTools(); } })));
+    const lab = h('span', { class: 'olab' }, Math.round(ed.aoeO * 100) + '%');
+    out.push(h('label', { class: 'oslide', title: 'Fill opacity for new areas' }, 'Fill', h('input', { type: 'range', class: 'oslider', min: 0, max: 100, step: 5, value: Math.round(ed.aoeO * 100), 'aria-label': 'Fill opacity for new areas', oninput: e => { ed.aoeO = +e.target.value / 100; lab.textContent = e.target.value + '%'; } }), lab));
+    const mine = aoeList(myOwn()).length, any = allAoes().length;
+    if (mine) out.push(h('button', { onclick: () => writeAoes(myOwn(), []) }, icon('trash'), PLAYER ? 'Clear mine' : 'Clear GM areas'));
+    if (!PLAYER && any > mine) out.push(h('button', { onclick: () => { Object.keys(ed.pa || {}).forEach(u => writeAoes(u, [])); if (aoeList('gm').length) writeAoes('gm', []); } }, 'Clear all'));
+    if (ed.cur && ed.cur.type === 'aoe-new' && ed.cur.aoe.s) out.push(h('span', { class: 'rulerread', 'aria-live': 'polite' }, aoeText(ed.cur.aoe)));
+    else if (!any) out.push(h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, 'Drag from the point of origin.'));
+    return out;
   }
   function rulerText() {
     if (!ed.ruler) return '';
@@ -4019,7 +4109,7 @@ function MapEditor(meta0, opts = {}) {
   }
   loadBg();
   // data
-  const takeData = d => { ed.data = { cells: d.cells || {}, strokes: d.strokes || [], labels: d.labels || [], tokens: d.tokens || [] }; };
+  const takeData = d => { ed.data = { cells: d.cells || {}, strokes: d.strokes || [], labels: d.labels || [], tokens: d.tokens || [], aoes: d.aoes || [] }; };
   ed.unsubs.push(DB.doc(PLAYER ? 'livedata/' + ed.id : dataPath(ed.id)).onSnapshot(s => {
     const d = s.exists ? s.data() : null;
     if (!ed.loaded) { if (d) takeData(clone(d)); ed.loaded = true; if (PLAYER) drawTools(); draw(); return; }
@@ -4027,7 +4117,7 @@ function MapEditor(meta0, opts = {}) {
     const json = JSON.stringify(d); if (json === JSON.stringify(ed.data)) return;
     takeData(clone(d)); draw();
   }, () => { ed.loaded = true; if (!PLAYER) toast('Couldn’t load this map.'); }));
-  ed.unsubs.push(DB.collection('ptok').onSnapshot(s => { const o = {}; s.docs.forEach(d => { if (d.exists) o[d.id] = clone((d.data() || {}).pos || {}); }); ed.pt = o; if (!(ed.cur && ed.cur.type === 'token')) draw(); }, () => { }));
+  ed.unsubs.push(DB.collection('ptok').onSnapshot(s => { const o = {}, pa = {}; s.docs.forEach(d => { if (d.exists) { const v = d.data() || {}; o[d.id] = clone(v.pos || {}); const l = (v.aoe || {})[ed.id]; if (l && l.length) pa[d.id] = clone(l); } }); ed.pt = o; ed.pa = pa; if (!(ed.cur && ed.cur.type === 'token')) draw(); }, () => { }));
   if (PLAYER) ed.unsubs.push(DB.doc('live/' + ed.id).onSnapshot(s => {
     if (!s.exists) { toast('The GM has stopped showing this map.'); opts.onClose && opts.onClose(); return; }
     const m = s.data(); const bgChanged = JSON.stringify(m.bg) !== JSON.stringify(ed.meta.bg);
@@ -4037,7 +4127,7 @@ function MapEditor(meta0, opts = {}) {
   const ro = new ResizeObserver(() => { if (!ed.fitted && wrap.clientWidth) { fit(); ed.fitted = true; } draw(); });
   ro.observe(wrap);
   // hit tests
-  const tokAt = w => { const ts = ed.data.tokens || []; for (let i = ts.length - 1; i >= 0; i--) { const t = ts[i], z = t.z || 1, tp = tokPos(t); const cx = (tp.gx + z / 2) * CS, cy = (tp.gy + z / 2) * CS; if (Math.hypot(w.x - cx, w.y - cy) <= CS * z * 0.48) return t; } return null; };
+  const tokAt = w => { const ts = ed.data.tokens || []; for (let i = ts.length - 1; i >= 0; i--) { const t = ts[i], z = tokZ(t), tp = tokPos(t); const cx = (tp.gx + z / 2) * CS, cy = (tp.gy + z / 2) * CS; if (Math.hypot(w.x - cx, w.y - cy) <= Math.max(CS * 0.3, tokR(t) * 1.15)) return t; } return null; };
   const labelAt = w => { const ls = ed.data.labels || []; ctx.save(); for (let i = ls.length - 1; i >= 0; i--) { const l = ls[i]; ctx.font = `400 ${l.z || 20}px "CF Fell SC", "IM Fell English SC", Georgia, serif`; const wd = ctx.measureText(l.t).width; if (w.x >= l.x - 4 && w.x <= l.x + wd + 4 && Math.abs(w.y - l.y) <= (l.z || 20) * 0.7) { ctx.restore(); return l; } } ctx.restore(); return null; };
   const segD = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay; const L = dx * dx + dy * dy; let t = L ? ((px - ax) * dx + (py - ay) * dy) / L : 0; t = clamp(t, 0, 1); return Math.hypot(px - (ax + t * dx), py - (ay + t * dy)); };
   function strokeHit(st, w, tol) {
@@ -4066,6 +4156,13 @@ function MapEditor(meta0, opts = {}) {
     const cellC = q => ({ x: (clamp(Math.floor(q.x / CS), 0, ed.meta.cols - 1) + 0.5) * CS, y: (clamp(Math.floor(q.y / CS), 0, ed.meta.rows - 1) + 0.5) * CS });
     if (tool === 'ruler') { const a = cellC(w); ed.ruler = { a, b: a }; ed.cur = { type: 'ruler', cellC }; drawTools(); draw(); return; }
     if (tool === 'pan') { const t = tokAt(w); if (t && t.uid && canDrag(t)) { const tp = tokPos(t); ed.cur = { type: 'token', w, p0: p, tok: t, moved: false, snap: snapshot(), owned: true, start: tp }; return; } ed.cur = { type: 'pan', p0: p, tx: ed.view.tx, ty: ed.view.ty }; return; }
+    if (tool === 'aoe') {
+      const hit = aoeAt(w);
+      if (hit && canEditAoe(hit)) { ed.cur = { type: 'aoe-move', p0: p, w0: w, aoe: Object.assign({}, hit), x0: hit.x, y0: hit.y, moved: false }; return; }
+      if (hit) { ed.cur = { type: 'aoe-tap', aoe0: hit }; return; }
+      const ox = clamp(Math.round(w.x / CS * 2) / 2, 0, ed.meta.cols), oy = clamp(Math.round(w.y / CS * 2) / 2, 0, ed.meta.rows);
+      ed.cur = { type: 'aoe-new', p0: p, aoe: { id: nid(), k: ed.aoeK, x: ox, y: oy, s: 0, a: 0, w: 5, c: ed.aoeC, o: ed.aoeO } }; draw(); return;
+    }
     if (PLAYER) return;
     if (tool === 'paint') { pushUndo(); ed.cur = { type: 'paint', any: false }; paintCell(w); return; }
     if (tool === 'erase') { const snap = snapshot(); ed.cur = { type: 'erase', snap, any: eraseAt(w) }; draw(); return; }
@@ -4079,13 +4176,15 @@ function MapEditor(meta0, opts = {}) {
     const c = ed.cur; if (!c) return; const w = toW(p);
     if (c.type === 'pan') { ed.view.tx = c.tx + (p.x - c.p0.x); ed.view.ty = c.ty + (p.y - c.p0.y); draw(); }
     else if (c.type === 'ruler') { ed.ruler.b = c.cellC(w); drawTools(); draw(); }
+    else if (c.type === 'aoe-new') { const dx = w.x / CS - c.aoe.x, dy = w.y / CS - c.aoe.y; c.aoe.s = Math.round(Math.hypot(dx, dy) * ftSq() / 5) * 5; if (Math.hypot(dx, dy) > 0.2) c.aoe.a = Math.round(Math.atan2(dy, dx) * 180 / Math.PI / 5) * 5; drawTools(); draw(); }
+    else if (c.type === 'aoe-move') { if (!c.moved && Math.hypot(p.x - c.p0.x, p.y - c.p0.y) < 6) return; c.moved = true; c.aoe.x = clamp(Math.round((c.x0 + (w.x - c.w0.x) / CS) * 2) / 2, 0, ed.meta.cols); c.aoe.y = clamp(Math.round((c.y0 + (w.y - c.w0.y) / CS) * 2) / 2, 0, ed.meta.rows); draw(); }
     else if (c.type === 'paint') paintCell(w);
     else if (c.type === 'erase') { if (eraseAt(w)) { c.any = true; draw(); } }
     else if (c.type === 'pen') { const pp = c.preview.p; const lx = pp[pp.length - 2], ly = pp[pp.length - 1]; if (Math.hypot(w.x - lx, w.y - ly) > 3 / ed.view.s + 1) { pp.push(Math.round(w.x), Math.round(w.y)); draw(); } }
     else if (c.type === 'line' || c.type === 'rect') { const b = snapPt(w); c.preview.p[2] = b.x; c.preview.p[3] = b.y; draw(); }
     else if (c.type === 'token' && c.tok) {
-      if (!c.moved && Math.hypot(p.x - c.p0.x, p.y - c.p0.y) < 6) return; c.moved = true; const z = c.tok.z || 1;
-      const gx = clamp(Math.round(w.x / CS - z / 2), 0, ed.meta.cols - z), gy = clamp(Math.round(w.y / CS - z / 2), 0, ed.meta.rows - z);
+      if (!c.moved && Math.hypot(p.x - c.p0.x, p.y - c.p0.y) < 6) return; c.moved = true; const z = tokZ(c.tok), st2 = z < 1 ? 0.5 : 1;
+      const gx = clamp(Math.round((w.x / CS - z / 2) / st2) * st2, 0, ed.meta.cols - z), gy = clamp(Math.round((w.y / CS - z / 2) / st2) * st2, 0, ed.meta.rows - z);
       if (c.tok.uid) { ed.pt[c.tok.uid] = ed.pt[c.tok.uid] || {}; ed.pt[c.tok.uid][ed.id] = Object.assign({}, ed.pt[c.tok.uid][ed.id], { [c.tok.id]: { gx, gy } }); }
       if (!PLAYER) { c.tok.gx = gx; c.tok.gy = gy; }
       draw();
@@ -4093,6 +4192,9 @@ function MapEditor(meta0, opts = {}) {
   }
   async function end(p) {
     const c = ed.cur; ed.cur = null; if (!c) return;
+    if (c.type === 'aoe-new') { if (c.aoe.s >= 5) addAoe(c.aoe); else { toast('Drag from the point of origin to set the size and direction.', 2600); draw(); } drawTools(); return; }
+    if (c.type === 'aoe-move') { if (c.moved) putAoe(c.aoe); else aoeSheet(c.aoe); draw(); drawTools(); return; }
+    if (c.type === 'aoe-tap') { aoeSheet(c.aoe0); return; }
     if (c.type === 'paint') { if (c.any) changed(); else ed.undo.pop(); drawTools(); }
     else if (c.type === 'erase') { if (c.any) { ed.undo.push(c.snap); ed.redo = []; changed(); drawTools(); } }
     else if (c.type === 'pen') { if (c.preview.p.length >= 2) { pushUndo(); ed.data.strokes.push(c.preview); changed(); } }
@@ -4116,18 +4218,20 @@ function MapEditor(meta0, opts = {}) {
       const used = new Set((ed.data.tokens || []).map(t => t.l));
       let l = 'A'; for (let i = 0; i < 26; i++) { const ch = String.fromCharCode(65 + i); if (!used.has(ch)) { l = ch; break; } }
       pushUndo();
-      ed.data.tokens.push({ id: nid(), gx: Math.floor(c.w.x / CS), gy: Math.floor(c.w.y / CS), l, c: ed.color === 0 ? 5 : ed.color, z: 1 });
+      const nsz = ed.tokSize || 'med', nz = TOKEN_SIZE[nsz][2], nst = nz < 1 ? 0.5 : 1;
+      ed.data.tokens.push({ id: nid(), gx: clamp(Math.floor(c.w.x / CS / nst) * nst - (nz > 1 ? Math.floor((nz - 1) / 2) : 0), 0, ed.meta.cols - nz), gy: clamp(Math.floor(c.w.y / CS / nst) * nst - (nz > 1 ? Math.floor((nz - 1) / 2) : 0), 0, ed.meta.rows - nz), l, c: ed.color === 0 ? 5 : ed.color, sz: nsz, z: nz });
       changed();
     }
   }
   function tokenSheet(t) {
     openSheet('Token', rec => {
-      const st = rec.state; if (!st.d) st.d = { l: t.l || '', c: t.c, z: t.z || 1, uid: t.uid || '' };
+      const st = rec.state; if (!st.d) st.d = { l: t.l || '', c: t.c, sz: tokSz(t), uid: t.uid || '' };
       add(rec.foot, [h('button', { class: 'btn danger', onclick: () => { pushUndo(); ed.data.tokens = ed.data.tokens.filter(x => x !== t); changed(); closeSheet(rec); } }, icon('trash'), 'Remove'),
         h('button', { class: 'btn primary', onclick: () => {
-          pushUndo(); const tp = tokPos(t);
-          Object.assign(t, { l: st.d.l.slice(0, 4), c: st.d.c, z: st.d.z, uid: st.d.uid || null, gx: tp.gx, gy: tp.gy });
-          if (st.d.uid) writeDoc('ptok/' + st.d.uid, { pos: { [ed.id]: { [t.id]: { gx: tp.gx, gy: tp.gy } } }, at: Date.now() }, 'update');
+          pushUndo(); const tp = tokPos(t), nz = TOKEN_SIZE[st.d.sz][2], nst = nz < 1 ? 0.5 : 1;
+          const gx = clamp(Math.round(tp.gx / nst) * nst, 0, ed.meta.cols - nz), gy = clamp(Math.round(tp.gy / nst) * nst, 0, ed.meta.rows - nz);
+          Object.assign(t, { l: st.d.l.slice(0, 4), c: st.d.c, sz: st.d.sz, z: nz, uid: st.d.uid || null, gx, gy });
+          if (st.d.uid) { writeDoc('ptok/' + st.d.uid, { pos: { [ed.id]: { [t.id]: { gx, gy } } }, at: Date.now() }, 'update'); if (ed.pt[st.d.uid] && ed.pt[st.d.uid][ed.id]) ed.pt[st.d.uid][ed.id][t.id] = { gx, gy }; }
           changed(); closeSheet(rec);
         } }, 'Save token')]);
       const pcs = Object.keys(S.chars || {});
@@ -4136,7 +4240,8 @@ function MapEditor(meta0, opts = {}) {
         st.d.uid ? h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, `${pcName(st.d.uid)} can drag this token on the live map.`) : null,
         h('label', { class: 'f' }, 'Label (up to 4 letters)'), h('input', { class: 'in', maxlength: 4, value: st.d.l, oninput: e => st.d.l = e.target.value }),
         h('label', { class: 'f' }, 'Colour'), h('div', { class: 'chips' }, MAP_COLORS.map(([c, n], i) => h('button', { class: 'chip', 'aria-pressed': st.d.c === i ? 'true' : 'false', style: { borderLeft: `14px solid ${c}` }, onclick: () => { st.d.c = i; fillSheet(rec); } }, n))),
-        h('label', { class: 'f' }, 'Size'), h('div', { class: 'seg' }, [[1, 'Medium'], [2, 'Large'], [3, 'Huge'], [4, 'Gargantuan']].map(([z, n]) => h('button', { 'aria-pressed': st.d.z === z ? 'true' : 'false', onclick: () => { st.d.z = z; fillSheet(rec); } }, n))));
+        h('label', { class: 'f' }, 'Size'), h('div', { class: 'chips' }, TOKEN_SIZES.map(([k, n]) => h('button', { class: 'chip', 'aria-pressed': st.d.sz === k ? 'true' : 'false', onclick: () => { st.d.sz = k; fillSheet(rec); } }, n))),
+        h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, `${TOKEN_SIZE[st.d.sz][1]}: ${TOKEN_SIZE[st.d.sz][3]}.`));
     });
   }
   cvs.addEventListener('pointerdown', e => {
