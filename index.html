@@ -1405,7 +1405,7 @@ function spellView(sp, ctx = {}, rec) {
       const tot = c.slots[l - 1] || 0; if (!tot) continue;
       const left = tot - (c.used[l - 1] || 0);
       row.append(h('button', { class: 'btn sm', disabled: left <= 0, onclick: () => {
-        c.spend(l); toast(`Cast ${sp.n} with a level ${l} slot`);
+        c.spend(l); toast(`Cast ${sp.n} with a level ${l} slot`); if (typeof wildAfterCast === 'function') setTimeout(() => wildAfterCast(sp), 1600);
         if (typeof spellTargetable === 'function' && spellTargetable(sp)) { L = l; castOnTargets(sp, l, Object.assign({ who }, ctx)); }
         else if (sc) { L = l; const rs = rollsAt(); if (rs[0]) doRoll(rs[0].e, rs[0].o); }
         if (rec) fillSheet(rec);
@@ -1718,7 +1718,7 @@ function sheetView(c, o = {}) {
         h('button', { class: 'mini' + (c.insp ? ' insp' : ''), type: 'button', onclick: () => openInspiration(c, o), 'aria-pressed': c.insp ? 'true' : 'false' }, 'Heroic Inspiration', h('b', { style: { color: c.insp ? 'var(--ember)' : 'var(--ink-3)' } }, c.insp ? 'Yes' : 'No'))));
       if (!o.ro) s.append(h('div', { class: 'row mt' },
         h('button', { class: 'btn grow', onclick: () => { const p = Object.assign(usesRestPatch(c, 'short'), itemsRestPatch(c, 'short').patch); const solo = c.cls === 'warlock' && !d.multi; if (solo) p.spells = { used: [0, 0, 0, 0, 0, 0, 0, 0, 0] }; if (d.pact) p.spells = { pactUsed: [0, 0, 0, 0, 0, 0, 0, 0, 0] }; o.set(p); toast(solo || d.pact ? 'Short rest taken. Pact slots restored.' : 'Short rest taken. Spend hit dice to heal.'); } }, 'Short rest'),
-        h('button', { class: 'btn grow', onclick: () => { const dawn = itemsRestPatch(c, 'long'); o.set(Object.assign({ exh: Math.max(0, (+c.exh || 0) - 1), hp: { cur: hp.max, tmp: 0 }, hdUsed: 0, hdUsedBy: {}, death: { s: 0, f: 0 }, spells: { used: [0, 0, 0, 0, 0, 0, 0, 0, 0], pactUsed: [0, 0, 0, 0, 0, 0, 0, 0, 0] } }, usesRestPatch(c, 'long'), dawn.patch)); if (dawn.msgs.length) setTimeout(() => toast('Dawn: ' + dawn.msgs.join('; '), 5200), 2800); if (c.species === 'human' && o.gainInsp) setTimeout(() => o.gainInsp('Resourceful: you finish a long rest'), 600); toast('Long rest taken. HP, hit dice and spell slots restored.'); } }, 'Long rest')));
+        h('button', { class: 'btn grow', onclick: () => { const dawn = itemsRestPatch(c, 'long'); o.set(Object.assign({ exh: Math.max(0, (+c.exh || 0) - 1), hp: { cur: hp.max, tmp: 0 }, hdUsed: 0, hdUsedBy: {}, death: { s: 0, f: 0 }, spells: { used: [0, 0, 0, 0, 0, 0, 0, 0, 0], pactUsed: [0, 0, 0, 0, 0, 0, 0, 0, 0] } }, usesRestPatch(c, 'long'), dawn.patch)); if (dawn.msgs.length) setTimeout(() => toast('Dawn: ' + dawn.msgs.join('; '), 5200), 2800); if (typeof grungAfterRest === 'function') setTimeout(() => grungAfterRest(o), 900); if (c.species === 'human' && o.gainInsp) setTimeout(() => o.gainInsp('Resourceful: you finish a long rest'), 600); toast('Long rest taken. HP, hit dice and spell slots restored.'); } }, 'Long rest')));
     }
     if (k === 'skills') {
       s.append(h('div', { class: 'minis', style: { marginTop: 0, marginBottom: '12px' } }, h('div', { class: 'mini' + (d.isSet('pb') ? ' set' : ''), onlong: o.ro ? null : () => editValue({ title: 'Proficiency bonus', value: d.pb, calc: d.pbCalc, signed: true, isSet: d.isSet('pb'), min: 0, max: 10, onSave: v => setOv(c, o, 'pb', v === d.pbCalc ? null : v), onReset: () => setOv(c, o, 'pb', null) }) }, 'Proficiency', h('b', null, sgn(d.pb))), h('div', { class: 'mini' + (d.isSet('pp') ? ' set' : ''), onlong: o.ro ? null : () => editValue({ title: 'Passive Perception', value: d.pp, calc: d.ppCalc, isSet: d.isSet('pp'), min: 0, max: 40, onSave: v => setOv(c, o, 'pp', v === d.ppCalc ? null : v), onReset: () => setOv(c, o, 'pp', null) }) }, 'Passive Perception', h('b', null, String(d.pp)))));
@@ -1768,7 +1768,7 @@ function sheetView(c, o = {}) {
         if (imx.notes.length) s.append(h('p', { class: 'small', style: { margin: 0 } }, 'From items: ' + imx.notes.join('; ')));
       }
     }
-    if (k === 'actions') s.append(limitedUsesPanel(c, d, o));
+    if (k === 'actions') { const wp = wildPanel(c, o); if (wp) s.append(wp); s.append(limitedUsesPanel(c, d, o)); }
     if (k === 'effects') s.append(effectsSection(c, d, o));
     return s;
   }
@@ -2481,6 +2481,7 @@ function featFx(c) {
   const lvl = clamp(+c.level || 1, 1, 20), pb = Math.ceil(lvl / 4) + 1;
   const a = { init: 0, hpPerLevel: 0, speed: 0, rangedAtk: 0, acArmored: 0, unarmored: null, unarmed: null, skills: {}, tools: [], langs: [], resist: [], senses: [], dice: {}, res: [], spells: [], extra: new Set(), dc: [], need: [] };
   const list = featList(c), names = new Set(list.map(f => f.n));
+  if (c.species === 'grung') { a.skills.Perception = Math.max(a.skills.Perception || 0, 1); a.resist.push('Poison'); a.senses.push('Climb Speed equal to your Speed', 'Breathes air and water', 'Standing Leap: 25 ft long, 15 ft high'); a.dc.push({ n: 'Poisonous Skin', k: 'con' }); }
   list.forEach(f => {
     const e = FX[f.n]; if (!e) return; const ch = f.ch || {}, src = f.full || f.n;
     if (e.init === 'pb') a.init += pb;
@@ -2610,7 +2611,8 @@ const SPECIES_RES = {
   dragonborn: [{ n: 'Breath Weapon', l: 1, max: 'pb' }, { n: 'Draconic Flight', l: 5, max: 1 }],
   dwarf: [{ n: 'Stonecunning (Tremorsense)', l: 1, max: 'pb' }],
   goliath: [{ n: 'Giant Ancestry', l: 1, max: 'pb' }, { n: 'Large Form', l: 5, max: 1 }],
-  orc: [{ n: 'Adrenaline Rush', l: 1, max: 'pb', reset: 'short' }, { n: 'Relentless Endurance', l: 1, max: 1 }]
+  orc: [{ n: 'Adrenaline Rush', l: 1, max: 'pb', reset: 'short' }, { n: 'Relentless Endurance', l: 1, max: 1 }],
+  grung: [{ n: 'Poisonous Skin', l: 1, max: 'pb', info: c => { const k = typeof grungCaste === 'function' && grungCaste(c); return `DC ${8 + (Math.ceil((+c.level || 1) / 4) + 1) + mod(((c.abilities || {}).con) || 10)}` + (k ? ` · ${k[0]}: ${k[1]}` : ''); } }]
 };
 const atLevel = (tbl, lvl) => { let v = null; tbl.forEach(([l, n]) => { if (lvl >= l) v = n; }); return v; };
 function resMax(r, c, lvl, d) {
@@ -2631,7 +2633,7 @@ function classResources(c, d) {
     if (lvl < (r.l || 1)) return;
     const id = key + ':' + r.n, max = r.kind === 'dc' ? 0 : resMax(r, c, lvl, d);
     const die = r.die ? (Array.isArray(r.die) ? atLevel(r.die, lvl) : r.die) : null;
-    out.push({ id, n: r.n, src, max, kind: r.kind || null, base: r.base, step: r.step, die, short1: !!r.short1 || (r.short1From && lvl >= r.short1From), reset: r.reset === 'short' || (r.shortFrom && lvl >= r.shortFrom) ? 'short' : 'long', pool: max > 12 });
+    out.push({ id, n: r.n, src, max, info: typeof r.info === 'function' ? r.info(c) : r.info || '', kind: r.kind || null, base: r.base, step: r.step, die, short1: !!r.short1 || (r.short1From && lvl >= r.short1From), reset: r.reset === 'short' || (r.shortFrom && lvl >= r.shortFrom) ? 'short' : 'long', pool: max > 12 });
   };
   classesOf(c).forEach(k => {
     const lvl = clamp(k.lvl, 1, 20), cn = (CLS_BY[k.cls] || {}).n || cap(k.cls || '');
@@ -2892,7 +2894,7 @@ function limitedUsesPanel(c, d, o) {
   ['Class and species', 'Feats', 'Your trackers'].forEach(g => { if (!groups[g]) return;
     if (Object.keys(groups).length > 1) wrap.append(h('div', { class: 'tiny muted', style: { margin: '10px 0 4px', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700 } }, g));
     wrap.append(h('div', { class: 'slots' }, groups[g].map(r => {
-      const u = Math.min(r.max || 0, used[r.id] || 0), sub = `${r.src}${r.die ? ', ' + r.die : ''} · ${r.kind === 'dc' ? 'resets on a Short or Long Rest' : r.reset === 'short' ? 'Short or Long Rest' : r.short1 ? 'Long Rest (1 back on a Short Rest)' : 'Long Rest'}`;
+      const u = Math.min(r.max || 0, used[r.id] || 0), sub = `${r.info ? r.info + ' · ' : ''}${r.src}${r.die ? ', ' + r.die : ''} · ${r.kind === 'dc' ? 'resets on a Short or Long Rest' : r.reset === 'short' ? 'Short or Long Rest' : r.short1 ? 'Long Rest (1 back on a Short Rest)' : 'Long Rest'}`;
       const name = h('span', { class: 'lv', style: { minWidth: 0, flex: 1 } }, r.n, h('span', { class: 'tiny muted', style: { display: 'block', fontWeight: 400 } }, sub));
       if (r.custom && !o.ro) name.onclick = () => editTracker(c, o, r.custom);
       if (r.kind === 'dc') { const n = used[r.id] || 0; return h('div', { class: 'slotrow' }, name, h('div', { class: 'stepper' }, h('button', { disabled: o.ro || !n ? true : null, onclick: () => setUsed(r.id, n - 1) }, '−'), h('span', { class: 'v' }, 'DC ' + (r.base + r.step * n)), h('button', { disabled: o.ro ? true : null, onclick: () => setUsed(r.id, n + 1) }, '+'))); }
@@ -3316,6 +3318,7 @@ function effectsSection(c, d, o) {
   if (im.speed0) s.append(h('p', { class: 'tiny muted', style: { margin: '0 0 8px' } }, 'Your Speed is 0 while this lasts, and the sheet shows it.'));
   s.append(h('div', { class: 'slotrow', style: { marginTop: '10px' } }, h('span', { class: 'lv', style: { flex: 1 } }, 'Exhaustion', h('span', { class: 'tiny muted', style: { display: 'block', fontWeight: 400 } }, exh ? `−${2 * exh} to D20 Tests, −${5 * exh} ft Speed${exh >= 6 ? '. Level 6: death.' : ''}` : 'A Long Rest removes one level')),
     h('div', { class: 'stepper' }, h('button', { disabled: o.ro || !exh ? true : null, onclick: () => o.set({ exh: exh - 1 }) }, '−'), h('span', { class: 'v' }, String(exh)), h('button', { disabled: o.ro || exh >= 6 ? true : null, onclick: () => o.set({ exh: exh + 1 }) }, '+'))));
+  if (typeof grungWaterPanel === 'function') { const gw = grungWaterPanel(c, o); if (gw) s.append(gw); }
   // spells and other temporary effects
   const efx = c.efx || [];
   s.append(h('div', { class: 'row', style: { margin: '18px 0 8px' } }, h('div', { class: 'lbl grow' }, 'Spells and other effects'), o.ro ? null : h('button', { class: 'btn sm ghost', onclick: () => openAddEffect(c, o) }, icon('plus'), 'Add')));
@@ -3443,6 +3446,162 @@ function castOnTargets(sp, L, ctx) {
 const spellTargetable = sp => { const sc = typeof dndScale === 'function' ? dndScale(sp) : null; return !!((sc && (sc.heal || sc.temp)) || (typeof EFFECT_PRESETS !== 'undefined' && EFFECT_PRESETS.some(p => p.n === sp.n))); };
 /* when a concentration effect you cast ends, it ends for everyone you gave it to */
 function endSharedEffect(e) { (e.targets || []).forEach(u => { if (u !== ME.id) applyAid(u, { efxEnd: e.key }); }); }
+
+/* ================= Wild Magic surges =================
+   Characters with wild magic (Wild Magic Sorcery, or turned on in Edit) roll a d20 after casting a spell with a slot;
+   on a 20 they roll on their surge table: the standard d100 or a d1000. Tables aren't built in (they're copyrighted):
+   the player imports their own copy, saved in characters/{uid}/data/wild. */
+const WILD_SUBS = ['Wild Magic Sorcery', 'Path of Wild Magic'];
+const wildOn = c => !!c && (!!(c.wild && c.wild.on) || classesOf(c).some(k => WILD_SUBS.includes(k.sub)));
+const wildDie = c => (c && c.wild && +c.wild.die === 1000) ? 1000 : 100;
+const wildTable = () => S.wildT || null;
+/* reads a pasted or uploaded table: "1-2 Effect", "0001 Effect", "1. Effect", CSV rows, or JSON */
+function parseWildTable(text) {
+  const rows = []; let src = String(text || '').replace(/\r/g, '');
+  try { const j = JSON.parse(src); const arr = Array.isArray(j) ? j : Array.isArray(j.rows) ? j.rows : null;
+    if (arr) { arr.forEach((x, i) => { if (typeof x === 'string') rows.push([i + 1, i + 1, x]); else if (Array.isArray(x)) rows.push([+x[0], +(x[1] != null && typeof x[1] === 'number' ? x[1] : x[0]), String(typeof x[1] === 'number' ? x[2] : x[1])]); else if (x && (x.roll || x.lo)) { const m = String(x.roll || x.lo).match(/(\d+)\D*(\d+)?/); rows.push([+m[1], +(x.hi || m[2] || m[1]), String(x.effect || x.text || x.result || '')]); } }); return finishTable(rows); } } catch (e) { }
+  const rx = /^\s*["']?(\d{1,4})(?:\s*(?:-|–|—|to)\s*(\d{1,4}))?["']?\s*(?:[.):|\t,;]|\s)\s*(.*)$/;
+  src.split('\n').forEach(line => {
+    const m = rx.exec(line), last = rows[rows.length - 1];
+    const lo = m ? +m[1] : null, expected = last ? last[1] + 1 : null;
+    const isNew = m && (last ? (lo === expected || (lo === 0 && expected >= 100)) : (lo <= 1));
+    if (isNew) rows.push([lo, m[2] ? +m[2] : lo, String(m[3] || '').replace(/^["',]+|["',]+$/g, '').trim()]);
+    else if (last && line.trim()) last[2] = (last[2] + ' ' + line.trim()).trim();
+  });
+  return finishTable(rows);
+}
+function finishTable(rows) {
+  rows = rows.filter(r => r[2]);
+  const top = rows.reduce((m, r) => Math.max(m, r[0], r[1]), 0);
+  const die = top > 100 ? 1000 : 100;
+  /* "00" or "000" means the top number, as on percentile dice */
+  rows = rows.map(r => { let lo = r[0], hi = r[1]; if (lo === 0) lo = die; if (hi === 0) hi = die; return [lo, Math.max(lo, hi), r[2]]; });
+  rows.sort((a, b) => a[0] - b[0]);
+  const covered = new Set(); rows.forEach(r => { for (let n = r[0]; n <= r[1] && n <= die; n++) covered.add(n); });
+  const gaps = []; for (let n = 1; n <= die; n++) if (!covered.has(n)) gaps.push(n);
+  return { die, rows, gaps };
+}
+const wildEntry = (t, n) => t && (t.rows || []).find(r => n >= r[0] && n <= r[1]);
+function rollSurge(c, why) {
+  const die = wildDie(c), t = wildTable(), usable = t && t.die === die ? t : null;
+  const r = roll('1d' + die, { d20: false }); if (!r) return;
+  const row = wildEntry(usable, r.total);
+  r.label = `Wild Magic Surge (d${die})` + (row ? ': ' + row[2].slice(0, 90) + (row[2].length > 90 ? '…' : '') : '');
+  ROLLLOG.unshift(r); if (ROLLLOG.length > 60) ROLLLOG.pop();
+  try { if (typeof rollSound === 'function') rollSound(r, { kind: 'surge', snd: 'spell' }); } catch (e) { }
+  if (rollHook) rollHook(r);
+  openSheet(`Wild Magic Surge: ${r.total}`, rec => h('div', null,
+    why ? h('p', { class: 'small muted', style: { marginTop: 0 } }, why) : null,
+    h('div', { class: 'panel', style: { textAlign: 'center' } }, h('div', { class: 'lbl' }, `d${die}`), h('div', { style: { fontSize: '44px', fontWeight: 800, color: 'var(--ember)' } }, String(r.total))),
+    row ? h('div', { class: 'mt' }, richText(row[2], { label: 'Wild Magic Surge', who: c.name, spellLinks: true, spellCtx: sp => ({ who: c.name, dc: D(c).sdc, atk: D(c).satk, mod: spellModFor(c, D(c), sp) }) })) :
+      h('div', { class: 'helper mt' }, usable ? `Your table has no result for ${r.total}.` : `Import your d${die} table to see what happens.`,
+        h('div', { class: 'row mt' }, h('button', { class: 'btn sm', onclick: () => { closeSheet(rec); openWildTable(c); } }, 'Import a table'), t && t.link ? h('a', { class: 'btn sm ghost', href: t.link, target: '_blank', rel: 'noopener' }, 'Open your table') : null))));
+}
+function surgeCheck(c, o = {}) {
+  const r = doRoll('1d20', { label: 'Wild Magic: surge check', who: c.name, kind: 'chk', d20: false }); if (!r) return;
+  if (r.total === 20) setTimeout(() => rollSurge(c, 'You rolled a 20 on the surge check.'), 900);
+  else toast(`Surge check: ${r.total}. No surge this time.`, 2200);
+}
+const tidesId = c => { const k = classesOf(c).find(x => x.sub === 'Wild Magic Sorcery'); return k ? `${k.cls}:${k.sub}:Tides of Chaos` : null; };
+/* after a spell with a slot: Tides of Chaos forces a surge (and comes back); otherwise offer the d20 check */
+function wildAfterCast(sp) {
+  const c = S.char; if (!wildOn(c)) return;
+  const sorc = classesOf(c).some(k => WILD_SUBS.includes(k.sub)) ? (sp.c || []).includes('sorcerer') || classesOf(c).length === 1 : true;
+  if (!sorc) return;
+  const tid = tidesId(c);
+  if (tid && ((c.res || {})[tid] || 0) > 0) { setChar({ res: { [tid]: 0 } }); setTimeout(() => rollSurge(c, 'You used Tides of Chaos, so this spell surges automatically. Tides of Chaos is ready again.'), 900); return; }
+  document.querySelectorAll('.surgeprompt').forEach(x => x.remove());
+  const card = h('div', { class: 'rollcard surgeprompt', role: 'status' }, h('div', { class: 'grow' }, h('div', { class: 't' }, 'Wild Magic'), h('div', { class: 's small' }, 'Roll a d20 for a surge? (once per turn)'),
+    h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => { card.remove(); surgeCheck(c); } }, 'Roll d20'), h('button', { class: 'btn sm', onclick: () => card.remove() }, 'Not now'))));
+  document.body.append(card); setTimeout(() => card.remove(), 12000);
+}
+/* the Actions tab panel */
+function wildPanel(c, o) {
+  if (!wildOn(c)) return null;
+  const t = wildTable(), die = wildDie(c), ok = t && t.die === die;
+  const tid = tidesId(c), used = tid ? ((c.res || {})[tid] || 0) : 0;
+  return h('div', { class: 'panel', style: { marginTop: '14px', borderColor: 'var(--ember-line)' } },
+    h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, h('div', { class: 'lbl' }, 'Wild Magic'), h('div', { class: 'small muted' }, ok ? `Your d${die} table: ${t.rows.length} results` + (t.gaps && t.gaps.length ? `, ${t.gaps.length} numbers missing` : '') : `d${die} table not imported yet`)),
+      o.ro ? null : h('button', { class: 'btn sm ghost', onclick: () => openWildTable(c) }, ok ? 'Table' : 'Import')),
+    o.ro ? null : h('div', { class: 'row mt' }, h('button', { class: 'btn sm', onclick: () => surgeCheck(c) }, icon('d20'), 'Surge check (d20)'), h('button', { class: 'btn sm primary', onclick: () => rollSurge(c, '') }, `Roll on the d${die}`)),
+    tid ? h('p', { class: 'tiny muted', style: { margin: '8px 0 0' } }, used ? 'Tides of Chaos used: your next spell with a slot surges automatically and restores it.' : 'Tides of Chaos ready (Limited uses).') : null);
+}
+/* importing and managing a surge table */
+function openWildTable(c) {
+  openSheet('Wild Magic table', rec => {
+    const st = rec.state; if (st.txt == null) { st.txt = ''; st.link = (wildTable() || {}).link || ''; st.die = wildDie(c); }
+    const cur = wildTable(), parsed = st.txt.trim() ? parseWildTable(st.txt) : null;
+    add(rec.foot, [h('button', { class: 'btn primary', disabled: parsed && parsed.rows.length ? null : true, onclick: () => {
+      const doc = { die: parsed.die, rows: parsed.rows, gaps: parsed.gaps.slice(0, 50), link: st.link.trim(), at: Date.now() };
+      if (JSON.stringify(doc).length > 900000) { toast('That table is too large to save.'); return; }
+      writeDoc('characters/' + ME.id + '/data/wild', doc); S.wildT = doc;
+      if (wildDie(c) !== parsed.die) setChar({ wild: Object.assign({}, c.wild, { die: parsed.die }) });
+      closeSheet(rec); toast(`Saved your d${parsed.die} table: ${parsed.rows.length} results.`, 2600); refresh();
+    } }, 'Save table')]);
+    return h('div', null,
+      h('label', { class: 'f', style: { marginTop: 0 } }, 'Surge table to use'),
+      h('div', { class: 'seg' }, [[100, 'Standard (d100)'], [1000, 'd1000']].map(([v, l]) => h('button', { 'aria-pressed': wildDie(c) === v ? 'true' : 'false', onclick: () => { setChar({ wild: Object.assign({}, c.wild, { die: v }) }); setTimeout(() => fillSheet(rec), 80); } }, l))),
+      cur ? h('div', { class: 'helper mt' }, `Saved: d${cur.die} table with ${cur.rows.length} results${cur.gaps && cur.gaps.length ? ` (missing ${cur.gaps.slice(0, 6).join(', ')}${cur.gaps.length > 6 ? '…' : ''})` : ''}.`, cur.die !== wildDie(c) ? ' It doesn’t match the table you chose above, so import the other one.' : '') : null,
+      h('label', { class: 'f' }, 'Paste your table'),
+      h('textarea', { class: 'in', rows: 8, placeholder: '1-2  You cast Fireball centered on yourself…\n3-4  …\n\nor\n\n0001  …\n0002  …', oninput: e => { st.txt = e.target.value; clearTimeout(st.tm); st.tm = setTimeout(() => fillSheet(rec), 400); }, value: st.txt }),
+      h('div', { class: 'row mt' }, h('button', { class: 'btn sm', onclick: async () => { const f = await pickFile('.txt,.csv,.json,text/plain,application/json'); if (!f) return; st.txt = await readText(f); fillSheet(rec); } }, icon('plus'), 'Load from a file')),
+      parsed ? h('p', { class: 'small', style: { color: parsed.rows.length ? 'var(--sage)' : 'var(--red)' } }, parsed.rows.length ? `Read ${parsed.rows.length} results for a d${parsed.die}${parsed.gaps.length ? `; ${parsed.gaps.length} numbers have no result (first: ${parsed.gaps.slice(0, 5).join(', ')})` : ', every number covered'}.` : 'No numbered results found. Each result should start with its number or range, like “1-2” or “0437”.') : null,
+      h('label', { class: 'f' }, 'Link to your table (optional)'), h('input', { class: 'in', value: st.link, placeholder: 'https://…', oninput: e => st.link = e.target.value }),
+      h('p', { class: 'tiny muted' }, 'Surge tables aren’t built into Campfire because they belong to their authors. The table you import is saved only with this character, not shared or published. One result per line starting with its number or range; results can run over several lines. Text files, CSV and JSON work too.'));
+  });
+}
+
+/* ================= Grung (modified for 2024 rules) =================
+   A homebrew conversion of the grung from One Grung Above (2017), rewritten for the 2024 rules:
+   no ability scores (they come from backgrounds), a Proficiency-Bonus-scaled Poisonous Skin, resistance instead of
+   immunity, a gentler Water Dependency, and a caste colour that adds an effect to the poison. */
+const GRUNG_CASTES = [
+  ['Green', 'its Speed is reduced by 10 feet'],
+  ['Blue', 'it has Disadvantage on Dexterity (Stealth) checks and can’t stay hidden'],
+  ['Purple', 'it has Disadvantage on its next attack roll'],
+  ['Red', 'it can’t take Bonus Actions'],
+  ['Orange', 'it has the Frightened condition (you are the source)'],
+  ['Gold', 'it has the Charmed condition (you are the charmer)']
+];
+(() => {
+  if (SPC_BY.grung) return;
+  const g = {
+    i: 'grung', n: 'Grung', label: 'Grung (modified for 2024 rules)', sz: 'Small', sp: '30', hb: true,
+    tr: [
+      { n: 'Origin', d: 'A homebrew conversion of the grung from One Grung Above (2017), modified for the 2024 rules. Check with your Game Master before playing one.' },
+      { n: 'Amphibious', d: 'You can breathe air and water.' },
+      { n: 'Arboreal Alertness', d: 'You have proficiency in the Perception skill.' },
+      { n: 'Climber', d: 'You have a Climb Speed equal to your Speed.' },
+      { n: 'Toxic Physiology', d: 'You have Resistance to Poison damage, and you have Advantage on saving throws you make to avoid or end the Poisoned condition.' },
+      { n: 'Poisonous Skin', d: 'When a creature grapples you, or when you hit a creature with an Unarmed Strike or a melee weapon attack, you can force it to make a Constitution saving throw (DC 8 plus your Constitution modifier and Proficiency Bonus). On a failed save, it has the Poisoned condition until the end of your next turn, and your caste’s effect applies while it is Poisoned.\nYou can use this trait a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Long Rest.' },
+      { n: 'Standing Leap', d: 'Your long jump is up to 25 feet and your high jump is up to 15 feet, with or without a running start.' },
+      { n: 'Water Dependency', d: 'Once each day, you must immerse yourself in water or soak yourself with about 2 gallons of water (casting Create or Destroy Water counts). If you don’t, you gain 1 Exhaustion level at the end of that day. That level is removed the next time you soak.' },
+      { n: 'Grung Caste', d: 'Your skin colour marks your caste. Choose one; it adds an effect to your Poisonous Skin.' }
+    ],
+    sub: GRUNG_CASTES.map(([c, e]) => ({ n: `Grung Caste: ${c}`, t: [{ n: `${c} Caste Poison`, d: `While a creature is Poisoned by your Poisonous Skin, ${e}.` }] }))
+  };
+  SRD.spc.push(g); SPC_BY.grung = g;
+})();
+if (typeof LANGS !== 'undefined' && !LANGS.includes('Grung')) LANGS.push('Grung');
+/* languages a character can tap to add (2024: Common plus two chosen languages; Grung added for grung characters) */
+const ALL_LANGS = ['Common', 'Common Sign Language', 'Draconic', 'Dwarvish', 'Elvish', 'Giant', 'Gnomish', 'Goblin', 'Halfling', 'Orc', 'Abyssal', 'Celestial', 'Deep Speech', 'Druidic', 'Grung', 'Infernal', 'Primordial', 'Sylvan', "Thieves' Cant", 'Undercommon'];
+const grungCaste = c => { const m = String(c.subspecies || '').match(/Grung Caste: (\w+)/); return m ? GRUNG_CASTES.find(x => x[0] === m[1]) : null; };
+/* the game's day, not the real one: soaking counts until your next Long Rest */
+function grungWaterPanel(c, o) {
+  if (c.species !== 'grung') return null;
+  const soaked = !!c.soaked, wx = +c.wexh || 0;
+  return h('div', { class: 'slotrow', style: { marginTop: '10px' } },
+    h('span', { class: 'lv', style: { flex: 1 } }, 'Water Dependency', h('span', { class: 'tiny muted', style: { display: 'block', fontWeight: 400 } }, soaked ? 'Soaked since your last Long Rest.' : 'Not soaked yet today: soak before your next Long Rest.' + (wx ? ` ${wx} Exhaustion level${wx > 1 ? 's' : ''} from drying out.` : ''))),
+    o.ro ? null : h('button', { class: 'btn sm' + (soaked ? '' : ' primary'), disabled: soaked ? true : null, onclick: () => { o.set({ soaked: true, wexh: 0, exh: Math.max(0, (+c.exh || 0) - wx) }); toast(wx ? 'Soaked: the Exhaustion from drying out is gone.' : 'Soaked for today.', 2400); } }, soaked ? 'Soaked' : 'Soak now'));
+}
+/* after a Long Rest (the end of the day): a grung who didn't soak dries out */
+function grungAfterRest(o) {
+  const c = o.getChar ? o.getChar() : null; if (!c || c.species !== 'grung') return;
+  if (c.soaked) { o.set({ soaked: false }); return; }
+  confirmSheet('Water Dependency', 'You didn’t soak in water today. Gain 1 Exhaustion level from drying out? Soaking removes it.', 'Add Exhaustion', false).then(ok => {
+    const cur = o.getChar(); if (ok) o.set({ exh: Math.min(6, (+cur.exh || 0) + 1), wexh: (+cur.wexh || 0) + 1, soaked: false });
+  });
+}
 
 /* ================= App state & shell ================= */
 const S = {
@@ -3747,6 +3906,7 @@ function setupPlayer() {
   S.library = [];
   sub(DB.collection('library'), s => { S.library = docsOf(s); refresh(); });
   S.party = {}; S.prolls = {}; S.liveMaps = []; S.firstTab = true;
+  sub(DB.doc('characters/' + me + '/data/wild'), s => { S.wildT = s.exists ? s.data() : null; if (S.char && wildOn(S.char)) refresh(); });
   sub(DB.doc('characters/' + me), s => {
     S.char = s.exists ? s.data() : null; S.charLoaded = true;
     if (S.firstTab) { S.firstTab = false; if (S.char && S.tab === 'sheet') { S.tab = 'camp'; renderTop(); } }
@@ -3846,10 +4006,10 @@ function renderWizard() {
     root.append(h('label', { class: 'f', for: 'wn' }, 'Name'), h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, nameIn),
       h('button', { class: 'icon-btn', type: 'button', style: { width: '48px', height: '48px' }, 'aria-label': 'Random name', title: 'Random name', onclick: () => { c.name = randomName(c.species); nameIn.value = c.name; } }, icon('dice2'))),
       h('p', { class: 'tiny muted', style: { margin: '6px 0 0' } }, 'Tap the dice for a random name. Pick a species first for names that suit it.'));
-    root.append(h('label', { class: 'f' }, 'Species'), sel(SPC_BY[c.species] ? c.species : (c.species ? '_other' : ''), SRD.spc.map(s => [s.i, s.n]).concat([['_other', 'Other (type a name)']]), v => { c.species = v === '_other' ? ' ' : v; c.subspecies = ''; c.speed = SPC_BY[v] ? SPC_BY[v].sp : 30; wr(); }));
+    root.append(h('label', { class: 'f' }, 'Species'), sel(SPC_BY[c.species] ? c.species : (c.species ? '_other' : ''), SRD.spc.map(s => [s.i, s.label || s.n]).concat([['_other', 'Other (type a name)']]), v => { c.species = v === '_other' ? ' ' : v; c.subspecies = ''; if (v === 'grung' && !(c.langs || '').trim()) c.langs = 'Common, Grung'; c.speed = SPC_BY[v] ? SPC_BY[v].sp : 30; wr(); }));
     if (c.species && !SPC_BY[c.species]) root.append(h('input', { class: 'in mt', value: c.species.trim(), placeholder: 'Species name', oninput: e => { c.species = e.target.value || ' '; } }));
     const sp = SPC_BY[c.species];
-    if (sp && sp.sub.length) root.append(h('label', { class: 'f' }, sp.n === 'Dragonborn' ? 'Draconic ancestry' : 'Lineage'), sel(c.subspecies, sp.sub.map(s => [s.n, s.n]), v => { c.subspecies = v; wr(); }));
+    if (sp && sp.sub.length) root.append(h('label', { class: 'f' }, sp.n === 'Dragonborn' ? 'Draconic ancestry' : sp.i === 'grung' ? 'Caste' : 'Lineage'), sel(c.subspecies, sp.sub.map(s => [s.n, s.n]), v => { c.subspecies = v; wr(); }));
     if (sp) root.append(h('div', { class: 'helper' }, `${sp.n}: ${sp.sz} size, speed ${sp.sp} ft. Traits: ${sp.tr.map(t => t.n).join(', ')}.`));
     root.append(h('label', { class: 'f' }, 'Background'), sel(BG_BY[c.background] ? c.background : (c.background ? '_other' : ''), SRD.bg.map(b => [b.i, bgLabel(b)]).concat([['_other', 'Other (type a name)']]), v => { c.background = v === '_other' ? ' ' : v; w.b2 = ''; w.b1 = ''; wr(); }));
     if (c.background && !BG_BY[c.background]) root.append(h('input', { class: 'in mt', value: c.background.trim(), placeholder: 'Background name', oninput: e => { c.background = e.target.value || ' '; } }));
@@ -3878,6 +4038,7 @@ function renderWizard() {
       const note = subclassNote(c); if (note) root.append(note);
       if (c.subclass && !subs.includes(c.subclass)) root.append(h('input', { class: 'in mt', value: c.subclass.trim(), placeholder: 'Subclass name', oninput: e => { c.subclass = e.target.value || ' '; } }));
     }
+    if (c.cls === 'sorcerer' || WILD_SUBS.includes((c.subclass || '').trim())) { root.append(h('label', { class: 'f' }, 'Wild Magic Surge table'), h('div', { class: 'seg' }, [[100, 'Standard (d100)'], [1000, 'd1000']].map(([v, l]) => h('button', { 'aria-pressed': wildDie(c) === v ? 'true' : 'false', onclick: () => { c.wild = Object.assign({}, c.wild, { die: v }); wr(); } }, l))), h('p', { class: 'tiny muted', style: { margin: '4px 0 0' } }, c.subclass === 'Wild Magic Sorcery' ? 'Used when your magic surges. You’ll import the table after creating your character.' : 'Used if you take Wild Magic Sorcery at level 3.')); }
     if (k && k.eq) root.append(h('div', { class: 'helper' }, h('b', null, 'Starting equipment: '), k.eq));
     canNext = !!(c.cls || c.clsName);
   }
@@ -3982,7 +4143,7 @@ function openCharEdit() {
     const skRow = ([n, a]) => { const v = (d.skills || {})[n] || 0; return h('button', { class: 'li', style: { minHeight: '44px' }, onclick: () => { d.skills = Object.assign({}, d.skills); const nv = (v + 1) % 3; if (nv) d.skills[n] = nv; else delete d.skills[n]; fr(); } }, h('span', { class: 'pd' + (v === 2 ? ' x2' : v ? ' on' : '') }), h('span', { class: 'grow' }, n), h('span', { class: 'small muted' }, v === 2 ? 'Expertise' : v ? 'Proficient' : '')); };
     return h('div', null,
       txt('Name', 'name'),
-      h('label', { class: 'f' }, 'Species'), sel(SPC_BY[d.species] ? d.species : '_other', SRD.spc.map(s => [s.i, s.n]).concat([['_other', 'Other']]), v => { d.species = v === '_other' ? (SPC_BY[d.species] ? '' : d.species) : v; d.subspecies = ''; }, false),
+      h('label', { class: 'f' }, 'Species'), sel(SPC_BY[d.species] ? d.species : '_other', SRD.spc.map(s => [s.i, s.label || s.n]).concat([['_other', 'Other']]), v => { d.species = v === '_other' ? (SPC_BY[d.species] ? '' : d.species) : v; d.subspecies = ''; }, false),
       !SPC_BY[d.species] ? h('input', { class: 'in mt', value: d.species || '', placeholder: 'Species name', oninput: e => d.species = e.target.value }) : null,
       sp && sp.sub.length ? [h('label', { class: 'f' }, 'Lineage'), sel(d.subspecies, sp.sub.map(s => [s.n, s.n]), v => d.subspecies = v)] : null,
       h('label', { class: 'f' }, 'Background'), sel(BG_BY[d.background] ? d.background : '_other', SRD.bg.map(b => [b.i, bgLabel(b)]).concat([['_other', 'Other']]), v => { d.background = v === '_other' ? (BG_BY[d.background] ? '' : d.background) : v; }, false),
@@ -3991,6 +4152,8 @@ function openCharEdit() {
       !d.cls ? [h('input', { class: 'in mt', value: d.clsName || '', placeholder: 'Class name', oninput: e => d.clsName = e.target.value }), h('label', { class: 'f' }, 'Spellcasting ability (if any)'), sel(d.spellAb || '', ABIL.map(a => [a, ABN[a]]), v => d.spellAb = v)] : null,
       k ? [h('label', { class: 'f' }, 'Subclass'), sel(subclassList(d.cls).includes(d.subclass) ? d.subclass : (d.subclass ? '_other' : ''), subclassList(d.cls).map(s => [s, subLabel(d.cls, s)]).concat([['_other', 'Other']]), v => { d.subclass = v === '_other' ? ' ' : v; }),
         d.subclass && !subclassList(d.cls).includes(d.subclass) ? h('input', { class: 'in mt', value: d.subclass.trim(), placeholder: 'Subclass name', oninput: e => d.subclass = e.target.value || ' ' }) : null, subclassNote(d)] : txt('Subclass', 'subclass', ''),
+      h('label', { class: 'f' }, 'Wild Magic surges'), h('div', { class: 'seg' }, (classesOf(d).some(x => WILD_SUBS.includes(x.sub)) ? [] : [['off', 'Off']]).concat([['100', 'Standard d100'], ['1000', 'd1000']]).map(([v, l]) => h('button', { 'aria-pressed': (wildOn(d) ? String(wildDie(d)) : 'off') === v ? 'true' : 'false', onclick: () => { d.wild = v === 'off' ? { on: false, die: wildDie(d) } : { on: true, die: +v }; fr(); } }, l))),
+      h('p', { class: 'tiny muted', style: { margin: '4px 0 0' } }, 'On automatically for Wild Magic Sorcery. Import your table from the Wild Magic panel on the Actions tab.'),
       h('div', { class: 'row nowrap' }, num((d.mc || []).length ? `${CLS_BY[d.cls] ? CLS_BY[d.cls].n : 'Class'} level` : 'Level', () => st.plvl, v => st.plvl = v || 1, 1, 20), num('Speed', () => d.speed, v => d.speed = v, 0, 200), num('Init bonus', () => d.initBonus || 0, v => d.initBonus = v, -10, 20)),
       h('h2', { class: 'sec' }, 'Multiclass'),
       (d.mc || []).map((x, i) => h('div', { class: 'panel', style: { marginBottom: '8px' } },
@@ -4011,7 +4174,8 @@ function openCharEdit() {
       h('h2', { class: 'sec' }, 'Skills'), h('p', { class: 'tiny muted' }, 'Tap to cycle: none, proficient, expertise.'),
       h('div', { class: 'list' }, SKILLS.map(skRow)),
       h('h2', { class: 'sec' }, 'Other'),
-      txt('Languages', 'langs', 'Common, Elvish'), txt('Other proficiencies', 'profs', 'Tools, instruments, vehicles'),
+      txt('Languages', 'langs', 'Common, Elvish'), h('div', { class: 'chips', style: { marginTop: '6px' } }, ALL_LANGS.map(l => { const has = (d.langs || '').split(',').map(x => x.trim()).includes(l); return h('button', { class: 'chip', type: 'button', 'aria-pressed': has ? 'true' : 'false', onclick: () => { const cur = (d.langs || '').split(',').map(x => x.trim()).filter(Boolean); d.langs = (has ? cur.filter(x => x !== l) : cur.concat([l])).join(', '); fr(); } }, l); })),
+      txt('Other proficiencies', 'profs', 'Tools, instruments, vehicles'),
       h('div', { class: 'mt2' }, h('button', { class: 'btn danger', onclick: async () => { if (await confirmSheet('Delete character?', 'This removes ' + (S.char.name || 'your character') + ' and their sheet for good. Your journal stays.')) { closeSheet(rec); await delDoc('characters/' + ME.id); delDoc('party/' + ME.id); S.char = null; S.wiz = null; refresh(); } } }, icon('trash'), 'Delete character')));
   });
 }
