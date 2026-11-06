@@ -525,6 +525,14 @@ mark,.hl{background:linear-gradient(100deg,transparent 0 2px,var(--marker) 3px c
 .selbar button{flex:none;display:inline-flex;align-items:center;gap:4px;min-height:40px;padding:0 10px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface);color:var(--ink);font:700 13.5px var(--sans)}
 .selbar button:disabled{opacity:.4}
 .selbar button svg{width:16px;height:16px}
+/* icons at the end of list rows stay icon-sized */
+.li > svg { width: 20px; height: 20px; flex: none; color: var(--ink-3); }
+.workings{padding:4px 0 2px}
+.workings .wrow{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.workings .wrow b{font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+.workings .wrow.total{border-bottom:0;border-top:1px solid var(--line-2);margin-top:2px;font-weight:800}
+.workings .wrow.total b{color:var(--ember)}
+button.mini{font:inherit;color:inherit}
 
 </style>
 </head>
@@ -1264,6 +1272,12 @@ function sbBlock(b, who, m = {}) {
 
 /* ================= Spells ================= */
 const lvlName = l => l === 0 ? 'Cantrip' : ordinal(l) + ' level';
+const SPELL_SCHOOLS = ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation'];
+/* a row of school chips: All schools, then the eight schools */
+function schoolChips(cur, set) {
+  return h('div', { class: 'chips hscroll mt', role: 'group', 'aria-label': 'School of magic' }, ['all'].concat(SPELL_SCHOOLS).map(k => h('button', { class: 'chip', 'aria-pressed': (cur || 'all') === k ? 'true' : 'false', onclick: () => set(k) }, k === 'all' ? 'All schools' : k)));
+}
+const spellMatches = (sp, q, sch) => (!q || sp.n.toLowerCase().includes(q) || String(sp.s || '').toLowerCase().includes(q)) && (!sch || sch === 'all' || sp.s === sch);
 function spellSub(sp) {
   const cls = sp.c.map(c => CLS_BY[c] ? CLS_BY[c].n : cap(c)).join(', ');
   return (sp.l === 0 ? `${sp.s} cantrip` : `Level ${sp.l} ${sp.s}`) + (cls ? ` (${cls})` : '');
@@ -1471,8 +1485,8 @@ const spellListOf = c => thirdCaster(c) ? 'wizard' : (CLS_BY[c.cls] && CLS_BY[c.
 const spellListsOf = c => [...new Set(classesOf(c).map(k => THIRD_CASTERS[k.sub] === k.cls ? 'wizard' : (CLS_BY[k.cls] && CLS_BY[k.cls].sa && !CLS_BY[k.cls].book) ? k.cls : null).filter(Boolean))];
 const norm = s => String(s || '').trim().toLowerCase();
 /* the GM's subclass library: features typed in once, shared with every player in the campaign */
-const libEntry = (cls, name) => (S.library || []).find(e => e.cls === cls && norm(e.name) === norm(name)) || null;
-const subclassList = cls => { const srd = (CLS_BY[cls] && CLS_BY[cls].sub) || []; const lib = (S.library || []).filter(e => e.cls === cls).map(e => e.name); return [...new Set([...(PHB_SUBCLASSES[cls] || []), ...srd, ...lib])]; };
+const libEntry = (cls, name) => (S.library || []).find(e => !e.kind && e.cls === cls && norm(e.name) === norm(name)) || null;
+const subclassList = cls => { const srd = (CLS_BY[cls] && CLS_BY[cls].sub) || []; const lib = (S.library || []).filter(e => !e.kind && e.cls === cls).map(e => e.name); return [...new Set([...(PHB_SUBCLASSES[cls] || []), ...srd, ...lib])]; };
 const srdSub = (cls, name) => !!(CLS_BY[cls] && CLS_BY[cls].sub.includes(name));
 const subLabel = (cls, name) => srdSub(cls, name) ? name : libEntry(cls, name) ? name + ' (from your GM’s library)' : name + (subBook(cls, name) ? `, ${subBook(cls, name)}` : '') + ' (add features from your book)';
 function subclassNote(c) {
@@ -1549,7 +1563,7 @@ function D(c) {
   const pick = (k, calc) => OV(c, k) != null ? +OV(c, k) : calc;
   return { lvl, pb, pbCalc, m, saves, save, saveCalc, skill, skillCalc, sa, sdc: pick('sdc', sdcCalc), sdcCalc, satk: pick('satk', satkCalc), satkCalc, slots, slotsCalc, hd, hdCalc, hdTotal: pick('hdTotal', lvl),
     ac: pick('ac', acCalc), acCalc, init: pick('init', initCalc), initCalc, pp: pick('pp', ppCalc), ppCalc, cls, lvRow, isSet: k => OV(c, k) != null,
-    classes: ks, multi, pact, caN, prN, casters, hdPools, fx: fxa, sk, im, ab, speed: im.speed0 ? 0 : Math.max(0, Math.round(Math.max(im.speedMin, (+c.speed || 30) + fxa.speed + im.speed) * (im.speedMul || 1))) };
+    classes: ks, multi, pact, caN, prN, casters, hdPools, fx: fxa, sk, im, ab, speed: im.speed0 ? 0 : Math.max(0, Math.round(Math.max(im.speedMin, (+c.speed || 30) + fxa.speed + im.speed + classSpeed(c)) * (im.speedMul || 1))) };
 }
 /* a d20 roll button that also adds dice such as Bless's 1d4 */
 const diceTail = l => (l || []).map(x => /^[+-]/.test(x) ? x : '+' + x).join('');
@@ -1584,6 +1598,27 @@ function weaponProf(c, e) {
   const n = e.n.toLowerCase().replace(/,.*$/, '');
   return pf.some(p => p.replace(/s$/, '') === n.replace(/s$/, '') || p.startsWith(n));
 }
+function classSpeed(c) {
+  const w = wearing(c), m = classRow(c, 'monk'), b = classRow(c, 'barbarian'); let v = 0;
+  if (m && !w.armor && !w.shield) v += +m.cs.unarmored_movement_bonus || 0;
+  if (b && b.lvl >= 5 && !(w.armor && w.armor.ak === 'heavy')) v += 10;
+  return v;
+}
+function classRow(c, cls) {
+  const k = classesOf(c).find(x => x.cls === cls); if (!k || !CLS_BY[cls] || !CLS_BY[cls].lv) return null;
+  const row = CLS_BY[cls].lv[clamp(k.lvl, 1, 20) - 1] || {}; return { lvl: k.lvl, cs: row.cs || {} };
+}
+function wearing(c) { let armor = null, shield = false; (c.items || []).forEach(i => { if (!i.eq) return; const e = itemEq(i); if (!e || !e.arm) return; if (e.ak === 'shield') shield = true; else armor = e; }); return { armor, shield }; }
+function classLevelNote(c, n) {
+  const m = classRow(c, 'monk'), r = classRow(c, 'rogue'), b = classRow(c, 'barbarian'), bd = classRow(c, 'bard');
+  if (n === 'Martial Arts' && m) return `At your level: Martial Arts die d${m.cs.martial_arts_die}.`;
+  if (/^Unarmored Movement/.test(n) && m && m.cs.unarmored_movement_bonus) return `At your level: +${m.cs.unarmored_movement_bonus} ft Speed while you wear no armour or shield (already on your sheet).`;
+  if (/Focus/.test(n) && m && m.cs.focus_points) return `At your level: ${m.cs.focus_points} Focus Points.`;
+  if (n === 'Sneak Attack' && r) return `At your level: ${r.cs.sneak_attack.dice_count}d${r.cs.sneak_attack.dice_value} (a button on your finesse and ranged weapon attacks).`;
+  if (n === 'Rage' && b) return `At your level: ${b.cs.rage_count} Rages, +${b.cs.rage_damage_bonus} Rage damage.`;
+  if (n === 'Bardic Inspiration' && bd) return `At your level: d${bd.cs.bardic_inspiration_die}.`;
+  return '';
+}
 function attacksOf(c, d) {
   const out = [];
   (c.items || []).forEach(i => {
@@ -1598,6 +1633,7 @@ function attacksOf(c, d) {
       const hit = d.m[ab] + (weaponProf(c, e) || i.prof ? d.pb : 0) + bonus + (isRanged && d.fx ? d.fx.rangedAtk : 0) + im.watk + (im.d20 || 0);
       const dm = d.m[ab] + bonus + im.wdmg + (bow ? im.wdmgBow : 0);
       const fxi = itemFx(i), xs = (fxi.extra || []).filter(x => x[0] && !x[2]), xc = (fxi.extra || []).filter(x => x[2]);
+      const rog = classRow(c, 'rogue'); if (rog && rog.cs.sneak_attack && (fin || ranged)) xc.push([`${rog.cs.sneak_attack.dice_count}d${rog.cs.sneak_attack.dice_value}`, '', 'Sneak Attack (once per turn)']);
       const ds = x => x + (dm ? (dm > 0 ? '+' : '') + dm : '') + xs.map(x => '+' + x[0]).join('') + (im.dmgDie || []).map(x => /^[+-]/.test(x) ? x : '+' + x).join('');
       const hitO = i.hitO != null && i.hitO !== '' ? +i.hitO : null;
       out.push({ id: i.id, ranged: /r$/.test(e.wk || '') || /Ranged/.test(e.k || ''), n: i.n, hit: hitO != null ? hitO : hit, hitCalc: hit, dmg: i.dmgO || ds(e.dmg), dmgCalc: ds(e.dmg), dt: e.dt + xs.map(x => ' + ' + (x[1] || 'extra')).join(''), v: e.v ? ds(e.v) : null, set: hitO != null || !!i.dmgO, xc: xc.map(x => ({ d: x[0], t: x[1], w: x[2] })).concat(im.xdmg || []), note: [e.rg ? 'Range ' + e.rg + ' ft.' : 'Reach 5 ft.', e.ms ? 'Mastery: ' + e.ms : '', bonus ? sgn(bonus) + ' magic' : ''].filter(Boolean).join(', ') });
@@ -1605,7 +1641,15 @@ function attacksOf(c, d) {
       out.push({ id: i.id, n: i.n, hit: +i.atk, hitCalc: +i.atk, dmg: i.dmg, dmgCalc: i.dmg, dt: i.dt || '', note: i.note || '', custom: true });
     }
   });
-  if (d.fx && d.fx.unarmed) { const dm = d.m.str; const dmg = d.fx.unarmed + (dm ? (dm > 0 ? '+' : '') + dm : ''); out.push({ id: 'unarmed', n: 'Unarmed Strike', hit: d.m.str + d.pb, hitCalc: d.m.str + d.pb, dmg, dmgCalc: dmg, dt: 'Bludgeoning', note: 'Tavern Brawler: reroll 1s on the damage, push 5 ft once per turn' }); }
+  {
+    const monk = classRow(c, 'monk'), im = d.im || { watk: 0, wdmg: 0, d20: 0, dmgDie: [], xdmg: [] }, w = wearing(c);
+    const ma = monk && !w.armor && !w.shield ? +monk.cs.martial_arts_die || 6 : 0, tb = d.fx && d.fx.unarmed ? parseInt(String(d.fx.unarmed).split('d')[1], 10) || 4 : 0;
+    const die = Math.max(ma, tb), ab = ma && d.m.dex > d.m.str ? 'dex' : 'str';
+    const hit = d.m[ab] + d.pb + (im.watk || 0) + (im.d20 || 0), mod = d.m[ab] + (im.wdmg || 0);
+    const dmg = die ? `1d${die}${mod ? (mod > 0 ? '+' : '') + mod : ''}` + (im.dmgDie || []).map(x => /^[+-]/.test(x) ? x : '+' + x).join('') : String(Math.max(1, 1 + mod));
+    out.push({ id: 'unarmed', n: 'Unarmed Strike', hit, hitCalc: hit, dmg, dmgCalc: dmg, dt: 'Bludgeoning', xc: (im.xdmg || []).slice(),
+      note: [ma ? `Martial Arts die d${ma}; also as a Bonus Action` : '', tb ? 'Tavern Brawler: reroll 1s on the damage, push 5 ft once per turn' : '', die ? '' : `Damage is 1 + your Strength modifier`, `Grapple or Shove: DC ${8 + d.m.str + d.pb}`].filter(Boolean).join('. ') });
+  }
   return out;
 }
 function featuresOf(c) {
@@ -1693,6 +1737,9 @@ function sheetView(c, o = {}) {
   const condRow = h('div', { class: 'chips mt' }, (c.cond || []).map(n => h('button', { class: 'chip cond', onclick: () => showCondition(n, o.ro ? null : () => o.set({ cond: (c.cond || []).filter(x => x !== n) })) }, n)));
   if (!o.ro) condRow.append(h('button', { class: 'chip', onclick: () => pickConditions(c.cond || [], v => o.set({ cond: v })) }, (c.cond || []).length ? 'Edit conditions' : 'Add a condition'));
   if (condRow.childNodes.length) root.append(condRow);
+  { const fxD = d.fx || featFx(c), imD = d.im || {}, sp = (k, l) => l && l.length ? `${k}: ${[...new Set(l)].join(', ')}` : '';
+    const def = [sp('Resistant', (fxD.resist || []).concat(imD.resist || [])), sp('Immune', imD.immune), sp('Vulnerable', imD.vuln), sp('Can’t be', imD.condImm)].filter(Boolean);
+    if (def.length) root.append(h('div', { class: 'small', style: { margin: '10px 2px 0', color: 'var(--ink-2)' } }, h('b', null, 'Defences '), def.join(' · '))); }
   root.append(h('div', { class: 'abil', role: 'group', 'aria-label': 'Ability checks', style: { marginTop: '14px' } }, ABIL.map(k => h('button', { class: 'ab', type: 'button', onlong: o.ro ? null : () => editValue({ title: ABN[k] + ' score', value: c.abilities[k], min: 1, max: 30, help: 'Type the score from your sheet. The modifier updates to match.', onSave: v => o.set({ abilities: { [k]: v } }) }), 'aria-label': `Roll ${ABN[k]} check, ${sgn(d.m[k])}`, onclick: () => { const v = d.m[k] + (d.im ? d.im.check + d.im.d20 : 0); doRoll('1d20' + (v >= 0 ? '+' : '') + v + diceTail(d.im && d.im.checkDie), { label: ABN[k] + ' check', who: W, kind: 'chk' }); } },
     h('div', { class: 'n' }, AB3[k]), h('div', { class: 'm' }, sgn(d.m[k])), h('div', { class: 'sc', style: d.ab && d.ab[k] !== c.abilities[k] ? { color: 'var(--ember)' } : null }, d.ab && d.ab[k] !== c.abilities[k] ? `${d.ab[k]} (item)` : String(c.abilities[k]))))));
   // sections
@@ -1754,7 +1801,7 @@ function sheetView(c, o = {}) {
           lv.length ? h('button', { class: 'btn sm outline', onclick: () => writeFeature(c, o, 'Subclass feature') }, icon('plus'), 'Add a subclass feature') : null));
       }
       if (!feats.length) s.append(h('p', { class: 'muted small' }, 'Pick a class, species and background to see features here.'));
-      feats.forEach(f => s.append(h('details', { class: 'feat' }, h('summary', null, f.n, h('span', { class: 'muted' }, f.src)), richText(personalize(f.d, charKnow(c, d)), { label: f.n, who: W }), f.ch != null && !o.ro ? h('button', { class: 'btn sm outline', style: { marginTop: '8px' }, onclick: () => openFeatChoices(c, f.ch, o) }, icon('edit'), 'Choices') : null, f.custom != null && !o.ro ? h('div', { style: { marginTop: '8px' } }, h('button', { class: 'btn ghost sm', style: { color: 'var(--red)' }, onclick: () => o.set({ feats: (c.feats || []).filter((_, i) => i !== f.custom) }) }, icon('trash'), 'Remove')) : null)));
+      feats.forEach(f => s.append(h('details', { class: 'feat' }, h('summary', null, f.n, h('span', { class: 'muted' }, f.src)), richText(personalize(f.n === 'Martial Arts' && classRow(c, 'monk') ? String(f.d || '').replace(/1d6/g, '1d' + classRow(c, 'monk').cs.martial_arts_die) : f.d, charKnow(c, d)), { label: f.n, who: W }), classLevelNote(c, f.n) ? h('p', { class: 'small', style: { margin: '6px 0 0', color: 'var(--ember)', fontWeight: 700 } }, classLevelNote(c, f.n)) : null, f.custom != null && ((c.feats || [])[f.custom] || {}).mods && c.feats[f.custom].mods.length ? h('ul', { class: 'small', style: { margin: '6px 0 0', paddingLeft: '20px' } }, fxLines(itemFx({ n: f.n, mods: c.feats[f.custom].mods, _eff: true })).map(l => h('li', null, l))) : null, f.ch != null && !o.ro ? h('button', { class: 'btn sm outline', style: { marginTop: '8px' }, onclick: () => openFeatChoices(c, f.ch, o) }, icon('edit'), 'Choices') : null, f.custom != null && !o.ro ? h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn sm outline', onclick: () => traitEffectsEditor(c, o, f.custom) }, icon('edit'), 'Effects on your sheet'), h('button', { class: 'btn ghost sm', style: { color: 'var(--red)' }, onclick: () => o.set({ feats: (c.feats || []).filter((_, i) => i !== f.custom) }) }, icon('trash'), 'Remove')) : null)));
       const prof = [d.cls ? d.cls.pf.join(', ') : '', ...(c.mc || []).filter(x => x && x.cls && (MC_PROFS[x.cls] || []).length).map(x => `${CLS_BY[x.cls] ? CLS_BY[x.cls].n : cap(x.cls)}: ${MC_PROFS[x.cls].filter(p => !/^One skill/.test(p)).join(', ')}`), c.profs].filter(Boolean).join('; ');
       const fxa = d.fx || featFx(c), langs = [c.langs, ...fxa.langs].filter(Boolean).join(', '), tools = fxa.tools.join(', '), imx = d.im || { resist: [], senses: [], notes: [] };
       const resistAll = [...new Set(fxa.resist.concat(imx.resist))], sensesAll = fxa.senses.concat(imx.senses);
@@ -3009,7 +3056,7 @@ MF('Mantle of Spell Resistance', { notes: ['Advantage on saving throws against s
 MF('Animated Shield', {});
 MF('Arrow-Catching Shield', { notes: ['+2 AC against ranged attacks'] });
 MF('Cloak of the Manta Ray', { senses: ['Swim Speed 60 ft; breathe underwater'] });
-const MOD_KINDS = [['atkDie', 'Dice on attack rolls (e.g. 1d4)'], ['saveDie', 'Dice on saving throws'], ['checkDie', 'Dice on ability checks'], ['dmgDie', 'Dice on weapon damage'], ['acMin', 'Armor Class can’t be lower than'], ['acBase', 'Armor Class without armour (+ Dex)'], ['speedMul', 'Speed multiplied by'], ['note', 'A note (text)'], ['ac', 'Armor Class'], ['save', 'All saving throws'], ['check', 'All ability checks'], ['init', 'Initiative'], ['speed', 'Speed (feet)'], ['satk', 'Spell attack rolls'], ['sdc', 'Spell save DC'], ['watk', 'Weapon attack rolls'], ['wdmg', 'Weapon damage rolls'], ['hp', 'Hit point maximum'], ['hpLvl', 'Hit points per level'], ['plus', 'An ability score +N'], ['set', 'Set an ability score to'], ['savex', 'One saving throw'], ['skill', 'One skill'], ['resist', 'Damage resistance'], ['sense', 'A sense or Speed (text)']];
+const MOD_KINDS = [['resist', 'Damage resistance'], ['immune', 'Damage immunity'], ['vuln', 'Damage vulnerability'], ['condImm', 'Condition immunity'], ['atkDie', 'Dice on attack rolls (e.g. 1d4)'], ['saveDie', 'Dice on saving throws'], ['checkDie', 'Dice on ability checks'], ['dmgDie', 'Dice on weapon damage'], ['acMin', 'Armor Class can’t be lower than'], ['acBase', 'Armor Class without armour (+ Dex)'], ['speedMul', 'Speed multiplied by'], ['note', 'A note (text)'], ['ac', 'Armor Class'], ['save', 'All saving throws'], ['check', 'All ability checks'], ['init', 'Initiative'], ['speed', 'Speed (feet)'], ['satk', 'Spell attack rolls'], ['sdc', 'Spell save DC'], ['watk', 'Weapon attack rolls'], ['wdmg', 'Weapon damage rolls'], ['hp', 'Hit point maximum'], ['hpLvl', 'Hit points per level'], ['plus', 'An ability score +N'], ['set', 'Set an ability score to'], ['savex', 'One saving throw'], ['skill', 'One skill'], ['sense', 'A sense or Speed (text)']];
 const DMG_TYPES = ['Acid', 'Bludgeoning', 'Cold', 'Fire', 'Force', 'Lightning', 'Necrotic', 'Piercing', 'Poison', 'Psychic', 'Radiant', 'Slashing', 'Thunder'];
 const MI_LOOKUP = n => { const k = String(n || '').toLowerCase().replace(/,?\s*\+\d+$/, '').replace(/\s*\(.*\)$/, ''); if (MI_FX[k]) return MI_FX[k]; const k2 = Object.keys(MI_FX).find(x => k.startsWith(x)); return k2 ? MI_FX[k2] : null; };
 function itemMi(i) { return i && i.ref && i.ref.startsWith('mi:') ? MI_BY[i.ref.slice(3)] : null; }
@@ -3025,12 +3072,14 @@ function itemFx(i) {
   ['satk', 'sdc', 'bonus'].forEach(k => { if (o[k] === 'N') o[k] = N; });
   if (o.bonus == null && N && (itemEq(i) || /weapon|armor|armour|shield|ammunition/i.test(`${(mi && mi.k) || ''} ${(mi && mi.n) || i.n}`))) o.bonus = N;
   o.resist = (o.resist || []).slice(); if (o.pickResist && i.resType) o.resist = [i.resType];
+  o.immune = (o.immune || []).slice(); o.vuln = (o.vuln || []).slice(); o.condImm = (o.condImm || []).slice();
   o.extra = (o.extra || []).concat((i.xd || []).map(x => [x.d, x.t, x.w || '']));
   o.notes = (o.notes || []).slice(); o.senses = (o.senses || []).slice(); o.skills = Object.assign({}, o.skills);
   o.atkDie = []; o.saveDie = []; o.checkDie = []; o.dmgDie = []; o.xdmg = [];
   (i.mods || []).forEach(m => {
-    const v = m.k === 'resist' || m.k === 'sense' || m.k === 'note' || /Die$/.test(m.k) ? m.v : +m.v || 0;
-    if (m.k === 'resist') o.resist.push(v); else if (m.k === 'sense') o.senses.push(v); else if (m.k === 'note') o.notes.push(v);
+    const v = ['resist', 'immune', 'vuln', 'condImm', 'sense', 'note'].includes(m.k) || /Die$/.test(m.k) ? m.v : +m.v || 0;
+    if (m.k === 'immune' || m.k === 'vuln' || m.k === 'condImm') o[m.k].push(v);
+    else if (m.k === 'resist') o.resist.push(v); else if (m.k === 'sense') o.senses.push(v); else if (m.k === 'note') o.notes.push(v);
     else if (/Die$/.test(m.k)) o[m.k].push(String(v));
     else if (m.k === 'xdmg') o.xdmg.push(m.x);
     else if (m.k === 'acMin' || m.k === 'acBase') o[m.k] = Math.max(o[m.k] || 0, v);
@@ -3046,10 +3095,11 @@ function itemFx(i) {
 const itemBonus = i => i.bonus != null && i.bonus !== '' ? +i.bonus : (itemFx(i).bonus || 0);
 /* everything active items do to the sheet */
 function itemMods(c) {
-  const a = { ac: 0, acNoArmor: 0, acBase: 0, acMin: 0, save: 0, savex: {}, check: 0, init: 0, speed: 0, speedMin: 0, speedMul: 1, satk: 0, sdc: 0, watk: 0, wdmg: 0, wdmgBow: 0, hp: 0, hpLvl: 0, pb: 0, plus: {}, set: {}, skills: {}, resist: [], senses: [], notes: [], attuned: 0, atkDie: [], saveDie: [], checkDie: [], dmgDie: [], xdmg: [], d20: 0, speed0: false };
+  const a = { immune: [], vuln: [], condImm: [], ac: 0, acNoArmor: 0, acBase: 0, acMin: 0, save: 0, savex: {}, check: 0, init: 0, speed: 0, speedMin: 0, speedMul: 1, satk: 0, sdc: 0, watk: 0, wdmg: 0, wdmgBow: 0, hp: 0, hpLvl: 0, pb: 0, plus: {}, set: {}, skills: {}, resist: [], senses: [], notes: [], attuned: 0, atkDie: [], saveDie: [], checkDie: [], dmgDie: [], xdmg: [], d20: 0, speed0: false };
   const sources = [];
   (c.items || []).forEach(i => { if (i.att) a.attuned++; if (itemActive(i)) sources.push([i.n, itemFx(i)]); });
   (c.efx || []).forEach(e => sources.push([e.n, itemFx({ n: e.n, mods: e.mods || [], _eff: true })]));
+  (c.feats || []).forEach(f => { if (f.mods && f.mods.length) sources.push([f.n, itemFx({ n: f.n, mods: f.mods, _eff: true })]); });
   /* 2024 Exhaustion: −2 to every D20 Test and −5 ft Speed per level; some conditions set Speed to 0 */
   const exh = clamp(+c.exh || 0, 0, 6); if (exh) { a.d20 -= 2 * exh; a.speed -= 5 * exh; }
   const cond = (c.cond || []).map(x => String(x).toLowerCase());
@@ -3064,7 +3114,7 @@ function itemMods(c) {
     Object.entries(f.set || {}).forEach(([k, v]) => { a.set[k] = Math.max(a.set[k] || 0, v); });
     Object.entries(f.savex || {}).forEach(([k, v]) => { a.savex[k] = (a.savex[k] || 0) + v; });
     Object.entries(f.skills || {}).forEach(([k, v]) => { a.skills[k] = (a.skills[k] || 0) + v; });
-    a.resist.push(...f.resist); a.senses.push(...f.senses); f.notes.forEach(n => a.notes.push(`${i.n}: ${n}`));
+    a.resist.push(...f.resist); a.immune.push(...(f.immune || [])); a.vuln.push(...(f.vuln || [])); a.condImm.push(...(f.condImm || [])); a.senses.push(...f.senses); f.notes.forEach(n => a.notes.push(`${i.n}: ${n}`));
     a.acMin = Math.max(a.acMin, f.acMin || 0); a.speedMul *= f.speedMul || 1;
     ['atkDie', 'saveDie', 'checkDie', 'dmgDie'].forEach(k => (f[k] || []).forEach(x => a[k].push(x)));
     (f.xdmg || []).forEach(x => a.xdmg.push(x));
@@ -3120,6 +3170,9 @@ function fxLines(f) {
   Object.entries(f.plus || {}).forEach(([k, v]) => lines.push(`${pm(v)} ${ABN[k]} score${f.max20 ? ' (maximum 20)' : ''}`));
   (f.extra || []).forEach(([d, t, w]) => lines.push(`${d ? `+${d}${t ? ' ' + t : ''} damage` : ''}${w ? (d ? ' ' : '') + w : ''}`));
   if (f.resist.length) lines.push('Resistance: ' + f.resist.join(', '));
+  if ((f.immune || []).length) lines.push('Immunity: ' + f.immune.join(', '));
+  if ((f.vuln || []).length) lines.push('Vulnerability: ' + f.vuln.join(', '));
+  if ((f.condImm || []).length) lines.push('Can’t be ' + f.condImm.join(', '));
   if (f.senses.length) lines.push(f.senses.join('; '));
   f.notes.forEach(n => lines.push(n));
   return lines;
@@ -3153,6 +3206,9 @@ function itemFxPanel(i, upd, rec) {
 function modLabel(m) {
   const k = (MOD_KINDS.find(x => x[0] === m.k) || [m.k, m.k])[1];
   if (m.k === 'resist') return 'Resistance to ' + m.v;
+  if (m.k === 'immune') return 'Immunity to ' + m.v;
+  if (m.k === 'vuln') return 'Vulnerability to ' + m.v;
+  if (m.k === 'condImm') return 'Immune to the ' + m.v + ' condition';
   if (/Die$/.test(m.k)) return `${(MOD_KINDS.find(x => x[0] === m.k) || [, ''])[1].replace(/ \(.*\)$/, '')} ${/^[+-]/.test(m.v) ? m.v : '+' + m.v}`;
   if (m.k === 'note') return m.v;
   if (m.k === 'acMin') return `Armor Class at least ${m.v}`;
@@ -3169,7 +3225,7 @@ function addModifier(i, upd, rec) {
   openSheet('Add a modifier', r2 => {
     const st = r2.state; if (!st.m) st.m = { k: 'ac', v: 1, a: 'str' }; const m = st.m;
     add(r2.foot, [h('button', { class: 'btn primary', onclick: () => {
-      const txt = m.k === 'resist' || m.k === 'sense' || m.k === 'note' || /Die$/.test(m.k);
+      const txt = ['resist', 'immune', 'vuln', 'condImm', 'sense', 'note'].includes(m.k) || /Die$/.test(m.k);
       if (txt && !String(m.v || '').trim()) { toast('Fill in the value.'); return; }
       if (/Die$/.test(m.k) && !/^[+-]?\d*d\d+$/.test(String(m.v).replace(/\s+/g, ''))) { toast('Use dice like 1d4, or -1d4 for a penalty.'); return; }
       const out = { k: m.k, v: txt ? String(m.v).replace(/\s+/g, m.k === 'note' || m.k === 'sense' ? ' ' : '').trim() : +m.v || 0 }; if (['plus', 'set', 'savex', 'skill'].includes(m.k)) out.a = m.a;
@@ -3177,13 +3233,14 @@ function addModifier(i, upd, rec) {
     } }, 'Add modifier')]);
     const ab = h('div', { class: 'chips' }, ABIL.map(a => h('button', { class: 'chip', 'aria-pressed': m.a === a ? 'true' : 'false', onclick: () => { m.a = a; fillSheet(r2); } }, AB3[a])));
     return h('div', null, h('p', { class: 'small muted', style: { marginTop: 0 } }, 'It takes effect while the item is equipped, or attuned if it needs attunement.'),
-      h('label', { class: 'f' }, 'What it changes'), h('select', { class: 'in', onchange: e => { m.k = e.target.value; if (m.k === 'skill') m.a = SKILLS[0][0]; if (['plus', 'set', 'savex'].includes(m.k) && !ABIL.includes(m.a)) m.a = 'str'; if (m.k === 'resist') m.v = 'Fire'; else if (m.k === 'sense' || m.k === 'note') m.v = ''; else if (/Die$/.test(m.k)) m.v = '1d4'; else if (m.k === 'set') m.v = 19; else if (m.k === 'acMin') m.v = 17; else if (m.k === 'acBase') m.v = 13; else if (m.k === 'speedMul') m.v = 2; else m.v = 1; fillSheet(r2); } }, MOD_KINDS.map(([k, l]) => h('option', { value: k, selected: m.k === k ? true : null }, l))),
+      h('label', { class: 'f' }, 'What it changes'), h('select', { class: 'in', onchange: e => { m.k = e.target.value; if (m.k === 'skill') m.a = SKILLS[0][0]; if (['plus', 'set', 'savex'].includes(m.k) && !ABIL.includes(m.a)) m.a = 'str'; if (m.k === 'resist' || m.k === 'immune' || m.k === 'vuln') m.v = 'Fire'; else if (m.k === 'condImm') m.v = 'Poisoned'; else if (m.k === 'sense' || m.k === 'note') m.v = ''; else if (/Die$/.test(m.k)) m.v = '1d4'; else if (m.k === 'set') m.v = 19; else if (m.k === 'acMin') m.v = 17; else if (m.k === 'acBase') m.v = 13; else if (m.k === 'speedMul') m.v = 2; else m.v = 1; fillSheet(r2); } }, MOD_KINDS.map(([k, l]) => h('option', { value: k, selected: m.k === k ? true : null }, l))),
       ['plus', 'set', 'savex'].includes(m.k) ? [h('label', { class: 'f' }, 'Ability'), ab] : null,
       m.k === 'skill' ? [h('label', { class: 'f' }, 'Skill'), h('select', { class: 'in', onchange: e => m.a = e.target.value }, SKILLS.map(([s]) => h('option', { value: s, selected: m.a === s ? true : null }, s)))] : null,
-      m.k === 'resist' ? [h('label', { class: 'f' }, 'Damage type'), h('div', { class: 'chips' }, DMG_TYPES.map(t => h('button', { class: 'chip', 'aria-pressed': m.v === t ? 'true' : 'false', onclick: () => { m.v = t; fillSheet(r2); } }, t)))] : null,
+      m.k === 'condImm' ? [h('label', { class: 'f' }, 'Condition'), h('div', { class: 'chips' }, ['Blinded', 'Charmed', 'Deafened', 'Exhaustion', 'Frightened', 'Grappled', 'Incapacitated', 'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious'].map(t => h('button', { class: 'chip', 'aria-pressed': m.v === t ? 'true' : 'false', onclick: () => { m.v = t; fillSheet(r2); } }, t)))] : null,
+      ['resist', 'immune', 'vuln'].includes(m.k) ? [h('label', { class: 'f' }, 'Damage type'), h('div', { class: 'chips' }, DMG_TYPES.map(t => h('button', { class: 'chip', 'aria-pressed': m.v === t ? 'true' : 'false', onclick: () => { m.v = t; fillSheet(r2); } }, t)))] : null,
       m.k === 'sense' || m.k === 'note' ? [h('label', { class: 'f' }, 'Text'), h('input', { class: 'in', value: m.v || '', placeholder: m.k === 'note' ? 'e.g. Advantage on Dexterity saves' : 'e.g. Darkvision 60 ft, Fly Speed 30 ft', oninput: e => m.v = e.target.value })] : null,
       /Die$/.test(m.k) ? [h('label', { class: 'f' }, 'Dice'), h('input', { class: 'in', value: m.v || '', placeholder: '1d4 (or -1d4)', oninput: e => m.v = e.target.value })] : null,
-      m.k !== 'resist' && m.k !== 'sense' && m.k !== 'note' && !/Die$/.test(m.k) ? [h('label', { class: 'f' }, m.k === 'set' ? 'Score' : 'Amount'), h('div', { class: 'stepper' }, h('button', { onclick: () => { m.v = (+m.v || 0) - 1; fillSheet(r2); } }, '−'), h('span', { class: 'v' }, m.k === 'set' ? String(m.v) : sgn(+m.v || 0)), h('button', { onclick: () => { m.v = (+m.v || 0) + 1; fillSheet(r2); } }, '+'))] : null);
+      !['resist', 'immune', 'vuln', 'condImm', 'sense', 'note'].includes(m.k) && !/Die$/.test(m.k) ? [h('label', { class: 'f' }, m.k === 'set' ? 'Score' : 'Amount'), h('div', { class: 'stepper' }, h('button', { onclick: () => { m.v = (+m.v || 0) - 1; fillSheet(r2); } }, '−'), h('span', { class: 'v' }, m.k === 'set' ? String(m.v) : sgn(+m.v || 0)), h('button', { onclick: () => { m.v = (+m.v || 0) + 1; fillSheet(r2); } }, '+'))] : null);
   });
 }
 function addExtraDamage(i, upd, rec) {
@@ -3309,7 +3366,9 @@ function effectsSection(c, d, o) {
   const tot = [];
   tot.push(['Armor Class', String(d.ac)], ['Speed', (d.speed || 0) + ' ft'], ['Initiative', sgn(d.init)]);
   const dice = [['Attacks', im.atkDie], ['Saves', im.saveDie], ['Checks', im.checkDie], ['Weapon damage', im.dmgDie]].filter(([, l]) => l && l.length);
-  s.append(h('div', { class: 'minis', style: { marginTop: '4px' } }, tot.map(([k, v]) => h('div', { class: 'mini' }, k, h('b', null, v)))));
+  const openW = k => { const el = [...s.querySelectorAll('details.feat')].find(x => x.querySelector('summary').firstChild.textContent === k); if (el) { el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
+  s.append(h('div', { class: 'minis', style: { marginTop: '4px' } }, tot.map(([k, v]) => h('button', { class: 'mini', type: 'button', style: { cursor: 'pointer', textAlign: 'left' }, onclick: () => openW(k), 'aria-label': `${k} ${v}: show how it’s worked out` }, k, h('b', null, v)))));
+  s.append(h('p', { class: 'tiny muted', style: { margin: '6px 0 0' } }, 'Tap a number to see how it’s worked out.'));
   if (dice.length || im.d20) s.append(h('p', { class: 'small', style: { margin: '8px 0 0' } }, [...dice.map(([k, l]) => `${k}: ${l.map(x => /^[+-]/.test(x) ? x : '+' + x).join(' ')}`), im.d20 ? `Every D20 Test: ${im.d20} (Exhaustion)` : ''].filter(Boolean).join(' · '), h('span', { class: 'muted' }, ' (added to the rolls)')));
   // conditions and exhaustion
   s.append(h('div', { class: 'row', style: { margin: '18px 0 8px' } }, h('div', { class: 'lbl grow' }, 'Conditions'), o.ro ? null : h('button', { class: 'btn sm ghost', onclick: () => pickConditions(cond, v => o.set({ cond: v })) }, icon('plus'), cond.length ? 'Change' : 'Add')));
@@ -3343,6 +3402,7 @@ function effectsSection(c, d, o) {
   if (fx.resist.length) fl.push('Resistance: ' + fx.resist.join(', '));
   if (fx.senses.length) fl.push(fx.senses.join('; '));
   if (fl.length) s.append(h('div', { class: 'lbl', style: { margin: '18px 0 8px' } }, 'From feats'), h('div', { class: 'panel' }, h('ul', { class: 'small', style: { margin: 0, paddingLeft: '20px' } }, fl.map(l => h('li', null, l)))));
+  s.append(workingsSection(c, d));
   return s;
 }
 
@@ -3386,6 +3446,7 @@ function aidPatch(c, a) {
   if (a.efxEnd) { efx = efx.filter(e => e.key !== a.efxEnd); touched = true; }
   if (a.efx) { efx = efx.filter(e => !a.efx.key || e.key !== a.efx.key).concat([Object.assign({ id: nid(), at: Date.now() }, a.efx)]); touched = true; }
   if (touched) p.efx = efx;
+  if (a.item) p.items = (c.items || []).concat([Object.assign({ id: nid(), q: 1 }, a.item)]);
   return p;
 }
 function aidText(a, who) {
@@ -3393,6 +3454,7 @@ function aidText(a, who) {
   if (a.heal) parts.push(`${a.heal} hit points of healing`);
   if (a.thp) parts.push(`${a.thp} temporary hit points`);
   if (a.efx) parts.push(a.efx.n);
+  if (a.item) parts.push(`gave you ${a.item.n}`);
   if (a.efxEnd && !a.efx) parts.push(`${a.efxEnd.split('|')[0]} ended`);
   return (who ? who + ': ' : '') + parts.join(', ');
 }
@@ -3406,7 +3468,7 @@ function receiveAid(map) {
   if (!S.char || !map) return;
   const list = Object.values(map).sort((x, y) => (x.at || 0) - (y.at || 0));
   let c = S.char, patch = {};
-  list.forEach(a => { const p = aidPatch(c, a); c = deepMerge(c, p); if (p.efx) c.efx = p.efx; patch = deepMerge(patch, p); if (p.efx) patch.efx = p.efx; });
+  list.forEach(a => { const p = aidPatch(c, a); c = deepMerge(c, p); ['efx', 'items'].forEach(k => { if (p[k]) { c[k] = p[k]; } }); patch = deepMerge(patch, p); ['efx', 'items'].forEach(k => { if (p[k]) patch[k] = p[k]; }); });
   setChar(patch);
   toast(list.map(a => aidText(a, a.from)).join('; '), 5200);
 }
@@ -3603,6 +3665,394 @@ function grungAfterRest(o) {
   });
 }
 
+/* ================= Homebrew: custom spells, spellbooks, giving items, traits with effects =================
+   Custom spells live with a character (c.cspells) or, for the GM, in the campaign library (kind: 'spell') so every
+   player can use them. They join the spell lists alongside the free rules. */
+const CS_SCHOOLS = ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation'];
+const CS_CLASSES = ['artificer', 'bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard'];
+let CS_SIG = '', CS_IDS = new Set();
+function normSpell(x) {
+  const lv = clamp(parseInt(String(x.l != null ? x.l : x.level).replace(/cantrip/i, '0'), 10) || 0, 0, 9);
+  const cls = (Array.isArray(x.c) ? x.c : String(x.c || x.classes || '').split(/[,;/]+/)).map(v => String(v).trim().toLowerCase()).filter(Boolean);
+  const yes = v => v === true || /^(y|yes|true|1|x)$/i.test(String(v || '').trim());
+  return { i: x.i, n: String(x.n || x.name || 'Unnamed spell').trim().slice(0, 80), l: lv, s: CS_SCHOOLS.find(s => s.toLowerCase() === String(x.s || x.school || '').trim().toLowerCase()) || cap(String(x.s || x.school || 'Evocation')),
+    c: cls, ct: String(x.ct || x.castingTime || x.casting_time || 'Action'), r: String(x.r || x.range || 'Self'), co: String(x.co || x.components || 'V, S'), du: String(x.du || x.duration || 'Instantaneous'),
+    cc: yes(x.cc != null ? x.cc : x.concentration), rt: yes(x.rt != null ? x.rt : x.ritual), at: yes(x.at != null ? x.at : x.attack), dt: String(x.dt || x.damageType || ''),
+    d: String(x.d || x.description || x.desc || '').slice(0, 8000), hl: String(x.hl || x.higherLevels || x.higher_levels || '').slice(0, 2000), hb: x.hb || 'me', src: x.src || x.source || '' };
+}
+function customSpellsNow() {
+  const out = [];
+  (S.library || []).filter(x => x.kind === 'spell' && x.sp).forEach(x => out.push(Object.assign(normSpell(x.sp), { i: 'hb-' + x._id, hb: 'gm', _id: x._id })));
+  ((S.char && S.char.cspells) || []).forEach(x => out.push(Object.assign(normSpell(x), { i: x.i, hb: 'me' })));
+  return out;
+}
+/* keeps the spell lists in step with the campaign's and your custom spells */
+function syncCustomSpells() {
+  const list = customSpellsNow(), sig = JSON.stringify(list.map(s => [s.i, s.n, s.l, s.c, s.d.length, s.hl.length, s.s, s.cc, s.rt]));
+  if (sig === CS_SIG) return; CS_SIG = sig;
+  CS_IDS.forEach(id => { delete SPL_BY[id]; });
+  for (let k = SPL.length - 1; k >= 0; k--) if (SPL[k].hb) SPL.splice(k, 1);
+  for (let k = SPL_SORTED.length - 1; k >= 0; k--) if (SPL_SORTED[k].hb) SPL_SORTED.splice(k, 1);
+  CS_IDS = new Set();
+  list.forEach(sp => { if (!sp.i || SPL_BY[sp.i]) return; SPL.push(sp); SPL_SORTED.push(sp); SPL_BY[sp.i] = sp; CS_IDS.add(sp.i); });
+  SPL_SORTED.sort((a, b) => a.l - b.l || a.n.localeCompare(b.n));
+  if (typeof SPELL_RX !== 'undefined') SPELL_RX = null;
+}
+function saveCustomSpell(sp, where, oldId) {
+  const s = normSpell(sp); delete s.hb;
+  if (where === 'gm') { const id = oldId ? oldId.replace(/^hb-/, '') : nid(); writeDoc('library/' + id, { kind: 'spell', name: s.n, sp: s, upd: Date.now() }); const row = { _id: id, kind: 'spell', name: s.n, sp: s, upd: Date.now() }; const k = (S.library || []).findIndex(x => x._id === id); if (k >= 0) S.library[k] = row; else S.library = (S.library || []).concat([row]); }
+  else { const list = (S.char.cspells || []).slice(), id = oldId || 'cs-' + nid(), k = list.findIndex(x => x.i === id); const row = Object.assign({}, s, { i: id }); if (k >= 0) list[k] = row; else list.push(row); setChar({ cspells: list }); }
+  syncCustomSpells(); refresh();
+}
+function deleteCustomSpell(sp) {
+  if (sp.hb === 'gm') { delDoc('library/' + sp._id); S.library = (S.library || []).filter(x => x._id !== sp._id); }
+  else setChar({ cspells: (S.char.cspells || []).filter(x => x.i !== sp.i), spells: { list: ((S.char.spells || {}).list || []).filter(x => x.i !== sp.i) } });
+  syncCustomSpells(); refresh();
+}
+function openSpellEditor(where, sp) {
+  openSheet(sp ? 'Edit spell' : 'Create a spell', rec => {
+    const st = rec.state; if (!st.s) st.s = sp ? normSpell(sp) : normSpell({ n: '', l: 1, s: 'Evocation', c: S.char && S.char.cls ? [S.char.cls] : ['wizard'] });
+    const s = st.s, f = (lab, k, ph) => [h('label', { class: 'f' }, lab), h('input', { class: 'in', value: s[k] || '', placeholder: ph || '', oninput: e => s[k] = e.target.value })];
+    add(rec.foot, [sp ? h('button', { class: 'btn danger', onclick: async () => { if (await confirmSheet('Delete ' + sp.n + '?', where === 'gm' ? 'It disappears from every player’s spell list.' : 'It disappears from your spell list.')) { deleteCustomSpell(sp); closeSheet(rec); } } }, icon('trash'), 'Delete') : null,
+      h('button', { class: 'btn primary', onclick: () => { if (!s.n.trim()) { toast('Give the spell a name.'); return; } saveCustomSpell(s, where, sp && sp.i); closeSheet(rec); toast(`${s.n.trim()} saved${where === 'gm' ? ' for the whole campaign' : ''}.`); } }, 'Save spell')]);
+    return h('div', null, h('p', { class: 'small muted', style: { marginTop: 0 } }, where === 'gm' ? 'Saved in the campaign: every player can find it and add it.' : 'Saved with your character.'),
+      ...f('Name', 'n', 'e.g. Frost Lance'),
+      h('label', { class: 'f' }, 'Level'), h('div', { class: 'chips' }, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => h('button', { class: 'chip', 'aria-pressed': s.l === l ? 'true' : 'false', onclick: () => { s.l = l; fillSheet(rec); } }, l ? String(l) : 'Cantrip'))),
+      h('label', { class: 'f' }, 'School'), h('select', { class: 'in', onchange: e => s.s = e.target.value }, CS_SCHOOLS.map(x => h('option', { selected: s.s === x ? true : null }, x))),
+      h('label', { class: 'f' }, 'Classes'), h('div', { class: 'chips' }, CS_CLASSES.map(k => h('button', { class: 'chip', 'aria-pressed': s.c.includes(k) ? 'true' : 'false', onclick: () => { s.c = s.c.includes(k) ? s.c.filter(x => x !== k) : s.c.concat([k]); fillSheet(rec); } }, cap(k)))),
+      ...f('Casting time', 'ct', 'Action'), ...f('Range', 'r', '60 feet'), ...f('Components', 'co', 'V, S, M (a pinch of salt)'), ...f('Duration', 'du', 'Instantaneous'),
+      h('div', { class: 'chips mt' }, [['cc', 'Concentration'], ['rt', 'Ritual'], ['at', 'Spell attack roll']].map(([k, l]) => h('button', { class: 'chip', 'aria-pressed': s[k] ? 'true' : 'false', onclick: () => { s[k] = !s[k]; fillSheet(rec); } }, l))),
+      ...f('Damage type (if any)', 'dt', 'Cold'),
+      h('label', { class: 'f' }, 'What it does'), h('textarea', { class: 'in', rows: 6, value: s.d, placeholder: 'Write dice like 3d8 and they become roll buttons. Mention a saving throw and your save DC shows.', oninput: e => s.d = e.target.value }),
+      h('label', { class: 'f' }, 'Using a higher-level spell slot (optional)'), h('textarea', { class: 'in', rows: 2, value: s.hl, placeholder: 'The damage increases by 1d8 for each spell slot level above 1.', oninput: e => s.hl = e.target.value }));
+  });
+}
+/* importing a list of spells: JSON (an array of spells), CSV with a header row, or one spell per line "Name | level | school | classes" */
+function parseSpellImport(text) {
+  const t = String(text || '').trim(); if (!t) return [];
+  try { const j = JSON.parse(t); const arr = Array.isArray(j) ? j : Array.isArray(j.spells) ? j.spells : Array.isArray(j.spell) ? j.spell : null; if (arr) return arr.map(normSpell).filter(s => s.n && s.n !== 'Unnamed spell'); } catch (e) { }
+  const lines = t.split(/\r?\n/).filter(l => l.trim());
+  const splitCsv = l => { const out = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') q = !q; else if ((ch === ',' && !q)) { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out.map(x => x.trim()); };
+  if (/,/.test(lines[0]) && /name/i.test(lines[0])) {
+    const hd = splitCsv(lines[0]).map(x => x.toLowerCase().replace(/[^a-z]/g, ''));
+    const key = { name: 'n', level: 'l', school: 's', classes: 'c', class: 'c', castingtime: 'ct', range: 'r', components: 'co', duration: 'du', concentration: 'cc', ritual: 'rt', description: 'd', text: 'd', higherlevels: 'hl', athigherlevels: 'hl', damagetype: 'dt', source: 'src', attack: 'at' };
+    return lines.slice(1).map(l => { const v = splitCsv(l), o = {}; hd.forEach((k, i) => { if (key[k]) o[key[k]] = v[i]; }); return normSpell(o); }).filter(s => s.n && s.n !== 'Unnamed spell');
+  }
+  return lines.map(l => { const p = l.split('|').map(x => x.trim()); return normSpell({ n: p[0], l: p[1], s: p[2], c: p[3], d: p.slice(4).join(' | ') }); }).filter(s => s.n);
+}
+function openSpellImport(where) {
+  openSheet('Import spells', rec => {
+    const st = rec.state; if (st.txt == null) st.txt = '';
+    const got = parseSpellImport(st.txt);
+    add(rec.foot, [h('button', { class: 'btn primary', disabled: got.length ? null : true, onclick: () => {
+      if (where === 'gm') got.forEach(s => saveCustomSpell(s, 'gm'));
+      else { const list = (S.char.cspells || []).slice(); got.forEach(s => { const k = list.findIndex(x => x.n.toLowerCase() === s.n.toLowerCase()); const row = Object.assign({}, s, { i: k >= 0 ? list[k].i : 'cs-' + nid() }); delete row.hb; if (k >= 0) list[k] = row; else list.push(row); }); setChar({ cspells: list }); syncCustomSpells(); refresh(); }
+      closeSheet(rec); toast(`Imported ${got.length} spell${got.length === 1 ? '' : 's'}.`, 2600);
+    } }, got.length ? `Import ${got.length}` : 'Import')]);
+    return h('div', null,
+      h('p', { class: 'small muted', style: { marginTop: 0 } }, 'For spells from your own books: paste them or load a file. ' + (where === 'gm' ? 'They’re saved in this campaign for every player, not published anywhere.' : 'They’re saved with your character.')),
+      h('textarea', { class: 'in', rows: 8, value: st.txt, placeholder: 'One per line:\nFrost Lance | 2 | Evocation | sorcerer, wizard | A lance of ice… 3d8 Cold damage…\n\nor a CSV with a header row (name, level, school, classes, casting time, range, components, duration, concentration, ritual, description, higher levels)\n\nor JSON', oninput: e => { st.txt = e.target.value; clearTimeout(st.tm); st.tm = setTimeout(() => fillSheet(rec), 400); } }),
+      h('div', { class: 'row mt' }, h('button', { class: 'btn sm', onclick: async () => { const fl = await pickFile('.txt,.csv,.json,text/plain,application/json'); if (!fl) return; st.txt = await readText(fl); fillSheet(rec); } }, icon('plus'), 'Load from a file')),
+      st.txt.trim() ? h('p', { class: 'small', style: { color: got.length ? 'var(--sage)' : 'var(--red)' } }, got.length ? `Found ${got.length}: ${got.slice(0, 6).map(s => s.n).join(', ')}${got.length > 6 ? '…' : ''}` : 'No spells found in that text.') : null);
+  });
+}
+function customSpellsSection(where) {
+  const mine = SPL_SORTED.filter(s => s.hb && (where === 'gm' ? s.hb === 'gm' : true));
+  return h('div', null, h('div', { class: 'row', style: { margin: '6px 0 8px' } }, h('div', { class: 'lbl grow' }, where === 'gm' ? 'Campaign spells' : 'Homebrew and imported spells'),
+      h('button', { class: 'btn sm', onclick: () => openSpellImport(where) }, 'Import'), h('button', { class: 'btn sm primary', onclick: () => openSpellEditor(where) }, icon('plus'), 'Create')),
+    mine.length ? h('div', { class: 'list' }, mine.map(s => h('button', { class: 'li', onclick: () => openSpellEditor(s.hb === 'gm' && where !== 'gm' ? null : (s.hb === 'gm' ? 'gm' : 'me'), s) }, h('div', { class: 'grow' }, h('div', { class: 't' }, s.n, h('span', { class: 'tag' }, s.hb === 'gm' ? 'Campaign' : 'Yours')), h('div', { class: 's' }, spellSub(s))), icon('edit')))) : h('p', { class: 'small muted', style: { margin: 0 } }, 'None yet.'));
+}
+
+/* ---------- spellbooks as items ---------- */
+const isSpellbook = i => !!(i && (Array.isArray(i.sb) || /spellbook|spell book|book of spells|grimoire/i.test(i.n || '') || ((itemEq(i) || {}).n === 'Spellbook')));
+function spellbookPanel(i, upd, rec, opts = {}) {
+  const ids = i.sb || [], sps = ids.map(id => SPL_BY[id]).filter(Boolean).sort((a, b) => a.l - b.l || a.n.localeCompare(b.n));
+  const c = S.char, wiz = c && classesOf(c).some(k => k.cls === 'wizard'), known = new Set(((c && c.spells && c.spells.list) || []).map(x => x.i));
+  const copy = sp => { if (!c) return; setChar({ spells: { list: ((c.spells || {}).list || []).concat([{ i: sp.i, p: false }]) } }); toast(`${sp.n} copied into your spells. ${sp.l ? `By the rules that takes ${2 * sp.l} hours and ${50 * sp.l} GP.` : ''}`, 3400); };
+  const box = h('div', { class: 'panel mt' }, h('div', { class: 'row nowrap' }, h('div', { class: 'lbl grow' }, `Spellbook: ${sps.length} spell${sps.length === 1 ? '' : 's'}`),
+    opts.ro ? null : h('button', { class: 'btn sm', onclick: () => pickSpellsFor(ids, nl => { upd({ sb: nl }); if (rec) setTimeout(() => fillSheet(rec), 60); }) }, icon('plus'), 'Add spells')));
+  if (!sps.length) box.append(h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, 'Empty. Add the spells written in it.'));
+  let lv = -1;
+  sps.forEach(sp => {
+    if (sp.l !== lv) { lv = sp.l; box.append(h('div', { class: 'tiny muted', style: { margin: '10px 0 4px', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700 } }, lv ? 'Level ' + lv : 'Cantrips')); }
+    box.append(h('div', { class: 'li', style: { cursor: 'default' } }, h('div', { class: 'grow' }, h('button', { class: 'linkish', onclick: () => openSpell(sp, c ? { who: c.name, atk: D(c).satk, dc: D(c).sdc, mod: spellModFor(c, D(c), sp) } : {}) }, sp.n), h('div', { class: 's' }, spellSub(sp))),
+      wiz && !opts.ro && !known.has(sp.i) && sp.c.includes('wizard') ? h('button', { class: 'btn sm outline', onclick: () => { copy(sp); if (rec) setTimeout(() => fillSheet(rec), 80); } }, 'Copy') : wiz && known.has(sp.i) ? h('span', { class: 'tag' }, 'Known') : null,
+      opts.ro ? null : h('button', { class: 'icon-btn', 'aria-label': 'Remove ' + sp.n, onclick: () => { upd({ sb: ids.filter(x => x !== sp.i) }); if (rec) setTimeout(() => fillSheet(rec), 60); } }, icon('close'))));
+  });
+  if (wiz && !opts.ro) { const can = sps.filter(sp => !known.has(sp.i) && sp.c.includes('wizard')); if (can.length > 1) box.append(h('button', { class: 'btn sm mt', onclick: () => { setChar({ spells: { list: ((c.spells || {}).list || []).concat(can.map(sp => ({ i: sp.i, p: false }))) } }); toast(`Copied ${can.length} spells into your spells.`, 2600); if (rec) setTimeout(() => fillSheet(rec), 80); } }, `Copy all ${can.length} Wizard spells`)); }
+  if (wiz) box.append(h('p', { class: 'tiny muted', style: { margin: '8px 0 0' } }, 'Wizards can copy Wizard spells of a level they can prepare: 2 hours and 50 GP per spell level.'));
+  return box;
+}
+function pickSpellsFor(ids, done) {
+  openSheet('Add spells', rec => {
+    const st = rec.state; if (!st.q) { st.q = ''; st.sel = new Set(ids); st.wiz = true; }
+    const listEl = h('div', { class: 'list' });
+    const draw = () => { listEl.textContent = ''; const q = st.q.toLowerCase();
+      SPL_SORTED.filter(s => (!st.wiz || s.c.includes('wizard')) && spellMatches(s, q, st.sch)).slice(0, 200).forEach(s => listEl.append(h('label', { class: 'li' }, h('input', { type: 'checkbox', checked: st.sel.has(s.i), onchange: e => { e.target.checked ? st.sel.add(s.i) : st.sel.delete(s.i); } }), h('div', { class: 'grow' }, h('div', { class: 't' }, s.n, s.hb ? h('span', { class: 'tag' }, 'Homebrew') : null), h('div', { class: 's' }, spellSub(s)))))); };
+    draw();
+    add(rec.foot, [h('button', { class: 'btn primary', onclick: () => { closeSheet(rec); done([...st.sel]); } }, 'Done')]);
+    return h('div', null, h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search spells or schools', value: st.q, oninput: e => { st.q = e.target.value; draw(); } })),
+      schoolChips(st.sch, k => { st.sch = k; fillSheet(rec); }),
+      h('label', { class: 'pick mt' }, h('input', { type: 'checkbox', checked: st.wiz, onchange: e => { st.wiz = e.target.checked; draw(); } }), h('span', null, 'Wizard spells only')), h('div', { class: 'mt' }, listEl));
+  });
+}
+
+/* ---------- giving items: the GM to a player, or one player to another ---------- */
+function openGiveItem(uid, name) {
+  openSheet(`Give ${name || 'a player'} an item`, rec => {
+    const st = rec.state; if (st.q == null) { st.q = ''; st.custom = ''; }
+    const listEl = h('div', { class: 'list' });
+    const give = it => { applyAid(uid, { item: it, from: S.role === 'gm' ? 'the Game Master' : (S.char && S.char.name) }); closeSheet(rec); toast(`${it.n} given to ${name || 'them'}.`, 2400); };
+    const draw = () => { listEl.textContent = ''; const q = st.q.toLowerCase(); if (q.length < 2) { listEl.append(h('p', { class: 'small muted' }, 'Type at least two letters to search gear and magic items.')); return; }
+      SRD.eq.filter(e => e.n.toLowerCase().includes(q)).slice(0, 25).forEach(e => listEl.append(h('button', { class: 'li', onclick: () => give({ n: e.n, ref: 'eq:' + e.i, q: 1, w: e.w || 0 }) }, h('div', { class: 'grow' }, h('div', { class: 't' }, e.n), h('div', { class: 's' }, e.k || 'Gear')), icon('plus'))));
+      SRD.mi.filter(m => m.n.toLowerCase().includes(q)).slice(0, 25).forEach(m => listEl.append(h('button', { class: 'li', onclick: () => give({ n: m.n, ref: 'mi:' + m.i, q: 1 }) }, h('div', { class: 'grow' }, h('div', { class: 't' }, m.n), h('div', { class: 's' }, `${m.ra || ''} ${m.k || ''}`.trim())), icon('plus')))); };
+    draw();
+    return h('div', null,
+      h('div', { class: 'row nowrap' }, h('button', { class: 'btn sm primary', onclick: () => pickSpellsFor([], ids => give({ n: 'Spellbook', q: 1, w: 3, sb: ids, note: 'Found spellbook' })) }, icon('plus'), 'A spellbook…')),
+      h('label', { class: 'f' }, 'Or a custom item'), h('div', { class: 'row nowrap' }, h('input', { class: 'in grow', value: st.custom, placeholder: 'e.g. Silver key with a raven crest', oninput: e => st.custom = e.target.value }), h('button', { class: 'btn sm', onclick: () => { if (!st.custom.trim()) return; give({ n: st.custom.trim().slice(0, 80), q: 1 }); } }, 'Give')),
+      h('label', { class: 'f' }, 'Gear and magic items'), h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search', value: st.q, oninput: e => { st.q = e.target.value; draw(); } })), h('div', { class: 'mt' }, listEl));
+  });
+}
+/* a player hands one of their items to someone else */
+function giveMyItem(i, closeRec) {
+  pickTargets(`Give ${i.n} to…`, 1, uids => {
+    const u = uids[0]; if (!u || u === ME.id) { toast('Choose someone else.'); return; }
+    const it = Object.assign({}, i); delete it.id; delete it.eq; delete it.att;
+    applyAid(u, { item: it }); setChar({ items: (S.char.items || []).filter(x => x.id !== i.id) });
+    if (closeRec) closeSheet(closeRec); toast(`${i.n} given.`, 2200);
+  });
+}
+
+/* ---------- traits with effects: custom species, class or other features that change the sheet ---------- */
+function traitEffectsEditor(c, o, idx) {
+  const getF = () => ((o.getChar ? o.getChar() : c).feats || [])[idx];
+  openSheet('Effects of this feature', rec => {
+    const f = getF(); if (!f) { closeSheet(rec); return null; }
+    rec.titleEl.textContent = f.n;
+    const upd = p => { const cur = o.getChar ? o.getChar() : c; o.set({ feats: (cur.feats || []).map((x, k) => k === idx ? Object.assign({}, x, p) : x) }); setTimeout(() => fillSheet(rec), 60); };
+    const pseudo = { n: f.n, mods: f.mods || [] };
+    return h('div', null, h('p', { class: 'small muted', style: { marginTop: 0 } }, 'These apply to your sheet all the time: resistances, Speed, Armor Class, senses, skills and more.'),
+      (f.mods || []).length ? h('div', { class: 'list' }, f.mods.map((m, k) => h('div', { class: 'li', style: { cursor: 'default' } }, h('div', { class: 'grow t' }, m.k === 'xdmg' ? `+${m.x.d} ${m.x.t} ${m.x.w}` : modLabel(m)), h('button', { class: 'icon-btn', 'aria-label': 'Remove', onclick: () => upd({ mods: f.mods.filter((_, j) => j !== k) }) }, icon('trash'))))) : h('p', { class: 'small muted' }, 'No effects yet.'),
+      h('button', { class: 'btn sm mt', onclick: () => addModifier(pseudo, p => upd(p), rec) }, icon('plus'), 'Add an effect'));
+  }, { live: true });
+}
+
+/* ================= Workings: how each number on the sheet is calculated =================
+   Mirrors the sheet's own calculations step by step so players can sense-check AC, Speed, saves and the rest. */
+/* everything that can change the sheet: equipped or attuned items, active effects, and features with effects */
+function fxSources(c) {
+  const out = [];
+  (c.items || []).forEach(i => { if (itemActive(i)) out.push({ n: i.n, kind: needsAttune(i) ? 'attuned item' : 'equipped item', f: itemFx(i) }); });
+  (c.efx || []).forEach(e => out.push({ n: e.n, kind: 'effect', f: itemFx({ n: e.n, mods: e.mods || [], _eff: true }) }));
+  (c.feats || []).forEach(x => { if (x.mods && x.mods.length) out.push({ n: x.n, kind: 'feature', f: itemFx({ n: x.n, mods: x.mods, _eff: true }) }); });
+  return out;
+}
+const wSrc = (s, extra) => `${s.n} (${s.kind}${extra ? ', ' + extra : ''})`;
+function featNamesWith(c, key) { return featList(c).filter(f => FX[f.n] && FX[f.n][key]).map(f => f.full || f.n); }
+function exhParts(c, perLevel, label) { const e = clamp(+c.exh || 0, 0, 6); return e ? [[`Exhaustion level ${e}`, perLevel * e]] : []; }
+/* Armor Class */
+function acWorkings(c, d) {
+  const m = d.m, im = d.im || {}, fxa = d.fx || {}, src = fxSources(c), parts = [], notes = [];
+  if (!c.acAuto) { parts.push(['Armor Class typed in on your sheet', +c.ac || 10]); src.forEach(s => { if (s.f.ac) parts.push([wSrc(s), s.f.ac]); }); }
+  else {
+    let armor = null, shield = null;
+    (c.items || []).forEach(i => { if (!i.eq) return; const e = itemEq(i); if (!e || !e.arm) return; if (e.ak === 'shield') shield = { i, e }; else armor = { i, e }; });
+    if (armor) {
+      const [base, dx, mx] = armor.e.arm;
+      parts.push([armor.i.n === armor.e.n ? `${armor.e.n} base` : `${armor.i.n} (${armor.e.n}) base`, base]);
+      if (dx) parts.push([`Dexterity modifier${mx ? ` (this armour allows up to +${mx})` : ''}`, mx ? Math.min(m.dex, mx) : m.dex]);
+      else notes.push('Heavy armour doesn’t add your Dexterity.');
+      if (itemBonus(armor.i)) parts.push([`Magic bonus on ${armor.i.n}`, itemBonus(armor.i)]);
+      const def = featNamesWith(c, 'acArmored'); if (fxa.acArmored) parts.push([`${def.join(', ') || 'Feat'} (while wearing armour)`, fxa.acArmored]);
+    } else {
+      const opts = [{ v: 10 + m.dex, p: [['Unarmoured base', 10], ['Dexterity modifier', m.dex]] }];
+      if (c.cls === 'barbarian') opts.push({ v: 10 + m.dex + m.con, p: [['Unarmored Defense (Barbarian) base', 10], ['Dexterity modifier', m.dex], ['Constitution modifier', m.con]] });
+      if (c.cls === 'monk' && !shield) opts.push({ v: 10 + m.dex + m.wis, p: [['Unarmored Defense (Monk) base', 10], ['Dexterity modifier', m.dex], ['Wisdom modifier', m.wis]] });
+      if (!shield && fxa.unarmored) opts.push({ v: 10 + m.dex + m[fxa.unarmored], p: [[`${featNamesWith(c, 'unarmoredAc').join(', ') || 'Feat'} base`, 10], ['Dexterity modifier', m.dex], [`${ABN[fxa.unarmored]} modifier`, m[fxa.unarmored]]] });
+      if (im.acBase) { const s = src.find(x => x.f.acBase === im.acBase); opts.push({ v: im.acBase + m.dex, p: [[`${s ? s.n : 'Effect'}: base ${im.acBase}`, im.acBase], ['Dexterity modifier', m.dex]] }); }
+      let best = opts[0]; if (c.cls === 'barbarian' || (c.cls === 'monk' && !shield)) best = opts[1];
+      opts.forEach(o => { if (o.v > best.v) best = o; });
+      parts.push(...best.p);
+      if (opts.length > 1) notes.push('With no armour, the sheet uses whichever way of working out AC gives you the highest.');
+    }
+    if (shield) { parts.push([shield.i.n, 2]); if (itemBonus(shield.i)) parts.push([`Magic bonus on ${shield.i.n}`, itemBonus(shield.i)]); }
+    if (+c.acBonus) parts.push(['Other bonus typed in', +c.acBonus]);
+    src.forEach(s => { if (s.f.ac && s.f.acCond !== 'unarmored') parts.push([wSrc(s), s.f.ac]); if (s.f.ac && s.f.acCond === 'unarmored') { if (!armor && !shield) parts.push([wSrc(s, 'no armour or shield'), s.f.ac]); else notes.push(`${s.n} only counts with no armour or shield.`); } });
+  }
+  let sum = parts.reduce((t, p) => t + (+p[1] || 0), 0);
+  if (im.acMin && im.acMin > sum) { const s = src.find(x => x.f.acMin === im.acMin); notes.push(`${s ? s.n : 'An effect'} means your AC can’t be lower than ${im.acMin}, so it’s raised from ${sum}.`); sum = im.acMin; }
+  if (d.isSet('ac')) notes.push(`You’ve set your AC by hand to ${d.ac}. Long-press AC on the sheet to put it back to ${d.acCalc}.`);
+  return { k: 'Armor Class', total: d.ac, parts, notes, sum };
+}
+function initWorkings(c, d) {
+  const im = d.im || {}, src = fxSources(c), parts = [['Dexterity modifier', d.m.dex]];
+  if (+c.initBonus) parts.push(['Bonus typed in', +c.initBonus]);
+  const alert = featNamesWith(c, 'init'); if (d.fx && d.fx.init) parts.push([`${alert.join(', ') || 'Feat'} (adds your Proficiency Bonus)`, d.fx.init]);
+  src.forEach(s => { if (s.f.init) parts.push([wSrc(s), s.f.init]); if (s.f.check) parts.push([wSrc(s, 'all ability checks'), s.f.check]); });
+  parts.push(...exhParts(c, -2));
+  const notes = []; if (d.isSet('init')) notes.push(`Set by hand to ${d.init}; worked out it would be ${sgn(d.initCalc)}.`);
+  return { k: 'Initiative', total: d.init, parts, notes, signed: true };
+}
+function speedWorkings(c, d) {
+  const im = d.im || {}, src = fxSources(c), sp = SPC_BY[c.species], parts = [[`Base Speed${sp ? ' (' + sp.n + ')' : ''}`, +c.speed || 30]], notes = [];
+  const fs = featList(c).filter(f => FX[f.n] && FX[f.n].speed); fs.forEach(f => parts.push([f.full || f.n, FX[f.n].speed]));
+  src.forEach(s => { if (s.f.speed) parts.push([wSrc(s), s.f.speed]); });
+  const w = wearing(c), mo = classRow(c, 'monk'), ba = classRow(c, 'barbarian');
+  if (mo && !w.armor && !w.shield && +mo.cs.unarmored_movement_bonus) parts.push(['Unarmored Movement (Monk)', +mo.cs.unarmored_movement_bonus]);
+  if (ba && ba.lvl >= 5 && !(w.armor && w.armor.ak === 'heavy')) parts.push(['Fast Movement (Barbarian)', 10]);
+  parts.push(...exhParts(c, -5));
+  let sum = parts.reduce((t, p) => t + p[1], 0);
+  if (im.speedMin && im.speedMin > sum) { notes.push(`An item sets your Speed to at least ${im.speedMin}, so it’s raised from ${sum}.`); sum = im.speedMin; }
+  if ((im.speedMul || 1) !== 1) { const s = src.find(x => x.f.speedMul && x.f.speedMul !== 1); notes.push(`${s ? s.n : 'An effect'} multiplies your Speed by ${im.speedMul}: ${sum} becomes ${Math.round(sum * im.speedMul)}.`); }
+  if (im.speed0) notes.push('A condition (such as Grappled or Restrained) sets your Speed to 0.');
+  return { k: 'Speed', total: d.speed, parts, notes, unit: ' ft' };
+}
+function pbWorkings(c, d) {
+  const lvl = d.lvl, parts = [[`Character level ${lvl}`, Math.ceil(lvl / 4) + 1]], src = fxSources(c);
+  src.forEach(s => { if (s.f.pb) parts.push([wSrc(s), s.f.pb]); });
+  return { k: 'Proficiency Bonus', total: d.pb, parts, notes: d.isSet('pb') ? ['Set by hand.'] : [], signed: true };
+}
+function saveWorkings(c, d, k) {
+  const im = d.im || {}, src = fxSources(c), parts = [[`${ABN[k]} modifier`, d.m[k]]];
+  if (d.saves.has(k)) parts.push(['Proficient (Proficiency Bonus)', d.pb]);
+  src.forEach(s => { if (s.f.save) parts.push([wSrc(s, 'all saves'), s.f.save]); if (s.f.savex && s.f.savex[k]) parts.push([wSrc(s), s.f.savex[k]]); });
+  parts.push(...exhParts(c, -2));
+  const notes = [];
+  if ((im.saveDie || []).length) notes.push(`Rolls also add ${im.saveDie.join(' ')} from your effects.`);
+  if (d.isSet('save:' + k)) notes.push(`Set by hand to ${sgn(d.save(k))}; worked out it would be ${sgn(d.saveCalc(k))}.`);
+  return { k: `${ABN[k]} saving throw`, total: d.save(k), parts, notes, signed: true };
+}
+function skillWorkings(c, d, n) {
+  const im = d.im || {}, src = fxSources(c), ab = SKILL_AB[n], r = (d.sk || {})[n] || 0, parts = [[`${ABN[ab]} modifier`, d.m[ab]]];
+  if (r === 2) parts.push(['Expertise (twice your Proficiency Bonus)', 2 * d.pb]); else if (r) parts.push(['Proficient (Proficiency Bonus)', d.pb]);
+  src.forEach(s => { if (s.f.check) parts.push([wSrc(s, 'all ability checks'), s.f.check]); if (s.f.skills && s.f.skills[n]) parts.push([wSrc(s), s.f.skills[n]]); });
+  parts.push(...exhParts(c, -2));
+  const notes = [];
+  if (d.fx && d.fx.dice && d.fx.dice[n]) notes.push(`Rolls also add ${d.fx.dice[n]} from a feat.`);
+  if ((im.checkDie || []).length) notes.push(`Rolls also add ${im.checkDie.join(' ')} from your effects.`);
+  if (d.isSet('skill:' + n)) notes.push(`Set by hand to ${sgn(d.skill(n))}.`);
+  return { k: n, total: d.skill(n), parts, notes, signed: true };
+}
+function spellWorkings(c, d) {
+  if (!d.sa) return [];
+  const im = d.im || {}, src = fxSources(c), base = [['Proficiency Bonus', d.pb], [`${ABN[d.sa]} modifier (your spellcasting ability)`, d.m[d.sa]]];
+  const atk = base.slice(); src.forEach(s => { if (s.f.satk) atk.push([wSrc(s), s.f.satk]); }); atk.push(...exhParts(c, -2));
+  const dc = [['Base', 8]].concat(base); src.forEach(s => { if (s.f.sdc) dc.push([wSrc(s), s.f.sdc]); });
+  return [{ k: 'Spell attack', total: d.satk, parts: atk, notes: (im.atkDie || []).length ? [`Rolls also add ${im.atkDie.join(' ')} from your effects.`] : [], signed: true },
+    { k: 'Spell save DC', total: d.sdc, parts: dc, notes: [] }];
+}
+function hpWorkings(c, d) {
+  const lvl = d.lvl, im = d.im || {}, fx = d.fx || {}, ab = d.ab || c.abilities || {}, max = (c.hp || {}).max || 0, parts = [], notes = [];
+  const fromFx = (fx.hpPerLevel || 0) * lvl, perLvl = (im.hpLvl || 0) * lvl, flat = im.hp || 0, conD = (mod(ab.con || 10) - mod((c.abilities || {}).con || 10)) * lvl;
+  const extra = fromFx + perLvl + flat + conD;
+  parts.push(['Hit points from your levels (hit dice and Constitution)', max - extra]);
+  if (fromFx) parts.push([`${featNamesWith(c, 'hpPerLevel').join(', ') || 'Feat'} (+${fx.hpPerLevel} per level)`, fromFx]);
+  fxSources(c).forEach(s => { if (s.f.hpLvl) parts.push([wSrc(s, `+${s.f.hpLvl} per level`), s.f.hpLvl * lvl]); if (s.f.hp) parts.push([wSrc(s), s.f.hp]); });
+  if (conD) parts.push([`Constitution raised by an item (${(c.abilities || {}).con} to ${ab.con})`, conD]);
+  notes.push('Your maximum is kept on your sheet; the app adds and removes these bonuses automatically.');
+  return { k: 'Hit point maximum', total: max, parts, notes };
+}
+function attackWorkings(c, d) {
+  const out = [], src = fxSources(c), im = d.im || {};
+  attacksOf(c, d).forEach(a => {
+    if (a.custom) { out.push({ k: a.n, total: a.hit, parts: [['Attack bonus typed in on the item', a.hit]], notes: [`Damage ${a.dmg} typed in on the item.`], signed: true }); return; }
+    const parts = [], notes = [];
+    if (a.id === 'unarmed') {
+      const mo = classRow(c, 'monk'), w = wearing(c), ma = mo && !w.armor && !w.shield, ab = ma && d.m.dex > d.m.str ? 'dex' : 'str';
+      parts.push([`${ABN[ab]} modifier${ma ? ' (Martial Arts: the better of Strength and Dexterity)' : ''}`, d.m[ab]], ['Proficiency Bonus', d.pb]);
+    } else {
+      const i = (c.items || []).find(x => x.id === a.id), e = i && itemEq(i); if (!e) return;
+      const fin = (e.pr || []).includes('Finesse'), ranged = e.wk[1] === 'r';
+      let ab = ranged ? 'dex' : fin ? (d.m.dex > d.m.str ? 'dex' : 'str') : 'str';
+      if (i.wab === 'str' || i.wab === 'dex') ab = i.wab; else if (i.wab === 'sa' && d.sa) ab = d.sa;
+      parts.push([`${ABN[ab]} modifier${fin && !i.wab ? ' (Finesse: the better of Strength and Dexterity)' : ranged ? ' (ranged weapon)' : ''}`, d.m[ab]]);
+      if (weaponProf(c, e) || i.prof) parts.push(['Proficient (Proficiency Bonus)', d.pb]); else notes.push('You aren’t proficient with this weapon, so no Proficiency Bonus.');
+      if (itemBonus(i)) parts.push([`Magic bonus on ${i.n}`, itemBonus(i)]);
+      if (ranged && d.fx && d.fx.rangedAtk) parts.push(['Archery fighting style', d.fx.rangedAtk]);
+    }
+    src.forEach(s => { if (s.f.watk) parts.push([wSrc(s), s.f.watk]); });
+    parts.push(...exhParts(c, -2));
+    notes.push(`Damage: ${a.dmg} ${a.dt || ''}`.trim() + '.');
+    if ((im.atkDie || []).length) notes.push(`Attack rolls also add ${im.atkDie.join(' ')}.`);
+    out.push({ k: `${a.n} attack`, total: a.hit, parts, notes, signed: true });
+  });
+  return out;
+}
+/* the section on the Effects tab */
+function workingsSection(c, d) {
+  const box = h('div', { style: { marginTop: '18px' } }, h('div', { class: 'lbl', style: { margin: '0 0 8px' } }, 'How your numbers are worked out'),
+    h('p', { class: 'small muted', style: { margin: '0 0 8px' } }, 'Tap any number to see each part that adds up to it, so you can check it against your book.'));
+  const fmt = (v, signed) => signed ? sgn(v) : (v >= 0 && signed !== false ? '+' + v : String(v));
+  const card = w => {
+    const sum = w.sum != null ? w.sum : w.parts.reduce((t, p) => t + (+p[1] || 0), 0);
+    const shown = (w.signed ? sgn(w.total) : String(w.total)) + (w.unit || '');
+    return h('details', { class: 'feat' }, h('summary', null, w.k, h('span', { class: 'muted', style: { fontWeight: 800, color: 'var(--ink)' } }, shown)),
+      h('div', { class: 'workings' }, w.parts.map((p, k) => h('div', { class: 'wrow' }, h('span', { class: 'grow' }, p[0]), h('b', null, k === 0 && !w.signed ? String(p[1]) : sgn(+p[1])))),
+        h('div', { class: 'wrow total' }, h('span', { class: 'grow' }, 'Total'), h('b', null, shown)),
+        (w.notes || []).map(n => h('p', { class: 'tiny muted', style: { margin: '6px 0 0' } }, n)),
+        sum !== w.total && !(w.notes || []).some(n => /set by hand|raised|multiplies|sets your Speed/i.test(n)) && w.k !== 'Speed' ? h('p', { class: 'tiny', style: { margin: '6px 0 0', color: 'var(--red)' } }, `These parts add up to ${sum}. If that doesn’t match, something was set by hand or the item’s modifiers need checking.`) : null));
+  };
+  const list = [acWorkings(c, d), initWorkings(c, d), speedWorkings(c, d), pbWorkings(c, d), hpWorkings(c, d)].concat(spellWorkings(c, d), attackWorkings(c, d));
+  box.append(...list.map(card));
+  box.append(h('div', { class: 'lbl', style: { margin: '14px 0 8px' } }, 'Saving throws'), ...ABIL.map(k => card(saveWorkings(c, d, k))));
+  box.append(h('div', { class: 'lbl', style: { margin: '14px 0 8px' } }, 'Skills'), ...SKILLS.map(([n]) => card(skillWorkings(c, d, n))));
+  const pp = skillWorkings(c, d, 'Perception'); box.append(card({ k: 'Passive Perception', total: d.pp, parts: [['Base', 10]].concat(pp.parts), notes: d.isSet('pp') ? ['Set by hand.'] : [] }));
+  return box;
+}
+
+/* ================= Change log: every version of Campfire, newest first ================= */
+const APP_VERSION = '5.4';
+const CHANGELOG = [
+  ['5.4', 'November 2026', ['A change log on the sign-in page (this list).']],
+  ['5.3', 'November 2026', ['The Effects tab shows how every number is worked out: Armor Class, Initiative, Speed, Proficiency Bonus, hit points, spell attack and save DC, attacks, saving throws, skills and Passive Perception.', 'Tap Armor Class, Speed or Initiative at the top of the Effects tab to jump to its workings.']],
+  ['5.2', 'November 2026', ['Every spell shows its school of magic.', 'Search and filter by school on your Spells tab, in Add spells, in the GM’s spell reference and in spellbooks.']],
+  ['5.1', 'November 2026', ['Create your own spells, or import a list from your own books; the GM can add campaign spells everyone can use (Library).', 'Spellbooks as items: write spells into them, and wizards can copy spells into their own.', 'The GM can give any item to a player, and players can give items to each other.', 'Your own features can have effects: resistances, immunities, vulnerabilities, condition immunities, Speed, AC and more. A Defences line on the sheet lists them.', 'Everyone has an Unarmed Strike; monks use their Martial Arts die.', 'Monk Martial Arts die and Unarmored Movement, rogue Sneak Attack and barbarian Fast Movement now scale with level.', 'Fixed: sounds didn’t stop on players’ devices. Fixed: oversized icons in some lists.']],
+  ['5.0', 'November 2026', ['New species: Grung (modified for 2024 rules), with six castes, Poisonous Skin and Water Dependency.', 'Grung added as a language; tap-to-add languages in Edit.']],
+  ['4.9', 'November 2026', ['Wild Magic surges: choose the standard d100 or a d1000 table, import your own table, surge checks after casting, and Tides of Chaos.']],
+  ['4.8', 'November 2026', ['Maps: separate Select and Add token tools, so tapping a token never adds a new one.', 'A bar for the selected token: Edit, Remove, size, Copy and Deselect. Delete and Escape keys on computers.']],
+  ['4.7', 'November 2026', ['Temporary hit points counter on the sheet.', 'Heal other characters: healing spells, potions and Lay on Hands let you pick targets.', 'Spells like Bless, Shield of Faith, Haste and Aid apply to the characters you cast them on, and end for everyone when your Concentration ends.']],
+  ['4.6', 'November 2026', ['Other players see a health tier (Untouched to Dying) instead of hit points.', 'Spells named in item text open with a tap; weapons show attack and damage buttons on their item screen.', 'New Effects tab: conditions, Exhaustion, and spell effects that change your numbers.', 'Times on rolls in the party feed and roll log.']],
+  ['4.5', 'November 2026', ['Item modifiers: give any item +AC, saves, ability scores, Speed, spellcasting bonuses and more.', 'About 80 magic items apply their effects automatically.', 'Custom weapons and armour built on a standard item, extra damage dice, and an attunement limit of three.']],
+  ['4.4', 'November 2026', ['Limited uses tracked for class, subclass and species features (Action Surge, Wild Shape, Rage and the rest).', 'Item charges with spells to cast and dawn recharges for 138 magic items, plus your own trackers.']],
+  ['4.3', 'November 2026', ['Every feat has a summary, and feats update the sheet automatically: initiative, hit points, Speed, skills, spells and limited uses.', 'Feats that need choices ask for them.']],
+  ['4.2', 'November 2026', ['Cast spells at any slot level: damage, healing, temporary hit points and extra targets scale correctly.']],
+  ['4.1', 'November 2026', ['Healing spells add your spellcasting modifier; features that add a modifier or level now include it.']],
+  ['4.0', 'November 2026', ['Areas of effect on maps: circles, cones and lines with an opacity slider, for the GM and players.']],
+  ['3.9', 'November 2026', ['Map tokens in every size, from Tiny to Gargantuan.']],
+  ['3.8', 'October 2026', ['Adventure packs: import ready-made adventures with maps, handouts, creatures and encounters.', 'One Page Dungeon Contest winners pack, and a pinch-to-zoom image viewer.']],
+  ['3.7', 'October 2026', ['Print your character sheet, or save it as a PDF, in a pen-and-paper style.']],
+  ['3.6', 'October 2026', ['The soundboard uses real recordings instead of computer-made sounds.']],
+  ['3.5', 'October 2026', ['Heroic Inspiration, following the 2024 rules; the GM can award it.']],
+  ['3.4', 'October 2026', ['Death saving throws, visible to the GM.']],
+  ['3.3', 'October 2026', ['Sounds when you roll: swords, arrows, spells, initiative drums and dice.']],
+  ['3.2', 'October 2026', ['A soundboard for the GM, with ambience and effects.']],
+  ['3.1', 'October 2026', ['Weapons, armour and items from your workbook, organised in sections.']],
+  ['3.0', 'October 2026', ['Feats and backgrounds from your workbook.']],
+  ['2.9', 'October 2026', ['Multiclassing: choose which class to level up.']],
+  ['2.8', 'October 2026', ['More subclass names, the Artificer, and level-up reminders.']],
+  ['2.7', 'October 2026', ['One-tap level up with prompts for choices.', 'Players open on the Camp page and see the party’s rolls.', 'Spells granted by class or species fill in automatically.', 'A spell reference for the GM, the full bestiary in encounters, live maps, a ruler, player tokens, and players rolling their own initiative.']],
+  ['2.6', 'October 2026', ['A web link for iPhone and browser players.', 'Long-press any number to set it by hand.']],
+  ['2.5', 'October 2026', ['Online play: accounts, invite codes, and campaigns that sync across everyone’s devices.']],
+  ['2.4', 'October 2026', ['Several campaigns at once; the GM can delete old ones.']],
+  ['2.3', 'October 2026', ['Remove maps and handouts, and keep their uploads separate.']],
+  ['2.2', 'October 2026', ['Up to 8 players plus the GM.']],
+  ['2.1', 'October 2026', ['All backgrounds, a random name generator, image uploads for maps and handouts, and descriptions for every monster.', 'Builder buttons stay above the menu.']],
+  ['2.0', 'October 2026', ['Sign-in and invite codes so devices can join the same campaign.']],
+  ['1.5', 'October 2026', ['A shared subclass library for subclasses from other books.']],
+  ['1.4', 'October 2026', ['Every subclass available, and monster descriptions in the bestiary.']],
+  ['1.3', 'October 2026', ['Sign in with email; permission to add photos from your gallery.']],
+  ['1.2', 'October 2026', ['Privacy and security for publishing: a privacy policy, data controls and account deletion.']],
+  ['1.1', 'October 2026', ['The Campfire look and name.']],
+  ['1.0', 'October 2026', ['The first version: player and GM areas, character creation, sheets, dice, spells, items, a journal, private messages, the bestiary, encounters, maps and handouts.']]
+];
+function openChangelog() {
+  openSheet('What’s new', rec => h('div', null,
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, `You’re on Campfire ${APP_VERSION}. Every version so far, newest first.`),
+    CHANGELOG.map(([v, when, items], k) => h('details', { class: 'feat', open: k < 2 ? true : null },
+      h('summary', null, `Version ${v}`, h('span', { class: 'muted' }, when)),
+      h('ul', { class: 'small', style: { margin: '6px 0 4px', paddingLeft: '20px' } }, items.map(t => h('li', { style: { marginBottom: '4px' } }, t)))))));
+}
+
 /* ================= App state & shell ================= */
 const S = {
   role: null, tab: null, campaign: { name: '' }, ready: false,
@@ -3615,6 +4065,7 @@ const S = {
 const KEEP = Symbol('keep');
 let renderQueued = false, renderDeferred = false;
 function refresh() {
+  try { if (typeof syncCustomSpells === 'function') syncCustomSpells(); } catch (e) { }
   if (renderQueued) return; renderQueued = true;
   requestAnimationFrame(() => {
     renderQueued = false;
@@ -4225,16 +4676,23 @@ function renderPSpells() {
   if (caT || prT) root.append(h('p', { class: 'small muted', style: { marginTop: 0 } }, [caT ? `Cantrips ${canN} of ${caT}` : '', prT ? `Prepared ${prepN} of ${prT}` : ''].filter(Boolean).join('. ') + (d.multi && d.casters.length > 1 ? ' across your classes' : '') + '. Tap the circle to prepare a spell.'));
   if (!list.length) root.append(h('div', { class: 'empty' }, h('b', null, 'No spells yet'), 'Add spells from the 2024 SRD to cast and roll them from here.', h('div', null, h('button', { class: 'btn primary', onclick: openSpellBrowser }, 'Browse spells'))));
   const byL = {};
-  list.forEach(s => { const sp = SPL_BY[s.i]; if (sp) (byL[sp.l] = byL[sp.l] || []).push([sp, s]); });
+  if (list.length >= 6) {
+    const inp = h('input', { class: 'in', type: 'search', placeholder: 'Search your spells or schools', value: S.pspQ || '', oninput: e => { S.pspQ = e.target.value; filterSpellRows(root); } });
+    root.append(h('div', { class: 'search' }, icon('search'), inp), schoolChips(S.pspSch, k => { S.pspSch = k; refresh(); }));
+  }
+  const pq = (S.pspQ || '').toLowerCase();
+  list.forEach(s => { const sp = SPL_BY[s.i]; if (sp && (list.length < 6 || spellMatches(sp, '', S.pspSch))) (byL[sp.l] = byL[sp.l] || []).push([sp, s]); });
+  if (list.length >= 6) setTimeout(() => filterSpellRows(root), 0);
   const castCtx = () => ({ slots: D(S.char).slots, used: (S.char.spells && S.char.spells.used) || [], spend: l => { const u = ((S.char.spells && S.char.spells.used) || [0, 0, 0, 0, 0, 0, 0, 0, 0]).slice(); u[l - 1] = (u[l - 1] || 0) + 1; setChar({ spells: { used: u } }); } });
   Object.keys(byL).map(Number).sort((a, b) => a - b).forEach(l => {
-    root.append(h('h3', { style: { font: '400 18px var(--display)', color: 'var(--ink-3)', margin: '18px 0 8px' } }, l === 0 ? 'Cantrips' : ordinal(l) + ' level'));
+    const grp = h('div', { class: 'splv' }); root.append(grp);
+    grp.append(h('h3', { style: { font: '400 18px var(--display)', color: 'var(--ink-3)', margin: '18px 0 8px' } }, l === 0 ? 'Cantrips' : ordinal(l) + ' level'));
     const ul = h('div', { class: 'list' });
-    byL[l].sort((a, b) => a[0].n.localeCompare(b[0].n)).forEach(([sp, s]) => ul.append(h('div', { class: 'li', role: 'button', tabindex: 0, onclick: () => openSpell(sp, s && s.ab ? { atk: d.pb + d.m[s.ab], dc: 8 + d.pb + d.m[s.ab], mod: d.m[s.ab], charLevel: d.lvl, cast: castCtx } : { atk: d.satk != null ? d.satk : null, dc: d.sdc, mod: spellModFor(S.char, d, sp), charLevel: d.lvl, cast: castCtx }) },
+    byL[l].sort((a, b) => a[0].n.localeCompare(b[0].n)).forEach(([sp, s]) => ul.append(h('div', { class: 'li', role: 'button', tabindex: 0, 'data-sp': (sp.n + ' ' + sp.s).toLowerCase(), onclick: () => openSpell(sp, s && s.ab ? { atk: d.pb + d.m[s.ab], dc: 8 + d.pb + d.m[s.ab], mod: d.m[s.ab], charLevel: d.lvl, cast: castCtx } : { atk: d.satk != null ? d.satk : null, dc: d.sdc, mod: spellModFor(S.char, d, sp), charLevel: d.lvl, cast: castCtx }) },
       s.g ? h('span', { class: 'prep on', title: 'Always prepared', 'aria-label': 'Always prepared' }, icon('check')) : l > 0 ? h('button', { class: 'prep' + (s.p ? ' on' : ''), 'aria-label': s.p ? 'Prepared' : 'Not prepared', onclick: e => { e.stopPropagation(); setChar({ spells: { list: own.map(x => x.i === s.i ? Object.assign({}, x, { p: !x.p }) : x) } }); } }, s.p ? icon('check') : null) : h('span', { class: 'prep on', style: { opacity: .35 } }, icon('check')),
-      h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.cc ? h('span', { class: 'tag' }, 'C') : null, sp.rt ? h('span', { class: 'tag' }, 'R') : null, s.g ? h('span', { class: 'tag', style: { borderColor: 'var(--ember-line)', color: 'var(--ember)' } }, 'Granted') : null), h('div', { class: 's' }, s.g ? `Always prepared, from ${s.g}` : `${sp.ct}, ${sp.r}`)),
+      h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.cc ? h('span', { class: 'tag' }, 'C') : null, sp.rt ? h('span', { class: 'tag' }, 'R') : null, s.g ? h('span', { class: 'tag', style: { borderColor: 'var(--ember-line)', color: 'var(--ember)' } }, 'Granted') : null), h('div', { class: 's' }, s.g ? `${sp.s} · always prepared, from ${s.g}` : `${sp.s} · ${sp.ct}, ${sp.r}`)),
       cantripDice(sp, d.lvl) ? rollBtn(cantripDice(sp, d.lvl), cantripDice(sp, d.lvl), { label: sp.n + ': damage', kind: 'dmg' }) : null)));
-    root.append(ul);
+    grp.append(ul);
   });
   return root;
 }
@@ -4246,17 +4704,20 @@ function openSpellBrowser() {
       listEl.textContent = '';
       const have = new Set(((S.char.spells && S.char.spells.list) || []).map(s => s.i));
       const q = st.q.toLowerCase();
-      const res = SPL_SORTED.filter(sp => (!q || sp.n.toLowerCase().includes(q)) && (st.lv === 'all' || sp.l === +st.lv) && (!st.mine || lists.some(l => sp.c.includes(l)) || featFx(S.char).extra.has(sp.n)));
+      const res = SPL_SORTED.filter(sp => spellMatches(sp, q, st.sch) && (st.lv === 'all' || sp.l === +st.lv) && (!st.mine || lists.some(l => sp.c.includes(l)) || featFx(S.char).extra.has(sp.n)));
       res.slice(0, 150).forEach(sp => listEl.append(h('div', { class: 'li', role: 'button', tabindex: 0, onclick: () => openSpell(sp, { atk: D(S.char).satk, dc: D(S.char).sdc, mod: spellModFor(S.char, D(S.char), sp), charLevel: D(S.char).lvl }) },
-        h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n), h('div', { class: 's' }, spellSub(sp))),
+        h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.hb ? h('span', { class: 'tag' }, sp.hb === 'gm' ? 'Campaign' : 'Homebrew') : null), h('div', { class: 's' }, spellSub(sp))),
+        sp.hb === 'me' ? h('button', { class: 'icon-btn', 'aria-label': 'Edit ' + sp.n, onclick: e => { e.stopPropagation(); openSpellEditor('me', sp); } }, icon('edit')) : null,
         h('button', { class: 'prep' + (have.has(sp.i) ? ' on' : ''), 'aria-label': have.has(sp.i) ? 'Remove ' + sp.n : 'Add ' + sp.n, onclick: e => { e.stopPropagation(); const cur = (S.char.spells && S.char.spells.list) || []; setChar({ spells: { list: have.has(sp.i) ? cur.filter(x => x.i !== sp.i) : cur.concat([{ i: sp.i, p: sp.l === 0 }]) } }); draw(); } }, have.has(sp.i) ? icon('check') : icon('plus')))));
       if (!res.length) listEl.append(h('p', { class: 'muted center' }, 'No spells match.'));
       if (res.length > 150) listEl.append(h('p', { class: 'muted center small' }, `Showing 150 of ${res.length}. Search to narrow it down.`));
     };
     draw();
     return h('div', null,
-      h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search spells', value: st.q, oninput: e => { st.q = e.target.value; draw(); } })),
+      h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search spells or schools', value: st.q, oninput: e => { st.q = e.target.value; draw(); } })),
+      schoolChips(st.sch, k => { st.sch = k; fillSheet(rec); }),
       h('div', { class: 'chips hscroll mt' }, ['all', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => h('button', { class: 'chip', 'aria-pressed': String(st.lv) === String(l) ? 'true' : 'false', onclick: () => { st.lv = String(l); fillSheet(rec); } }, l === 'all' ? 'All' : l === 0 ? 'Cantrips' : ordinal(l)))),
+      h('div', { class: 'row mt' }, h('button', { class: 'btn sm', onclick: () => openSpellEditor('me') }, icon('plus'), 'Create a spell'), h('button', { class: 'btn sm', onclick: () => openSpellImport('me') }, 'Import spells')),
       lists.length ? h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: st.mine, onchange: e => { st.mine = e.target.checked; draw(); } }), h('span', null, `${lists.map(l => CLS_BY[l].n).join(' or ')} spells only`)) : CLS_BY[S.char.cls] && CLS_BY[S.char.cls].book ? h('p', { class: 'small muted', style: { margin: '8px 0 0' } }, `The ${CLS_BY[S.char.cls].n} spell list is in your book, so all spells are shown. Add the ones on your class list.`) : null,
       listEl);
   });
@@ -4327,15 +4788,16 @@ function openAddItem() {
     const pick = h('select', { class: 'in', 'aria-label': 'Item section', onchange: e => { st.sec = e.target.value; st.q = ''; fillSheet(rec); } }, ITEM_SECTIONS.map(([k, l]) => h('option', { value: k, selected: st.sec === k ? true : null }, l)));
     if (st.sec === 'custom') {
       const f = st.f = st.f || { n: '', q: 1, w: 0, atk: '', dmg: '', note: '', kind: 'gear', base: '', bonus: 0, att: false };
-      const KINDS = [['gear', 'Gear'], ['weapon', 'Weapon'], ['armor', 'Armour'], ['shield', 'Shield'], ['worn', 'Worn item'], ['other', 'Other weapon']];
+      const KINDS = [['gear', 'Gear'], ['weapon', 'Weapon'], ['armor', 'Armour'], ['shield', 'Shield'], ['worn', 'Worn item'], ['spellbook', 'Spellbook'], ['other', 'Other weapon']];
       add(rec.foot, [h('button', { class: 'btn primary', onclick: () => {
         if (!f.n.trim()) { toast('Give the item a name.'); return; }
         const it = { n: f.n.trim(), q: +f.q || 1, w: +f.w || 0, note: f.note.trim() };
         if (f.kind === 'weapon' || f.kind === 'armor') { if (!f.base) { toast('Choose the ' + (f.kind === 'weapon' ? 'weapon' : 'armour') + ' it is based on.'); return; } it.ref = 'eq:' + f.base; it.bonus = +f.bonus || 0; if (!f.w) it.w = (EQ_BY[f.base] || {}).w || 0; }
         else if (f.kind === 'shield') { const sh = SRD.eq.find(e => e.ak === 'shield'); it.ref = sh ? 'eq:' + sh.i : null; it.bonus = +f.bonus || 0; if (!f.w) it.w = 6; }
         else if (f.kind === 'other') { it.atk = f.atk === '' ? null : +f.atk; it.dmg = f.dmg.trim(); }
+        else if (f.kind === 'spellbook') { it.sb = []; if (!f.w) it.w = 3; }
         if (f.att || f.kind === 'worn') it.reqAtt = !!f.att;
-        addIt(it); toast('Added. Open it to add modifiers, extra damage or charges.', 3200); st.f = null; fillSheet(rec);
+        addIt(it); toast(f.kind === 'spellbook' ? 'Added. Open it to write spells into it.' : 'Added. Open it to add modifiers, extra damage or charges.', 3200); st.f = null; fillSheet(rec);
       } }, 'Add item')]);
       const bases = f.kind === 'weapon' ? BASE_WEAPONS() : f.kind === 'armor' ? BASE_ARMOR().filter(e => e.ak !== 'shield') : [];
       return h('div', null, h('label', { class: 'f', style: { marginTop: 0 } }, 'Section'), pick,
@@ -4383,8 +4845,9 @@ function openItem(id) {
     if (ref.startsWith('ship:')) { const v = SHIP_BY[ref.slice(5)]; if (v) body.append(kv([['Speed', v.mph + ' mph'], ['Crew', v.crew], ['Passengers', v.pass], ['Cargo', v.cargo + ' tons'], ['Armour class', v.ac], ['Hit points', v.hp], ['Damage threshold', v.dt], ['Cost', gpText(v.gp)]])); }
     if (e && e.dmg) body.append(h('div', { class: 'row mt' }, h('b', { class: 'grow' }, 'Attacks with'), h('div', { class: 'seg', style: { flex: '0 0 240px' } }, [['', 'Auto'], ['str', 'Str'], ['dex', 'Dex'], ['sa', 'Spell']].map(([k, l]) => h('button', { 'aria-pressed': (i.wab || '') === k ? 'true' : 'false', onclick: () => { upd({ wab: k || null }); fillSheet(rec); } }, l)))));
     if (e && (e.dmg || e.arm)) body.append(h('div', { class: 'row mt' }, h('b', { class: 'grow' }, 'Magic bonus'), h('div', { class: 'seg', style: { flex: '0 0 220px' } }, [0, 1, 2, 3].map(b => h('button', { 'aria-pressed': itemBonus(i) === b ? 'true' : 'false', onclick: () => { upd({ bonus: b }); fillSheet(rec); } }, b ? '+' + b : 'None')))));
-    if (!e && !mi) body.append(h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, h('label', { class: 'f' }, 'Attack bonus'), h('input', { class: 'in num', type: 'number', value: i.atk == null ? '' : i.atk, onchange: ev => upd({ atk: ev.target.value === '' ? null : +ev.target.value }) })), h('div', { class: 'grow' }, h('label', { class: 'f' }, 'Damage'), h('input', { class: 'in', value: i.dmg || '', onchange: ev => upd({ dmg: ev.target.value }) }))));
+    if (!e && !mi && !isSpellbook(i)) body.append(h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, h('label', { class: 'f' }, 'Attack bonus'), h('input', { class: 'in num', type: 'number', value: i.atk == null ? '' : i.atk, onchange: ev => upd({ atk: ev.target.value === '' ? null : +ev.target.value }) })), h('div', { class: 'grow' }, h('label', { class: 'f' }, 'Damage'), h('input', { class: 'in', value: i.dmg || '', onchange: ev => upd({ dmg: ev.target.value }) }))));
     const usesBox = itemUsesPanel(i, upd, rec, S.char.name); if (usesBox) body.append(usesBox);
+    if (isSpellbook(i)) body.append(spellbookPanel(i, upd, rec));
     if (!ride) body.append(itemFxPanel(i, upd, rec));
     body.append(h('label', { class: 'f' }, 'Notes'), h('textarea', { class: 'in', value: i.note || '', onchange: ev => upd({ note: ev.target.value }) }));
     if (e) {
@@ -4403,6 +4866,7 @@ function openItem(id) {
       else body.append(h('p', { class: 'small muted' }, `${i.n}’s effects are in the ${mi.book || 'Dungeon Master’s Guide'}, so they aren’t built in. Add a summary in Notes, and add its attack or damage if it has one.`));
     }
     if (!itemUsesDef(i)) body.append(h('button', { class: 'btn sm ghost mt', onclick: () => addItemTracker(i, upd, rec) }, icon('plus'), 'Add a use tracker (charges, uses per day)'));
+    if (!CAP.local || Object.keys(S.party || {}).length > 1) body.append(h('button', { class: 'btn sm ghost mt', onclick: () => giveMyItem(i, rec) }, icon('share'), 'Give to another player'));
     return body;
   }, { live: true });
 }
@@ -4695,6 +5159,13 @@ function itemQuickRolls(i) {
     h('div', { class: 'tiny muted', style: { marginTop: '6px' } }, [a.dt, a.note, i.eq ? '' : 'Not equipped: these are the numbers if you equip it'].filter(Boolean).join(' · ')));
 }
 
+/* shows only your spells whose name or school matches the search */
+function filterSpellRows(root) {
+  const q = (S.pspQ || '').toLowerCase().trim(); let any = false;
+  root.querySelectorAll('.splv').forEach(g => { let vis = 0; g.querySelectorAll('.li[data-sp]').forEach(r => { const on = !q || r.dataset.sp.includes(q); r.style.display = on ? '' : 'none'; if (on) vis++; }); g.style.display = vis ? '' : 'none'; if (vis) any = true; });
+  let note = root.querySelector('.spnone'); if (!any && !note) { note = h('p', { class: 'muted center spnone' }, 'None of your spells match.'); root.append(note); } else if (any && note) note.remove();
+}
+
 /* ================= Game Master ================= */
 function setupGM() {
   Object.assign(S, { chars: {}, portraits: {}, rolls: {}, threads: {}, tmsgs: [], best: { art: {}, notes: {} }, encs: [], encOpen: null, maps: [], mapOpen: null, hlib: [], custom: [], msgOpen: null, rollSeenAt: Date.now() });
@@ -4766,7 +5237,7 @@ function renderGParty() {
   const root = h('div');
   const uids = Object.keys(S.chars).sort((a, b) => pcName(a).localeCompare(pcName(b)));
   if (!S.campSel || !S.chars[S.campSel]) S.campSel = uids[0] || null;
-  root.append(h('div', { class: 'row', style: { justifyContent: 'space-between', margin: '-4px 0 0' } }, h('button', { class: 'btn ghost sm', onclick: openLibrary }, icon('journal'), 'Subclass library'),
+  root.append(h('div', { class: 'row', style: { justifyContent: 'space-between', margin: '-4px 0 0' } }, h('button', { class: 'btn ghost sm', onclick: openLibrary }, icon('journal'), 'Library'),
     h('button', { class: 'btn ghost sm', onclick: async () => { const n = await askText('Campaign name', S.campaign.name || '', { placeholder: 'e.g. The Sunken Crown' }); if (n != null) { S.campaign = Object.assign({}, S.campaign, { name: n }); writeDoc('campaign/info', S.campaign); renderTop(); renderMain(); } } }, icon('edit'), S.campaign.name ? 'Rename campaign' : 'Name your campaign')));
   const camp = h('div', { class: 'camp' + (uids.length > 6 ? ' crowd' : ''), role: 'group', 'aria-label': 'Party around the fire' }, h('div', { class: 'glow', 'aria-hidden': 'true' }), h('div', { class: 'ellipse', 'aria-hidden': 'true' }), flameSvg('flame'));
   const shown = uids.slice(0, 12), n = shown.length;
@@ -4791,6 +5262,7 @@ function renderGParty() {
       (c.cond || []).length ? h('div', { class: 'chips' }, c.cond.map(x => h('span', { class: 'chip cond', style: { minHeight: 0, padding: '3px 9px', fontSize: '12px' } }, x))) : null,
       h('div', { class: 'small muted' }, `Passive Perception ${d.pp}${d.sdc ? ', spell save DC ' + d.sdc : ''}`),
       h('div', { class: 'row' }, h('button', { class: 'btn outline sm grow', onclick: () => openPCSheet(uid) }, 'Open sheet'), h('button', { class: 'btn sm grow', onclick: () => openHP(c.name + ': hit points', () => S.chars[uid].hp, (p, info) => gmSetPCHP(uid, p, info)) }, 'Hit points'), h('button', { class: 'btn sm grow', onclick: () => { go('messages'); openGMThread(uid); } }, 'Message')),
+      h('button', { class: 'btn sm outline', style: { alignSelf: 'flex-start' }, onclick: () => openGiveItem(uid, c.name) }, icon('plus'), 'Give an item'),
       h('button', { class: 'btn sm' + (c.insp ? '' : ' outline'), style: { alignSelf: 'flex-start' }, onclick: () => awardInspiration(uid) }, icon('spark'), c.insp ? 'Has Heroic Inspiration' : 'Give Heroic Inspiration'),
       CAP.local ? null : h('button', { class: 'btn ghost sm', style: { color: 'var(--red)', alignSelf: 'flex-start' }, onclick: () => gmRemovePlayer(uid) }, 'Remove player and their data')));
   }
@@ -4826,14 +5298,15 @@ function renderGSpellbook() {
   const draw = () => {
     listEl.textContent = '';
     const q = S.sq.toLowerCase();
-    const res = SPL_SORTED.filter(sp => (!q || sp.n.toLowerCase().includes(q) || sp.s.toLowerCase().includes(q)) && (S.slv === 'all' || sp.l === +S.slv) && (S.scls === 'all' || sp.c.includes(S.scls)));
+    const res = SPL_SORTED.filter(sp => spellMatches(sp, q, S.ssch) && (S.slv === 'all' || sp.l === +S.slv) && (S.scls === 'all' || sp.c.includes(S.scls)));
     res.forEach(sp => listEl.append(h('button', { class: 'li', onclick: () => openSpell(sp, {}) },
       h('span', { class: 'mono-tile cr' }, h('small', null, sp.l === 0 ? 'CAN' : 'LVL'), sp.l === 0 ? '0' : String(sp.l)),
       h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.cc ? h('span', { class: 'tag' }, 'C') : null, sp.rt ? h('span', { class: 'tag' }, 'R') : null), h('div', { class: 's' }, `${sp.s}, ${sp.ct}, ${sp.r}`)))));
-    if (!res.length) listEl.append(h('div', { class: 'empty' }, h('b', null, 'No spells match'), 'Try a different name, level or class.'));
+    if (!res.length) listEl.append(h('div', { class: 'empty' }, h('b', null, 'No spells match'), 'Try a different name, school, level or class.'));
     cnt.textContent = `${res.length} of ${SPL.length} spells`;
   };
   root.append(h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search spells or schools', value: S.sq, oninput: e => { S.sq = e.target.value; draw(); } })));
+  root.append(schoolChips(S.ssch, k => { S.ssch = k; renderMain(); }));
   root.append(h('div', { class: 'chips hscroll mt' }, ['all', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => h('button', { class: 'chip', 'aria-pressed': String(S.slv) === String(l) ? 'true' : 'false', onclick: () => { S.slv = String(l); renderMain(); } }, l === 'all' ? 'All levels' : l === 0 ? 'Cantrips' : ordinal(l)))));
   root.append(h('div', { class: 'row mt nowrap' }, h('select', { class: 'in', 'aria-label': 'Class', onchange: e => { S.scls = e.target.value; draw(); } }, h('option', { value: 'all' }, 'All classes'), SRD.cls.filter(k => k.sa && !k.book).map(k => h('option', { value: k.i, selected: S.scls === k.i ? true : null }, k.n)))));
   root.append(h('div', { style: { margin: '10px 0 4px' } }, cnt), listEl);
@@ -5239,17 +5712,17 @@ function renderGMessages() {
 
 /* ---------- subclass library ---------- */
 function openLibrary() {
-  openSheet('Subclass library', rec => {
-    const lib = (S.library || []).slice().sort((a, b) => (CLS_BY[a.cls] ? CLS_BY[a.cls].n : '').localeCompare(CLS_BY[b.cls] ? CLS_BY[b.cls].n : '') || a.name.localeCompare(b.name));
+  openSheet('Library', rec => {
+    const lib = (S.library || []).filter(x => !x.kind).sort((a, b) => (CLS_BY[a.cls] ? CLS_BY[a.cls].n : '').localeCompare(CLS_BY[b.cls] ? CLS_BY[b.cls].n : '') || a.name.localeCompare(b.name));
     add(rec.foot, [h('button', { class: 'btn primary', onclick: () => editLibraryEntry(null) }, icon('plus'), 'Add a subclass')]);
     const users = id => { const e = S.library.find(x => x._id === id); return Object.values(S.chars || {}).filter(c => e && c.cls === e.cls && norm(c.subclass) === norm(e.name)).map(c => c.name); };
-    return h('div', null,
+    return h('div', null, h('div', { class: 'lbl', style: { margin: '0 0 8px' } }, 'Subclasses'), h('div', null,
       h('p', { class: 'muted', style: { marginTop: 0 } }, 'Type a subclass’s features in once from your own Player’s Handbook. Every player in this campaign who picks it gets the features on their sheet automatically, at the right levels.'),
       lib.length ? h('div', { class: 'list' }, lib.map(e => { const u = users(e._id); return h('button', { class: 'li', onclick: () => editLibraryEntry(e._id) },
         h('span', { class: 'monogram', style: { width: '40px', height: '40px', fontSize: '15px' } }, initials(e.name)),
         h('div', { class: 'grow' }, h('div', { class: 't' }, e.name), h('div', { class: 's' }, `${CLS_BY[e.cls] ? CLS_BY[e.cls].n : e.cls}, ${(e.features || []).length} feature${(e.features || []).length === 1 ? '' : 's'}${u.length ? ', used by ' + u.join(', ') : ''}`)),
         icon('back', 'chev')); }))
-        : h('div', { class: 'empty', style: { padding: '16px 8px' } }, h('b', null, 'Nothing here yet'), 'Add the subclasses your players use. The 12 subclasses in the free rules are already built in.'));
+        : h('div', { class: 'empty', style: { padding: '16px 8px' } }, h('b', null, 'Nothing here yet'), 'Add the subclasses your players use. The 12 subclasses in the free rules are already built in.')), h('div', { style: { marginTop: '22px' } }, customSpellsSection('gm')));
   }, { live: true });
 }
 function editLibraryEntry(id) {
@@ -5264,7 +5737,7 @@ function editLibraryEntry(id) {
       h('button', { class: 'btn primary', onclick: () => {
         const name = (e.name || '').trim(); if (!name) { toast('Choose or type the subclass name.'); return; }
         if (srdSub(e.cls, name)) { toast(name + ' is already built in.'); return; }
-        const dupe = (S.library || []).find(x => x._id !== id && x.cls === e.cls && norm(x.name) === norm(name)); if (dupe) { toast(name + ' is already in the library.'); return; }
+        const dupe = (S.library || []).find(x => !x.kind && x._id !== id && x.cls === e.cls && norm(x.name) === norm(name)); if (dupe) { toast(name + ' is already in the library.'); return; }
         const features = e.features.filter(f => (f.n || '').trim()).map(f => ({ n: f.n.trim().slice(0, 80), l: clamp(+f.l || 3, 1, 20), d: (f.d || '').slice(0, 4000) })).sort((a, b) => a.l - b.l).slice(0, 40);
         if (!features.length) { toast('Add at least one feature with a name.'); return; }
         const data = { cls: e.cls, name, features, upd: Date.now() };
@@ -5985,8 +6458,9 @@ function openLegal(tab = 'privacy') {
     return h('div', null, seg, h('div', { class: 'mt' }, st.tab === 'privacy' ? privacyContent() : st.tab === 'terms' ? termsContent() : licencesContent()));
   });
 }
-const legalLinks = () => h('div', { class: 'row', style: { justifyContent: 'center', position: 'relative', marginTop: '18px', gap: '4px' } },
-  h('button', { class: 'btn ghost sm', onclick: () => openLegal('privacy') }, 'Privacy'), h('button', { class: 'btn ghost sm', onclick: () => openLegal('terms') }, 'Terms'), h('button', { class: 'btn ghost sm', onclick: () => openLegal('licences') }, 'Licences'));
+const legalLinks = () => h('div', null, h('div', { class: 'center', style: { marginTop: '18px' } }, h('button', { class: 'btn sm outline', onclick: () => openChangelog() }, `What’s new in ${APP_VERSION}`)),
+  h('div', { class: 'row', style: { justifyContent: 'center', position: 'relative', marginTop: '8px', gap: '4px' } },
+  h('button', { class: 'btn ghost sm', onclick: () => openLegal('privacy') }, 'Privacy'), h('button', { class: 'btn ghost sm', onclick: () => openLegal('terms') }, 'Terms'), h('button', { class: 'btn ghost sm', onclick: () => openLegal('licences') }, 'Licences')));
 
 /* ---------- sharing a short text (campfire code) ---------- */
 async function shareText(text, short) {
@@ -6605,7 +7079,7 @@ async function customList() { return (await KV.get('sfx-list')) || []; }
 async function playCustom(id, loop) {
   const ctx = audio(); if (!ctx) return;
   const c = SND.custom[id] = SND.custom[id] || {};
-  if (c.src) { try { c.src.stop(); } catch (e) { } c.src = null; if (loop) return; }
+  if (c.src) { try { c.src.stop(); } catch (e) { } c.src = null; refreshSheets && refreshSheets(); return; }
   if (!c.buf) { const blob = await KV.get('sfx:' + id); if (!blob) { toast('That sound is missing from this device.'); return; } try { c.buf = await ctx.decodeAudioData(await blob.arrayBuffer()); } catch (e) { toast('This file can’t be played. Try an MP3 or WAV.'); return; } }
   const s = ctx.createBufferSource(); s.buffer = c.buf; s.loop = !!loop; s.connect(SND.master); s.onended = () => { if (c.src === s) c.src = null; refreshSheets && refreshSheets(); }; s.start(); c.src = s;
 }
@@ -6619,10 +7093,13 @@ async function addCustomSound() {
 
 /* ---------- the board ---------- */
 const tableSoundsOn = () => { try { return localStorage.getItem('cf-table-snd') !== '0'; } catch (e) { return true; } };
+if (S.sndShare == null) { try { S.sndShare = localStorage.getItem('cf-snd-share') === '1'; } catch (e) { S.sndShare = false; } }
 function broadcast(kind, key, on) {
-  if (!S.sndShare || CAP.local || !DB) return;
-  if (kind === 'fx') writeDoc('combat/sound', { id: nid(), s: key, at: Date.now() });
-  else { const amb = {}; Object.entries(SND.loops).forEach(([k, l]) => amb[k] = Math.round(l.vol * 100) / 100); writeDoc('combat/ambience', { amb, at: Date.now() }); }
+  if (CAP.local || !DB || S.role !== 'gm') return;
+  if (kind === 'fx') { if (S.sndShare) writeDoc('combat/sound', { id: nid(), s: key, at: Date.now() }); return; }
+  /* ambience: what's playing when sharing is on; nothing at all when it's off, so players always stop */
+  const amb = {}; if (S.sndShare) Object.entries(SND.loops).forEach(([k, l]) => amb[k] = Math.round(l.vol * 100) / 100);
+  writeDoc('combat/ambience', { amb, at: Date.now(), stop: !Object.keys(amb).length });
 }
 function openSoundboard() {
   if (!audio()) { toast('Sound isn’t available on this device.'); return; }
@@ -6632,7 +7109,7 @@ function openSoundboard() {
     const body = h('div');
     body.append(h('div', { class: 'row nowrap', style: { marginBottom: '6px' } }, icon('sound'), h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: SND.vol, 'aria-label': 'Master volume', style: { flex: 1 }, oninput: e => setMasterVol(+e.target.value) }),
       h('button', { class: 'btn sm', onclick: () => { stopAllSound(); broadcast('amb'); fillSheet(rec); } }, 'Stop all')));
-    if (!CAP.local) body.append(h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: !!S.sndShare, onchange: e => { S.sndShare = e.target.checked; broadcast('amb'); } }), h('span', { class: 'grow' }, h('b', null, 'Play on players’ phones too'), h('div', { class: 'small muted' }, 'Built-in sounds and ambience also play on every player’s phone. Your own recordings only play on this device.'))));
+    if (!CAP.local) body.append(h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: !!S.sndShare, onchange: e => { S.sndShare = e.target.checked; try { localStorage.setItem('cf-snd-share', e.target.checked ? '1' : '0'); } catch (x) { } broadcast('amb'); } }), h('span', { class: 'grow' }, h('b', null, 'Play on players’ phones too'), h('div', { class: 'small muted' }, 'Built-in sounds and ambience also play on every player’s phone. Your own recordings only play on this device.'))));
     body.append(h('h2', { class: 'sec' }, 'Ambience'), h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Tap to start or stop. Mix as many as you like.'));
     body.append(h('div', { class: 'padgrid' }, Object.entries(AMB).map(([k, [label]]) => { const on = !!SND.loops[k];
       return h('div', { class: 'pad amb' + (on ? ' on' : '') }, h('button', { class: 'padbtn', 'aria-pressed': on ? 'true' : 'false', onclick: () => { on ? stopAmb(k) : startAmb(k); broadcast('amb'); fillSheet(rec); } }, label),
@@ -6643,7 +7120,7 @@ function openSoundboard() {
     const mine = S.sfx || [];
     if (!mine.length) body.append(h('p', { class: 'small muted' }, 'Add your own recordings or music (MP3, WAV or OGG). They’re saved on this device. Press and hold one to rename it, loop it or delete it.'));
     else body.append(h('div', { class: 'padgrid' }, mine.map(m => { const on = !!(SND.custom[m.id] && SND.custom[m.id].src);
-      return h('button', { class: 'pad fx' + (on ? ' on' : ''), onclick: async () => { await playCustom(m.id, m.loop); fillSheet(rec); }, onlong: () => editCustomSound(m) }, m.n, m.loop ? h('span', { class: 'tiny', style: { display: 'block', opacity: 0.8 } }, on ? 'Looping: tap to stop' : 'Loops') : null); })));
+      return h('button', { class: 'pad fx' + (on ? ' on' : ''), onclick: async () => { await playCustom(m.id, m.loop); fillSheet(rec); }, onlong: () => editCustomSound(m) }, m.n, on ? h('span', { class: 'tiny', style: { display: 'block', opacity: 0.8 } }, 'Playing: tap to stop') : m.loop ? h('span', { class: 'tiny', style: { display: 'block', opacity: 0.8 } }, 'Loops') : null); })));
     body.append(h('p', { class: 'tiny muted mt' }, SMP.state === 'ready' ? 'Built-in sounds use public-domain (CC0) recordings that come with the app, so they work offline. Keep the app open for ambience to keep playing.' : 'Built-in sounds are generated by the app here. The Android app and web app use real recordings instead. Keep the app open for ambience to keep playing.'));
     return body;
   }, { live: true });
@@ -6667,8 +7144,8 @@ function playerSoundSubs(me) {
     playSfx(d.s);
   });
   sub(DB.doc('combat/ambience'), s => {
-    const d = s.exists ? s.data() : null; const want = (d && tableSoundsOn() && Date.now() - (d.at || 0) < 6 * 3600 * 1000) ? (d.amb || {}) : {};
-    if (!Object.keys(want).length && !Object.keys(SND.loops).length) return;
+    const d = s.exists ? s.data() : null; const want = (d && !d.stop && tableSoundsOn() && Date.now() - (d.at || 0) < 6 * 3600 * 1000) ? (d.amb || {}) : {};
+    if (!Object.keys(want).length) { if (Object.keys(SND.loops).length) stopAllSound(); return; }
     if (!audio()) return;
     Object.keys(SND.loops).forEach(k => { if (!(k in want)) stopAmb(k); });
     Object.entries(want).forEach(([k, v]) => { if (!AMB[k]) return; if (SND.loops[k]) setAmbVol(k, v); else startAmb(k, v); });
