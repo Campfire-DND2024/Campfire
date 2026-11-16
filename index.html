@@ -565,6 +565,142 @@ button.mini{font:inherit;color:inherit}
 /* every icon has a sensible size unless its container says otherwise, so a stray icon never fills the screen */
 :where(svg.ic){width:20px;height:20px;flex:none}
 
+/* =====================================================================================================
+   6.1 refresh: quieter surfaces instead of outlines, sans headings (the serif stays for page titles),
+   a compact character sheet, one loud button per screen, messages above the tab bar, fades on rows
+   that scroll, a stronger Daylight theme and a two-column desktop layout.
+   ===================================================================================================== */
+:root{
+  --bg:#120E0B; --bg-deep:#0C0907; --surface:#1D1713; --surface-2:#2B221B; --surface-3:#382C23; --nav:#17120F;
+  --line:#33281F; --line-2:#4A3B30; --ink-3:#B9A892;
+  --shadow:0 20px 48px rgba(0,0,0,.5); --r-ctl:14px; --r-card:18px;
+}
+:root[data-theme="light"]{
+  --bg:#EFE6D9; --bg-deep:#E6DBCB; --surface:#FFFDF9; --surface-2:#E7DAC8; --surface-3:#DACAB3; --nav:#FFFDF9;
+  --line:#E2D4C1; --line-2:#CDB89E; --ink:#1D130A; --ink-2:#33251A; --ink-3:#5F4D3B; --faint:#857361;
+  --ember:#B24A12; --ember-tint:rgba(178,74,18,.1); --shadow:0 14px 36px rgba(70,40,10,.16);
+}
+/* type: the small-caps serif is for the logo and page titles only */
+.lbl,label.f,.vital .k,.cap{font:700 13px/1.25 var(--sans);letter-spacing:.01em;text-transform:none;color:var(--ink-3)}
+.top .sub{text-transform:none;letter-spacing:.01em;font-size:13px}
+h2.sec{font:800 15px/1.2 var(--sans);letter-spacing:.01em;color:var(--ink-3);margin:26px 0 10px}
+.empty b{font:800 20px/1.2 var(--sans)}
+.sheet .sh h3{font:800 21px/1.15 var(--sans);letter-spacing:-.005em}
+.hero h2,.wiz h2,.sb .nm,.enc-title{font:800 27px/1.08 var(--sans);letter-spacing:-.01em}
+.sb h4{font:800 15px/1.2 var(--sans);letter-spacing:.01em}
+.ho .t,.jlist .li .t{font:800 18px/1.2 var(--sans)}
+.maphead .t{font:800 19px var(--sans)}
+.mono-tile,.portrait{font:800 16px var(--sans)}
+.portrait{font-size:22px}
+.initbox h2{font:800 27px/1.1 var(--sans)}
+.ab .n,.sb .ln b,.sb .abc .k,.sb .spl .us,.mono-tile.cr small,.cb .acb{letter-spacing:.03em}
+/* surfaces instead of outlines */
+.panel,.hpcard,.selcard,.ho,.helper,.portal .card,.sb .abc,.sb .gmnote,.spmeta div,.arr .cell,.lastroll,.stepbox,.die,.pad,.kindcard,.assetbtn,.mini,.svb,.ab,.bub.them,.acbox,.subtabs,.seg{border-color:transparent}
+.vital,.selcard{background:var(--surface)}
+.acbox{background:var(--surface-2)}
+.panel .li,.panel .pick,.selcard .li{background:var(--surface-2)}
+.banner{border:0;background:var(--surface);margin-bottom:12px}
+.sheet{border-color:transparent}
+.sheet .sh{border-bottom-color:var(--line)}
+.sb h4{border-bottom:0;padding-bottom:0}
+.tabbar{border-top:0;box-shadow:0 -1px 0 var(--line)}
+.maptools{border-top:0;box-shadow:0 -1px 0 var(--line)}
+:root[data-theme="light"] .panel,:root[data-theme="light"] .li,:root[data-theme="light"] .hpcard,:root[data-theme="light"] .selcard,:root[data-theme="light"] .cb,:root[data-theme="light"] .ho,:root[data-theme="light"] .pick,:root[data-theme="light"] .portal .card,:root[data-theme="light"] .vitals,:root[data-theme="light"] .abil{box-shadow:0 1px 2px rgba(70,40,10,.07)}
+/* buttons: one filled primary; everything else is quiet */
+.btn{border-color:transparent;background:var(--surface-2);border-radius:var(--r-ctl);transition:background .15s,transform .08s,opacity .15s}
+.btn:active:not(:disabled){transform:scale(.98)}
+.panel .btn:not(.primary):not(.ghost):not(.outline):not(.danger),.selcard .btn:not(.primary):not(.ghost):not(.outline):not(.danger),.nowcard .btn:not(.primary):not(.ghost):not(.outline):not(.danger),.hpcard .btn:not(.primary):not(.ghost){background:var(--surface-3)}
+.btn.primary{background:var(--ember);border-color:transparent}
+.btn.outline{background:var(--ember-tint);border-color:transparent;color:var(--ember)}
+.btn.danger{background:var(--red-tint);border-color:transparent;color:var(--red)}
+.btn.ghost{background:transparent}
+.icon-btn,.avatar-btn,.sndbtn{border-color:transparent;background:var(--surface-2)}
+.stepper button,.hpcard .pm,.tmpval,.tsize{border-color:transparent;background:var(--surface-2)}
+.panel .stepper button,.hpcard .pm{background:var(--surface-3)}
+.chip{border-color:transparent;background:var(--surface-2);transition:background .15s,color .15s}
+.panel .chip,.nowcard .chip,.selcard .chip{background:var(--surface-3)}
+.chip[aria-pressed="true"]{background:var(--ember-tint);color:var(--ember);border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--ember-line)}
+.chip.cond{border-color:transparent}
+.tag{border-color:transparent;background:var(--surface-3);padding:1px 7px;letter-spacing:.02em}
+.seg,.subtabs{background:var(--surface)}
+.seg button[aria-pressed="true"],.subtabs button[aria-selected="true"]{background:var(--surface-3);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.panel .seg{background:var(--surface-2)}
+.maptools button,.selbar button{border-color:transparent;background:var(--surface-2)}
+.maptools button[aria-pressed="true"]{background:var(--ember);color:var(--on-ember)}
+.maptools button.txt{min-width:0;padding:0 12px;font-size:12.5px;flex-direction:row;white-space:nowrap}
+.maptools button.txt[aria-pressed="true"]{background:var(--ember-tint);color:var(--ember);box-shadow:inset 0 0 0 1.5px var(--ember-line)}
+.pad.on{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--ember-line)}
+.nowcard{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--ember-line),0 0 40px var(--ember-glow)}
+.cb .ini{border-color:transparent;background:var(--surface-2)}
+.cb.turn{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--ember-line)}
+.in,select.in,textarea.in{border-color:var(--line-2);border-radius:var(--r-ctl);transition:border-color .15s,box-shadow .15s}
+.in:focus,select.in:focus,textarea.in:focus{outline:0;border-color:var(--ember);box-shadow:0 0 0 3px var(--ember-tint)}
+.list{gap:6px}
+.li{border-radius:var(--r-ctl);transition:background .12s}
+.li > svg.ic,.li .chev{color:var(--faint)}
+/* tab bar: a pill marks where you are */
+.tabbar button svg{box-sizing:border-box;width:58px;height:30px;padding:3px 17px;border-radius:999px;transition:background .18s}
+.tabbar button[aria-current="page"] svg{background:var(--ember-tint)}
+.tabbar button{gap:3px}
+/* compact character sheet: stats in one strip, the six abilities on one row */
+.hero{margin-bottom:12px}
+.vitals{gap:0;background:var(--surface);border-radius:var(--r-card);overflow:hidden}
+.vitals .vital{border:0;border-radius:0;background:transparent;min-height:58px;box-shadow:-1px 0 0 var(--line)}
+.vitals .vital:first-child{box-shadow:none}
+.vitals .vital.hp{background:transparent}
+.abil{grid-template-columns:repeat(6,minmax(0,1fr));gap:0;background:var(--surface);border-radius:var(--r-card);overflow:hidden}
+.abil .ab{min-height:66px;border:0;border-radius:0;background:transparent;padding:8px 2px;box-shadow:-1px 0 0 var(--line)}
+.abil .ab:first-child{box-shadow:none}
+.abil .ab:active{background:var(--surface-2)}
+.ab .n{font-size:11px}
+.ab .m{font-size:20px}
+.ab .sc{font-size:11px;line-height:1.15;overflow-wrap:anywhere}
+.subtabs{margin:14px 0 12px}
+/* messages sit above the tab bar, not over the page title */
+.toast{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);border-color:transparent;background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 18px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:toastin .22s cubic-bezier(.2,.8,.2,1);text-align:center}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+.toast{border-radius:18px}
+body:has(.toast) .rollcard{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
+body:has(.scrim) .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
+.rollcard{border-color:transparent;box-shadow:var(--shadow),inset 0 0 0 1px var(--line-2),0 0 40px var(--ember-glow)}
+/* rows that scroll sideways fade at the edge so it's clear there's more */
+.hscroll,.maptools,.floorbar{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent);padding-right:34px}
+.maptools{padding-right:40px}
+/* table tools */
+.tablerow{margin:14px 0 2px;gap:8px}
+.countdot{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--ember);color:var(--on-ember);font:800 12px/20px var(--sans);text-align:center}
+.diffrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.diffpill{font:800 13px/1 var(--sans);padding:6px 11px;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 0 0 1.5px currentColor;flex:none}
+.turncard .nm{font-size:24px}
+.turncard.mine{background:var(--ember);box-shadow:0 0 44px var(--ember-glow)}
+.turncard.mine .nm,.turncard.mine .lbl,.turncard.mine .small{color:var(--on-ember)}
+.turnstrip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -4px;padding:0 4px 2px}
+.turnstrip::-webkit-scrollbar{display:none}
+.turnchip{flex:none;font:700 13px/1 var(--sans);padding:7px 11px;border-radius:999px;background:var(--surface-2);color:var(--ink-3);white-space:nowrap}
+.turnchip.me{color:var(--ink)}
+.turnchip.on{background:var(--ember);color:var(--on-ember);font-weight:800}
+.turncard.mine .turnchip{background:rgba(0,0,0,.14);color:var(--on-ember)}
+.turncard.mine .turnchip.on{background:var(--on-ember);color:var(--ember)}
+.initdot.wait{background:var(--surface-2);color:var(--ink-3)}
+.arearow.on{box-shadow:inset 0 0 0 1.5px var(--ember-line)}
+.arearow input[type=checkbox]{width:20px;height:20px;accent-color:var(--ember);flex:none}
+.lootgold{display:flex;align-items:center;gap:12px}
+.lootgold .big{font:800 34px/1.05 var(--sans);font-variant-numeric:lining-nums tabular-nums}
+.lootgold .big span{font-size:17px;color:var(--ink-3);font-weight:700}
+.concprompt .t{font-weight:800;font-size:17px}
+/* desktop: use the width */
+@media (min-width:1000px){
+  #app{max-width:1180px}
+  main{padding-left:28px;padding-right:28px}
+  .top{padding-left:28px;padding-right:28px}
+  .tabbar{max-width:720px;width:100%;margin:0 auto 12px;border-radius:20px;box-shadow:0 0 0 1px var(--line),var(--shadow)}
+  main .sheetroot,main .encroot{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:0 32px;align-items:start}
+  main .sheetroot .subtabs{margin-top:0}
+  main .encroot .enc-r h2.sec{margin-top:4px}
+  main > div > .list,main .skills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .camp{max-width:520px;margin-left:auto;margin-right:auto}
+}
+
 </style>
 </head>
 <body>
@@ -790,6 +926,7 @@ const ICONS = {
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>',
   up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
   user: '<circle cx="12" cy="9" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  fog: '<path d="M7 16h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 3.5 3.5 0 0 0 7 16z"/><path d="M6 20h9M18 20h1"/>',
   crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
   image: '<path d="M4 5h16v14H4z"/><circle cx="9" cy="10" r="2"/><path d="M20 16l-5-5-8 8"/>',
@@ -4066,8 +4203,9 @@ function workingsSection(c, d) {
 }
 
 /* ================= Change log: every version of Campfire, newest first ================= */
-const APP_VERSION = '6.0';
+const APP_VERSION = '6.1';
 const CHANGELOG = [
+  ['6.1', 'November 2026', ['A new look: calmer cards without outlines, clearer headings, one bold button per screen, a compact character sheet with attacks on the first screen, a stronger Daylight theme, and a two-column layout on computers. Messages now appear above the tab bar instead of over the page title.', 'Turn order on players’ phones: once combat starts, everyone sees whose turn it is and who’s next, and your phone tells you when you’re up.', 'The GM can call for a roll (Camp page): pick a skill, save or ability check and who rolls it. Players get a pop-up, and the results come back in one list, with pass or fail against a DC only the GM sees.', 'Area damage in encounters: tick everyone who’s hit, enter the damage once, and mark who saved for half or none.', 'Concentration reminder: take damage while concentrating and you’re asked for the Constitution save with the right DC. Dropping to 0 hit points ends it.', 'Fog of war on battle maps and floor plans: turn it on, then drag over the squares the party can see. Players never see creatures or rooms under the fog.', 'Starting equipment: one tap on an empty Items tab adds your class and background kit and equips your armour and weapons.', 'Party loot: a shared stash and gold on the Camp page. The GM adds treasure, players claim items, and the GM can split the gold.', 'Encounter difficulty: each encounter shows Low, Moderate or High from the 2024 XP budget for your party.']],
   ['6.0', 'November 2026', ['A full test of every feature, with a GM and three players on separate phones: party view, health tiers, the roll feed, healing and Bless across phones, concentration, Heroic Inspiration, giving items, private messages, handouts, live maps, tokens, initiative, table sounds, campaign spells, death saves and removing a player.', 'Paladins: Aura of Protection now adds your Charisma modifier to your saving throws from level 6, and the Effects tab shows it in the workings.', 'Level up: raising your Constitution now raises your hit point maximum for every level, as the 2024 rules say.', 'Magic Missile and Scorching Ray show damage per dart or ray, and how many you get at the slot level you choose.', 'When the GM shows several floors of one building live, players see which floor each map is.', 'A player removed by the GM goes back to their list of campaigns with a message, instead of an empty screen.', 'Fixed: the roll card for a hit die, and for healing you cast on chosen characters, offered to heal someone again. The healing is already applied, so those buttons are gone.', 'Fixed: the Wild Magic surge prompt could cover a sheet you opened after casting. It now steps aside (Surge check is still on the Actions tab).', 'Fixed: a long rest announced “regains 0” for magic items that were already full.', 'Fixed: an oversized speaker icon on the soundboard. Every icon now has a safe default size.']],
   ['5.9', 'November 2026', ['Fixed: phones could get stuck on an old saved copy of the web app (a dark page with code along the bottom). The web app now always loads the newest version when there’s a signal, and repairs a broken saved copy by itself.', 'Multi-storey buildings: each floor is its own map, with floor tabs, stairs that take you up and down, and buttons to add floors, cellars and roofs. Inns, taverns, keeps, castles, towers, guild halls, garrisons, lighthouses, temples and arenas get their floors automatically.', 'New world map pieces: pine, oak, dark and birch forests, willows, dead trees, palms and giant mushrooms; snowy peaks, mountain ranges, crags, mesas and rolling hills; ruined arches, columns, towers and castles; domed temples, ziggurats, pagodas and monasteries; bandit camps, war camps and hideouts; wizard’s towers, dark towers and wooden watchtowers.', 'New town buildings: a bakery, butcher, apothecary, alchemist, tailor, jeweller, bookshop, fishmonger, general store, stables, armourer and moneylender, each with its own sign and key place pin; castles, forts, garrisons, grand guild halls, arenas and watchtowers. Generated towns and worlds use them, and each has a floor plan to suit.', 'New floor plan pieces: fireplaces, fire pits, braziers, torches, lanterns and chandeliers; blood, wine, puddles, scorch marks, ink, slime, footprints and cracks; shelves, display cabinets, counters, racks and stands for shops; four-poster, bunk and camp beds; wine racks, cages, sarcophagi and stocks; ballistas, catapults and flags; stairs up, down and spiral.']],
   ['5.8', 'November 2026', ['Go inside any building: zoom in on a building on a town map (or tap it) to map its inside, and step back out with the ↑ button. World landmarks can be entered too: castles, towers, temples, shrines, lighthouses, ruins, caves and mines.', 'Floor plans to suit each building: taverns with a bar and kitchen, inns with guest rooms, smithies with forges and anvils, temples with pews and an altar, homes, shops, guild halls, keeps, gates, barns, windmills and towers.', 'Floor plans are 5 ft battle maps with walls, doors, windows and furniture; add tokens, areas and the ruler, paint floors and draw walls.', 'About 40 new furniture and fittings pieces.']],
@@ -4342,7 +4480,7 @@ function wmPaintOver(x, ed, exporting) {
 }
 
 /* ---------- tools ---------- */
-const WM_TOOLS = kind => kind === 'interior' ? [['pan', 'Select', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['terrain', 'Floor', 'paint'], ['stamp', 'Furniture', 'marker'], ['path', 'Walls', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['token', 'Add token', 'token']] : [['pan', 'Select', 'pan'], ['terrain', kind === 'world' ? 'Land' : 'Ground', 'paint'], ['stamp', kind === 'world' ? 'Places' : 'Buildings', 'marker'], ['path', kind === 'world' ? 'Roads' : 'Streets', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['ruler', 'Ruler', 'ruler']];
+const WM_TOOLS = kind => kind === 'interior' ? [['pan', 'Select', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['terrain', 'Floor', 'paint'], ['stamp', 'Furniture', 'marker'], ['path', 'Walls', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['token', 'Add token', 'token'], ['fog', 'Fog', 'fog']] : [['pan', 'Select', 'pan'], ['terrain', kind === 'world' ? 'Land' : 'Ground', 'paint'], ['stamp', kind === 'world' ? 'Places' : 'Buildings', 'marker'], ['path', kind === 'world' ? 'Roads' : 'Streets', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['ruler', 'Ruler', 'ruler']];
 function assetThumb(k, px = 44) { const c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = px * d; c.height = px * d; c.style.width = px + 'px'; c.style.height = px + 'px'; const x = c.getContext('2d'); const a = WM_ASSETS[k]; x.scale(d, d); x.translate(px / 2, px / 2 + 2); const sc = Math.min(1, (px - 6) / a.sz) * a.sz / 56; x.scale(sc, sc); a.draw(x, 0.3); return c; }
 function terSwatch(kind, k, px = 30) { const c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = px * d; c.height = px * d; c.style.width = px + 'px'; c.style.height = px + 'px'; const x = c.getContext('2d'); x.scale(d * px / CS, d * px / CS); const fake = { meta: { kind, cols: 1, rows: 1 }, data: { ter: { '0,0': k } } }; terBase(x, fake, 0, 0); terGlyph(x, fake, 0, 0); return c; }
 function wmToolbar(A) {
@@ -6071,7 +6209,7 @@ function renderWizard() {
       h('dt', null, 'Saves'), h('dd', null, [...d.saves].map(x => AB3[x]).join(', ') || 'None'),
       h('dt', null, 'Skills'), h('dd', null, Object.keys(draft.skills).join(', ') || 'None'),
       d.sa ? [h('dt', null, 'Spellcasting'), h('dd', null, `${ABN[d.sa]}, save DC ${d.sdc}, attack ${sgn(d.satk)}`)] : null));
-    root.append(h('p', { class: 'small muted' }, 'Copying a paper character? Create it, then press and hold any number on the sheet (hit points, AC, abilities, saves, skills, attacks and more) to type the exact value. Nothing gets re-rolled. Add gear on the Items tab and spells on the Spells tab.'));
+    root.append(h('p', { class: 'small muted' }, 'Copying a paper character? Create it, then press and hold any number on the sheet (hit points, AC, abilities, saves, skills, attacks and more) to type the exact value. Nothing gets re-rolled. One tap on the Items tab adds your starting equipment; add spells on the Spells tab.'));
   }
   const nav = h('div', { class: 'footnav' },
     w.step > 0 ? h('button', { class: 'btn', onclick: () => { w.step--; wr(); } }, 'Back') : (S.char ? h('button', { class: 'btn', onclick: () => { S.wiz = null; wr(); } }, 'Cancel') : null),
@@ -6214,7 +6352,7 @@ function renderPSpells() {
   const castCtx = () => ({ slots: D(S.char).slots, used: (S.char.spells && S.char.spells.used) || [], spend: l => { const u = ((S.char.spells && S.char.spells.used) || [0, 0, 0, 0, 0, 0, 0, 0, 0]).slice(); u[l - 1] = (u[l - 1] || 0) + 1; setChar({ spells: { used: u } }); } });
   Object.keys(byL).map(Number).sort((a, b) => a - b).forEach(l => {
     const grp = h('div', { class: 'splv' }); root.append(grp);
-    grp.append(h('h3', { style: { font: '400 18px var(--display)', color: 'var(--ink-3)', margin: '18px 0 8px' } }, l === 0 ? 'Cantrips' : ordinal(l) + ' level'));
+    grp.append(h('h3', { style: { font: '800 15px var(--sans)', color: 'var(--ink-3)', margin: '20px 0 8px' } }, l === 0 ? 'Cantrips' : ordinal(l) + ' level'));
     const ul = h('div', { class: 'list' });
     byL[l].sort((a, b) => a[0].n.localeCompare(b[0].n)).forEach(([sp, s]) => ul.append(h('div', { class: 'li', role: 'button', tabindex: 0, 'data-sp': (sp.n + ' ' + sp.s).toLowerCase(), onclick: () => openSpell(sp, s && s.ab ? { atk: d.pb + d.m[s.ab], dc: 8 + d.pb + d.m[s.ab], mod: d.m[s.ab], charLevel: d.lvl, cast: castCtx } : { atk: d.satk != null ? d.satk : null, dc: d.sdc, mod: spellModFor(S.char, d, sp), charLevel: d.lvl, cast: castCtx }) },
       s.g ? h('span', { class: 'prep on', title: 'Always prepared', 'aria-label': 'Always prepared' }, icon('check')) : l > 0 ? h('button', { class: 'prep' + (s.p ? ' on' : ''), 'aria-label': s.p ? 'Prepared' : 'Not prepared', onclick: e => { e.stopPropagation(); setChar({ spells: { list: own.map(x => x.i === s.i ? Object.assign({}, x, { p: !x.p }) : x) } }); } }, s.p ? icon('check') : null) : h('span', { class: 'prep on', style: { opacity: .35 } }, icon('check')),
@@ -6271,7 +6409,7 @@ function renderPItems() {
   const groups = [['Equipped', items.filter(i => i.eq && !isRide(i))], ['Carried', items.filter(i => !i.eq && !isRide(i))], ['Mounts and vehicles', items.filter(isRide)]];
   groups.forEach(([g, list]) => {
     if (!list.length) return;
-    root.append(h('h3', { style: { font: '400 18px var(--display)', color: 'var(--ink-3)', margin: '18px 0 8px' } }, g));
+    root.append(h('h3', { style: { font: '800 15px var(--sans)', color: 'var(--ink-3)', margin: '20px 0 8px' } }, g));
     root.append(h('div', { class: 'list' }, list.map(i => {
       const e = itemEq(i); const mi = i.ref && i.ref.startsWith('mi:') ? MI_BY[i.ref.slice(3)] : null;
       const ride = rideInfo(i); const canEq = (e && (e.dmg || e.arm)) || mi || i.atk != null || (ride && ride.mount);
@@ -7338,7 +7476,7 @@ const TOKEN_SIZE = Object.fromEntries(TOKEN_SIZES.map(s => [s[0], s]));
 const tokSz = t => t.sz && TOKEN_SIZE[t.sz] ? t.sz : ({ 0.5: 'tiny', 2: 'lg', 3: 'huge', 4: 'garg' }[t.z] || 'med');
 const tokZ = t => TOKEN_SIZE[tokSz(t)][2];
 const tokR = t => CS * tokZ(t) * (tokSz(t) === 'sm' ? 0.34 : 0.42);
-const MAP_TOOLS = [['pan', 'Select', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['paint', 'Fill', 'paint'], ['pen', 'Pen', 'pen'], ['line', 'Wall', 'line'], ['rect', 'Room', 'rect'], ['erase', 'Erase', 'erase'], ['text', 'Label', 'text'], ['token', 'Add token', 'token']];
+const MAP_TOOLS = [['pan', 'Select', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['paint', 'Fill', 'paint'], ['pen', 'Pen', 'pen'], ['line', 'Wall', 'line'], ['rect', 'Room', 'rect'], ['erase', 'Erase', 'erase'], ['text', 'Label', 'text'], ['token', 'Add token', 'token'], ['fog', 'Fog', 'fog']];
 const metaPath = id => 'gm/meta/maps/' + id, dataPath = id => 'gm/meta/mapdata/' + id;
 /* Maps are shared with players straight from the Maps section; they never appear in the Handouts library. */
 const mapShareId = id => 'map-' + id;
@@ -7417,6 +7555,7 @@ function MapEditor(meta0, opts = {}) {
     (PLAYER ? PLAYER_MAP_TOOLS : WMAP() ? WM_TOOLS(ed.meta.kind) : MAP_TOOLS).forEach(([k, l, ic]) => tbar.append(h('button', { 'aria-pressed': ed.tool === k ? 'true' : 'false', onclick: () => { ed.tool = k; if (k !== 'ruler') ed.ruler = null; drawTools(); draw(); } }, icon(ic), l)));
     if (ed.ruler) tbar.append(h('span', { class: 'rulerread', 'aria-live': 'polite' }, rulerText()));
     if (ed.tool === 'aoe') { tbar.append(...aoeTools()); if (PLAYER) return; }
+    if (ed.tool === 'fog' && !PLAYER) tbar.append(...fogTools());
     if (PLAYER && WMAP() && ed.meta.kind === 'town') tbar.append(h('span', { class: 'sep' }), h('button', { onclick: () => openKeyPlaces(A) }, keyPinIcon(), 'Key places'));
     if (PLAYER) { tbar.append(h('span', { class: 'sep' }), h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, (ed.data.tokens || []).some(t => t.uid === ME.id) ? 'Drag your token to move it.' : 'Pinch or drag to look around.')); return; }
     const selT = ed.sel && (ed.data.tokens || []).find(t => t.id === ed.sel);
@@ -7506,7 +7645,14 @@ function MapEditor(meta0, opts = {}) {
       x.lineWidth = 5; x.strokeStyle = 'rgba(237,227,209,.92)'; x.strokeText(lb.t, lb.x, lb.y);
       x.fillStyle = (MAP_COLORS[lb.c] || MAP_COLORS[0])[0]; if (lb.c === 7) x.fillStyle = '#2B2118'; x.fillText(lb.t, lb.x, lb.y);
     });
+    if (fogOn()) {
+      const solid = PLAYER || exporting; x.fillStyle = solid ? '#17120E' : 'rgba(23,18,14,.5)'; const rev = ed.data.fog.rev || {};
+      for (let i = 0; i < ed.meta.cols; i++) for (let j = 0; j < ed.meta.rows; j++) if (!rev[i + ',' + j]) x.fillRect(i * CS - (solid ? .5 : 0), j * CS - (solid ? .5 : 0), CS + (solid ? 1 : 0), CS + (solid ? 1 : 0));
+      if (ed.cur && ed.cur.type === 'fog') { const a = ed.cur.a, b = ed.cur.b; x.save(); x.lineWidth = 3 / s; x.setLineDash([8 / s, 6 / s]); x.strokeStyle = '#F08A3C'; x.fillStyle = ed.fogHide ? 'rgba(23,18,14,.35)' : 'rgba(255,240,210,.35)';
+        const rx = Math.min(a.x, b.x) * CS, ry = Math.min(a.y, b.y) * CS, rw = (Math.abs(a.x - b.x) + 1) * CS, rh = (Math.abs(a.y - b.y) + 1) * CS; x.fillRect(rx, ry, rw, rh); x.strokeRect(rx, ry, rw, rh); x.restore(); }
+    }
     (ed.data.tokens || []).forEach(t => {
+      if ((PLAYER || exporting) && tokHidden(t)) return;
       const tp = tokPos(t), z = tokZ(t), cx = (tp.gx + z / 2) * CS, cy = (tp.gy + z / 2) * CS, r = tokR(t);
       if (t.uid && !exporting) { x.beginPath(); x.arc(cx, cy, r + 5, 0, Math.PI * 2); x.strokeStyle = t.uid === ME.id ? '#F08A3C' : 'rgba(240,138,60,.45)'; x.lineWidth = 3; x.stroke(); }
       x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fillStyle = (MAP_COLORS[t.c] || MAP_COLORS[5])[0]; x.fill();
@@ -7608,7 +7754,7 @@ function MapEditor(meta0, opts = {}) {
   }
   loadBg();
   // data
-  const takeData = d => { ed.data = { cells: d.cells || {}, strokes: d.strokes || [], labels: d.labels || [], tokens: d.tokens || [], aoes: d.aoes || [], ter: d.ter || {}, stamps: d.stamps || [] }; ed.tcDirty = true; };
+  const takeData = d => { ed.data = { cells: d.cells || {}, strokes: d.strokes || [], labels: d.labels || [], tokens: d.tokens || [], aoes: d.aoes || [], ter: d.ter || {}, stamps: d.stamps || [] }; if (d.fog) ed.data.fog = d.fog; ed.tcDirty = true; };
   ed.unsubs.push(DB.doc(PLAYER ? 'livedata/' + ed.id : dataPath(ed.id)).onSnapshot(s => {
     const d = s.exists ? s.data() : null;
     if (!ed.loaded) { if (d) takeData(clone(d)); ed.loaded = true; if (PLAYER) drawTools(); draw(); return; }
@@ -7637,6 +7783,19 @@ function MapEditor(meta0, opts = {}) {
     return false;
   }
   const inMap = w => w.x >= 0 && w.y >= 0 && w.x < MW() && w.y < MH();
+  /* fog of war: the GM hides the map and reveals it square by square; players never see what's under it */
+  const fogOn = () => !!(ed.data.fog && ed.data.fog.on) && ed.meta.kind !== 'world' && ed.meta.kind !== 'town';
+  const fogged = (cx, cy) => fogOn() && !(ed.data.fog.rev || {})[cx + ',' + cy];
+  const fogCell = w => ({ x: clamp(Math.floor(w.x / CS), 0, ed.meta.cols - 1), y: clamp(Math.floor(w.y / CS), 0, ed.meta.rows - 1) });
+  const tokHidden = t => { if (!fogOn() || t.uid) return false; const tp = tokPos(t), z = tokZ(t); for (let i = 0; i < Math.max(1, Math.ceil(z)); i++) for (let j = 0; j < Math.max(1, Math.ceil(z)); j++) if (!fogged(Math.floor(tp.gx) + i, Math.floor(tp.gy) + j)) return false; return true; };
+  function fogSet(a, b, reveal) { const f = ed.data.fog = Object.assign({ on: true, rev: {} }, ed.data.fog); f.rev = Object.assign({}, f.rev); for (let x = Math.min(a.x, b.x); x <= Math.max(a.x, b.x); x++) for (let y = Math.min(a.y, b.y); y <= Math.max(a.y, b.y); y++) { if (reveal) f.rev[x + ',' + y] = 1; else delete f.rev[x + ',' + y]; } }
+  function fogTools() {
+    const on = fogOn(), b = (l, fn, pressed) => h('button', { class: 'txt', 'aria-pressed': pressed == null ? null : pressed ? 'true' : 'false', onclick: fn }, l);
+    const out = [h('span', { class: 'sep' }), b(on ? 'Fog is on' : 'Turn fog on', () => { pushUndo(); ed.data.fog = Object.assign({ rev: {} }, ed.data.fog, { on: !on }); changed(); drawTools(); toast(on ? 'Fog off: players see the whole map.' : 'Fog on: drag over the squares the party can see.', 3200); }, on)];
+    if (on) out.push(b('Reveal', () => { ed.fogHide = false; drawTools(); }, !ed.fogHide), b('Hide', () => { ed.fogHide = true; drawTools(); }, !!ed.fogHide),
+      b('Reveal all', () => { pushUndo(); fogSet({ x: 0, y: 0 }, { x: ed.meta.cols - 1, y: ed.meta.rows - 1 }, true); changed(); }), b('Hide all', () => { pushUndo(); ed.data.fog = { on: true, rev: {} }; changed(); }));
+    return out;
+  }
   const cellKey = w => Math.floor(w.x / CS) + ',' + Math.floor(w.y / CS);
   const snapPt = w => ({ x: clamp(Math.round(w.x / CS), 0, ed.meta.cols) * CS, y: clamp(Math.round(w.y / CS), 0, ed.meta.rows) * CS });
   function eraseAt(w) {
@@ -7671,6 +7830,7 @@ function MapEditor(meta0, opts = {}) {
       ed.cur = { type: 'aoe-new', p0: p, aoe: { id: nid(), k: ed.aoeK, x: ox, y: oy, s: 0, a: 0, w: 5, c: ed.aoeC, o: ed.aoeO } }; draw(); return;
     }
     if (PLAYER) return;
+    if (tool === 'fog' && !PLAYER) { if (!fogOn() || !inMap(w)) { if (!fogOn()) toast('Turn fog on first.'); return; } const c = fogCell(w); ed.cur = { type: 'fog', a: c, b: c, snap: snapshot() }; draw(); return; }
     if (WMAP() && wmBegin(A, w, p)) return;
     if (tool === 'paint') { pushUndo(); ed.cur = { type: 'paint', any: false }; paintCell(w); return; }
     if (tool === 'erase') { const snap = snapshot(); ed.cur = { type: 'erase', snap, any: eraseAt(w) }; draw(); return; }
@@ -7687,6 +7847,7 @@ function MapEditor(meta0, opts = {}) {
     else if (c.type === 'ruler') { ed.ruler.b = c.cellC(w); drawTools(); draw(); }
     else if (c.type === 'aoe-new') { const dx = w.x / CS - c.aoe.x, dy = w.y / CS - c.aoe.y; c.aoe.s = Math.round(Math.hypot(dx, dy) * ftSq() / 5) * 5; if (Math.hypot(dx, dy) > 0.2) c.aoe.a = Math.round(Math.atan2(dy, dx) * 180 / Math.PI / 5) * 5; drawTools(); draw(); }
     else if (c.type === 'aoe-move') { if (!c.moved && Math.hypot(p.x - c.p0.x, p.y - c.p0.y) < 6) return; c.moved = true; c.aoe.x = clamp(Math.round((c.x0 + (w.x - c.w0.x) / CS) * 2) / 2, 0, ed.meta.cols); c.aoe.y = clamp(Math.round((c.y0 + (w.y - c.w0.y) / CS) * 2) / 2, 0, ed.meta.rows); draw(); }
+    else if (c.type === 'fog') { c.b = fogCell(w); draw(); }
     else if (c.type === 'paint') paintCell(w);
     else if (c.type === 'erase') { if (eraseAt(w)) { c.any = true; draw(); } }
     else if (c.type === 'pen') { const pp = c.preview.p; const lx = pp[pp.length - 2], ly = pp[pp.length - 1]; if (Math.hypot(w.x - lx, w.y - ly) > 3 / ed.view.s + 1) { pp.push(Math.round(w.x), Math.round(w.y)); draw(); } }
@@ -7719,6 +7880,7 @@ function MapEditor(meta0, opts = {}) {
     if (c.type === 'paint') { if (c.any) changed(); else ed.undo.pop(); drawTools(); }
     else if (c.type === 'erase') { if (c.any) { ed.undo.push(c.snap); ed.redo = []; changed(); drawTools(); } }
     else if (c.type === 'pen') { if (c.preview.p.length >= 2) { pushUndo(); ed.data.strokes.push(c.preview); changed(); } }
+    else if (c.type === 'fog') { ed.undo.push(c.snap); if (ed.undo.length > 40) ed.undo.shift(); ed.redo = []; fogSet(c.a, c.b, !ed.fogHide); changed(); drawTools(); }
     else if (c.type === 'line' || c.type === 'rect') { const q = c.preview.p; if (q[0] !== q[2] || q[1] !== q[3]) { pushUndo(); ed.data.strokes.push(c.preview); changed(); } else draw(); }
     else if (c.type === 'text') {
       if (Math.hypot(p.x - c.p0.x, p.y - c.p0.y) > 10) return;
@@ -9055,7 +9217,7 @@ function openPacks() {
     const p = st.pack;
     add(rec.foot, [h('button', { class: 'btn', onclick: () => { st.pack = null; fillSheet(rec); } }, 'Back'), h('button', { class: 'btn primary', disabled: st.sel.size ? null : true, onclick: () => importPack(p, st, rec) }, `Import ${st.sel.size} adventure${st.sel.size === 1 ? '' : 's'}`)]);
     const again = S.packs && S.packs[p.id];
-    return h('div', null, h('h2', { style: { font: '400 24px/1.15 var(--display)', margin: '0 0 6px' } }, p.title), h('p', { class: 'muted', style: { marginTop: 0 } }, p.description || ''),
+    return h('div', null, h('h2', { style: { font: '800 22px/1.15 var(--sans)', margin: '0 0 6px' } }, p.title), h('p', { class: 'muted', style: { marginTop: 0 } }, p.description || ''),
       again ? h('p', { class: 'helper' }, 'You imported this pack before. Importing again adds a second copy.') : null,
       h('div', null, p.adventures.map(a => h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: st.sel.has(a.id), onchange: e => { e.target.checked ? st.sel.add(a.id) : st.sel.delete(a.id); fillSheet(rec); } }),
         h('div', { class: 'grow' }, h('div', { style: { fontWeight: 800 } }, a.title), h('div', { class: 'small muted' }, `${a.award}. Levels ${a.levels}.`), h('div', { class: 'tiny muted' }, `By ${a.author}. ${a.licence ? a.licence.name : ''}`))))),
@@ -9122,6 +9284,323 @@ function hoBody(text, gm) {
     ul = null; wrap.append(h('p', null, inline(l))); });
   return wrap;
 }
+
+/* ================= Table tools =================
+   Turn order on players' phones, the GM calling for a roll, area damage, a Concentration reminder,
+   encounter difficulty, one-tap starting equipment, and the party's shared loot.
+   Nothing here needs new security rules: the GM writes combat/ and campaign/ documents (players can read them),
+   and players answer through their own initres document (only they and the GM can read it). */
+
+/* ---------- encounter difficulty (2024 XP budget per character: Low, Moderate, High) ---------- */
+const XP_BUDGET = [[50, 75, 100], [100, 150, 200], [150, 225, 400], [250, 375, 500], [500, 750, 1100], [600, 1000, 1400], [750, 1300, 1700], [1000, 1700, 2100], [1300, 2000, 2600], [1600, 2300, 3100],
+  [1900, 2900, 4100], [2200, 3700, 4700], [2600, 4200, 5400], [2900, 4900, 6200], [3300, 5400, 7800], [3800, 6100, 9800], [4500, 7200, 11700], [5000, 8700, 14200], [5500, 10700, 17200], [6400, 13200, 22000]];
+function encDifficulty(e) {
+  const inFight = e.list.filter(c => c.k === 'pc' && S.chars[c.ref]).map(c => S.chars[c.ref]);
+  const party = inFight.length ? inFight : Object.values(S.chars || {});
+  const xp = e.list.filter(c => c.k === 'mon').reduce((a, c) => { const m = getMon(c.ref); return a + ((m && +m.xp) || 0); }, 0);
+  if (!party.length || !xp) return null;
+  const b = [0, 0, 0]; party.forEach(c => XP_BUDGET[clamp(D(c).lvl, 1, 20) - 1].forEach((v, i) => b[i] += v));
+  const k = xp < b[0] / 2 ? 0 : xp <= b[0] ? 1 : xp <= b[1] ? 2 : xp <= b[2] ? 3 : 4;
+  return { xp, b, k, label: ['Trivial', 'Low', 'Moderate', 'High', 'Beyond High'][k], n: party.length, whole: !inFight.length };
+}
+function difficultyRow(e) {
+  const d = encDifficulty(e); if (!d) return null;
+  const col = ['var(--ink-3)', 'var(--sage)', 'var(--amber)', 'var(--ember)', 'var(--red)'][d.k], f = n => Number(n).toLocaleString();
+  return h('div', { class: 'diffrow', role: 'status' }, h('span', { class: 'diffpill', style: { color: col, borderColor: col } }, d.label),
+    h('span', { class: 'small muted' }, `${f(d.xp)} XP for ${d.n} character${d.n === 1 ? '' : 's'}${d.whole ? ' (whole party)' : ''}. Low ${f(d.b[0])}, Moderate ${f(d.b[1])}, High ${f(d.b[2])}.`));
+}
+
+/* ---------- turn order on players' phones ---------- */
+function publishTurn(e) {
+  if (!DB || S.role !== 'gm') return;
+  if (e.turn) {
+    const al = e.list.filter(c => { const v = cbView(c); return !v.gone && !(c.k === 'mon' && v.hp <= 0); });
+    writeDoc('combat/turn', { enc: e._id, name: e.name, round: e.round || 1, turn: e.turn, list: al.map(c => ({ id: c.id, n: cbView(c).n, pc: c.k === 'pc' ? c.ref : null })), at: Date.now() });
+    S.turnPub = e._id;
+  } else if (S.turnPub === e._id || (S.turnDoc && S.turnDoc.enc === e._id)) { delDoc('combat/turn'); S.turnPub = null; S.turnDoc = null; }
+}
+{ const _saveEnc = saveEnc; saveEnc = function (e) { _saveEnc(e); try { publishTurn(e); } catch (x) { console.warn(x); } }; }
+const turnLive = t => !!t && Array.isArray(t.list) && t.list.length && Date.now() - (t.at || 0) < 8 * 3600 * 1000;
+function turnCard() {
+  const t = S.turn; if (!turnLive(t)) return null;
+  const i = Math.max(0, t.list.findIndex(c => c.id === t.turn)), cur = t.list[i], nx = t.list[(i + 1) % t.list.length], mine = cur.pc === ME.id;
+  const until = (() => { const k = t.list.findIndex(c => c.pc === ME.id); return k < 0 ? null : (k - i + t.list.length) % t.list.length; })();
+  return h('section', { class: 'nowcard turncard' + (mine ? ' mine' : ''), 'aria-live': 'polite', style: { marginBottom: '14px' } },
+    h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, h('div', { class: 'lbl' }, `${t.name || 'Combat'}, round ${t.round}`), h('div', { class: 'nm' }, mine ? 'Your turn' : cur.n),
+      h('div', { class: 'small muted' }, mine ? `Up next: ${nx.n}` : until == null ? `Up next: ${nx.n}` : until === 1 ? 'You’re up next' : `Up next: ${nx.n}. You’re ${until} turns away`))),
+    h('div', { class: 'turnstrip', role: 'list', 'aria-label': 'Turn order' }, t.list.map((c, k) => h('span', { role: 'listitem', class: 'turnchip' + (k === i ? ' on' : '') + (c.pc === ME.id ? ' me' : '') }, c.pc === ME.id ? 'You' : c.n))));
+}
+function onTurnDoc(t) {
+  const was = S.turn; S.turn = t;
+  if (turnLive(t) && S.char) {
+    const cur = t.list.find(c => c.id === t.turn);
+    if (cur && cur.pc === ME.id && !(was && was.turn === t.turn && was.round === t.round) && Date.now() - (t.at || 0) < 60000) {
+      toast('You’re up! It’s your turn.', 3600); try { navigator.vibrate && navigator.vibrate([80, 50, 80]); } catch (e) { }
+    }
+  }
+  refresh();
+}
+
+/* ---------- the GM calls for a roll ---------- */
+const CALL_KINDS = [['skill', 'Skill'], ['save', 'Saving throw'], ['check', 'Ability check']];
+const callLabel = c => c.kind === 'skill' ? `${c.key} check` : c.kind === 'save' ? `${ABN[c.key]} saving throw` : `${ABN[c.key]} check`;
+function openRollCall() {
+  const uids = Object.keys(S.chars || {}); if (!uids.length) { toast('No player characters yet.'); return; }
+  openSheet('Call for a roll', rec => {
+    const st = rec.state; if (!st.init) { st.init = true; st.sel = new Set(uids); st.kind = 'skill'; st.key = 'Perception'; st.dc = ''; st.sent = null; }
+    const dc = parseNum(st.dc);
+    if (st.sent) {
+      const c = st.sent, res = c.uids.map(u => { const r = (S.initres[u] || {}).call; return { u, r: r && r.id === c.id ? r : null }; });
+      const got = res.filter(x => x.r).length;
+      add(rec.foot, [h('button', { class: 'btn', onclick: () => { st.sent = null; fillSheet(rec); } }, 'Ask for another'), h('button', { class: 'btn primary', onclick: () => { delDoc('combat/call'); closeSheet(rec); } }, 'Done')]);
+      return h('div', null, h('p', { style: { marginTop: 0, fontWeight: 800, fontSize: '18px' } }, callLabel(c) + (c.dc != null ? `, DC ${c.dc}` : '')),
+        h('p', { class: 'small muted', style: { marginTop: 0 } }, `${got} of ${res.length} rolled. Results appear here as they come in.`),
+        h('div', { class: 'list' }, res.sort((a, b) => ((b.r || {}).total || -99) - ((a.r || {}).total || -99)).map(({ u, r }) => h('div', { class: 'li', style: { cursor: 'default' } },
+          h('span', { class: 'initdot' + (r ? '' : ' wait') }, r ? String(r.total) : '…'), h('div', { class: 'grow' }, h('div', { class: 't' }, pcName(u)), h('div', { class: 's' }, r ? (r.d20 ? `d20 (${r.d20})` : 'Their own dice') : 'Waiting…')),
+          r && c.dc != null ? h('span', { class: 'tag', style: { color: r.total >= c.dc ? 'var(--sage)' : 'var(--red)', borderColor: 'currentColor' } }, r.total >= c.dc ? 'Passed' : 'Failed') : null))));
+    }
+    add(rec.foot, [h('button', { class: 'btn primary', onclick: () => {
+      if (!st.sel.size) { toast('Choose at least one player.'); return; }
+      const c = { id: nid(), uids: [...st.sel], kind: st.kind, key: st.key, at: Date.now() };
+      writeDoc('combat/call', c); st.sent = Object.assign({ dc: parseNum(st.dc) }, c); fillSheet(rec); toast(`Asked ${c.uids.length} player${c.uids.length === 1 ? '' : 's'} to roll.`);
+    } }, 'Ask for the roll')]);
+    const keys = st.kind === 'skill' ? SKILLS.map(s => [s[0], s[0]]) : ABIL.map(a => [a, ABN[a]]);
+    if (!keys.some(k => k[0] === st.key)) st.key = keys[0][0];
+    return h('div', null,
+      h('div', { class: 'seg' }, CALL_KINDS.map(([k, l]) => h('button', { 'aria-pressed': st.kind === k ? 'true' : 'false', onclick: () => { st.kind = k; st.key = k === 'skill' ? 'Perception' : k === 'save' ? 'dex' : 'str'; fillSheet(rec); } }, l))),
+      h('label', { class: 'f' }, st.kind === 'skill' ? 'Skill' : 'Ability'), h('select', { class: 'in', 'aria-label': 'What to roll', onchange: e => st.key = e.target.value }, keys.map(([k, l]) => h('option', { value: k, selected: st.key === k ? true : null }, l))),
+      h('label', { class: 'f' }, 'DC (optional, only you see it)'), h('input', { class: 'in num', inputmode: 'numeric', placeholder: 'e.g. 15', value: st.dc, oninput: e => st.dc = e.target.value }),
+      h('label', { class: 'f' }, 'Who rolls'), uids.map(u => h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: st.sel.has(u), onchange: e => e.target.checked ? st.sel.add(u) : st.sel.delete(u) }), h('span', { class: 'grow' }, pcName(u)))));
+  }, { live: true });
+}
+let callShownFor = null;
+function maybeRollCall() {
+  const c = S.rollCall;
+  if (!c || S.role !== 'player' || !S.char || !ME.id || !(c.uids || []).includes(ME.id) || Date.now() - (c.at || 0) > 30 * 60 * 1000) return;
+  if (S.myInitRes && S.myInitRes.call && S.myInitRes.call.id === c.id) return;
+  if (callShownFor === c.id || document.querySelector('.callpop')) return;
+  callShownFor = c.id;
+  const d = D(S.char), bonus = c.kind === 'skill' ? d.skill(c.key) : c.kind === 'save' ? d.save(c.key) : d.m[c.key] + ((d.im || {}).check || 0) + ((d.im || {}).d20 || 0);
+  const st = { own: '' }, lab = callLabel(c);
+  const send = (total, d20) => writeDoc('initres/' + ME.id, { call: { id: c.id, total, d20: d20 || null, at: Date.now() } }, 'update');
+  const close = () => pop.remove();
+  const box = h('div', { class: 'initbox', role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'call-ttl' });
+  const draw = result => {
+    box.textContent = '';
+    box.append(flameSvg('flame small'), h('div', { class: 'lbl', style: { color: 'var(--ember)' } }, 'The Game Master asks for'), h('h2', { id: 'call-ttl' }, lab));
+    if (result) { box.append(h('div', { class: 'inittot' }, String(result.total)), h('p', { class: 'small muted' }, result.note), h('button', { class: 'btn primary', style: { width: '100%' }, onclick: close }, 'Back to the fire')); setTimeout(close, 4000); return; }
+    box.append(h('button', { class: 'btn primary', style: { width: '100%', minHeight: '58px', fontSize: '18px', marginTop: '12px' }, onclick: () => { const r = doRoll('1d20' + (bonus >= 0 ? '+' : '') + bonus, { label: lab, kind: c.kind === 'save' ? 'save' : 'chk' }); if (!r) return; send(r.total, r.d20); draw({ total: r.total, note: `d20 (${r.d20}) ${sgn(bonus)}. Sent to the Game Master.` }); } }, icon('d20'), `Roll d20 ${sgn(bonus)}`),
+      h('div', { class: 'row nowrap mt' }, h('input', { class: 'in num', inputmode: 'numeric', placeholder: 'Rolled real dice?', 'aria-label': 'Total from your own dice', oninput: e => st.own = e.target.value, style: { flex: 1 } }),
+        h('button', { class: 'btn', onclick: () => { const v = parseNum(st.own, true); if (v == null) { toast('Enter your total.'); return; } send(v, null); draw({ total: v, note: 'Sent to the Game Master.' }); } }, 'Send')),
+      h('button', { class: 'btn ghost sm', style: { marginTop: '8px' }, onclick: close }, 'Not now'));
+  };
+  const pop = h('div', { class: 'scrim initpop callpop', style: { alignItems: 'center', zIndex: 70 } }, box);
+  draw(null); document.body.append(pop);
+  try { navigator.vibrate && navigator.vibrate(60); } catch (e) { }
+}
+
+/* ---------- area damage: one amount, several combatants, half for those who saved ---------- */
+function openAreaDamage(encId) {
+  openSheet('Area damage', rec => {
+    const e0 = getEnc(encId); if (!e0) return h('p', { class: 'muted' }, 'Encounter not found.');
+    const st = rec.state; if (!st.init) { st.init = true; st.amt = ''; st.sel = new Set(); st.saved = new Set(); st.none = false; }
+    const rows = e0.list.map(c => ({ c, v: cbView(c) })).filter(x => !x.v.gone && !(x.c.k === 'mon' && x.v.hp <= 0));
+    const amt = Math.max(0, parseNum(st.amt) || 0);
+    const taken = id => st.saved.has(id) ? (st.none ? 0 : Math.floor(amt / 2)) : amt;
+    add(rec.foot, [h('button', { class: 'btn danger', disabled: st.sel.size && amt ? null : true, onclick: () => {
+      const e = clone(getEnc(encId)); let n = 0;
+      e.list.forEach(c => { if (!st.sel.has(c.id)) return; const dmg = taken(c.id); if (!dmg) return; n++;
+        const v = cbView(c), fromTmp = Math.min(v.tmp || 0, dmg), rest = dmg - fromTmp, over = Math.max(0, rest - v.hp), cur = Math.max(0, v.hp - rest), tmp = (v.tmp || 0) - fromTmp;
+        if (c.k === 'pc') gmSetPCHP(c.ref, { cur, tmp }, { dmg: rest, over }); else { c.hp = cur; c.tmp = tmp; } });
+      saveEnc(e); closeSheet(rec); toast(`${amt} damage dealt to ${n} combatant${n === 1 ? '' : 's'}${st.saved.size ? ', less for those who saved' : ''}.`, 3200);
+    } }, st.sel.size ? `Deal damage to ${st.sel.size}` : 'Deal damage')]);
+    return h('div', null,
+      h('div', { class: 'panel' }, h('input', { class: 'bigamt', inputmode: 'numeric', pattern: '[0-9]*', placeholder: '0', value: st.amt, 'aria-label': 'Damage', oninput: ev => { st.amt = ev.target.value.replace(/[^0-9]/g, ''); ev.target.value = st.amt; clearTimeout(st.t); st.t = setTimeout(() => { const a = document.activeElement === ev.target; fillSheet(rec); if (a) { const i = rec.scrim.querySelector('.bigamt'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } }, 500); } })),
+      h('div', { class: 'row mt' }, h('span', { class: 'small muted grow' }, 'A successful save means'), h('div', { class: 'seg', style: { flex: 'none' } }, [[false, 'Half'], [true, 'None']].map(([v, l]) => h('button', { 'aria-pressed': st.none === v ? 'true' : 'false', onclick: () => { st.none = v; fillSheet(rec); } }, l)))),
+      h('div', { class: 'row mt' }, h('div', { class: 'lbl grow' }, 'Who is hit'), h('button', { class: 'btn sm ghost', onclick: () => { rows.forEach(x => { if (x.c.k === 'mon') st.sel.add(x.c.id); }); fillSheet(rec); } }, 'All creatures'), h('button', { class: 'btn sm ghost', onclick: () => { st.sel.clear(); st.saved.clear(); fillSheet(rec); } }, 'Clear')),
+      h('div', { class: 'list mt' }, rows.map(({ c, v }) => { const on = st.sel.has(c.id);
+        return h('div', { class: 'li arearow' + (on ? ' on' : ''), style: { cursor: 'default' } },
+          h('label', { class: 'grow', style: { display: 'flex', gap: '12px', alignItems: 'center', cursor: 'pointer', minWidth: 0 } }, h('input', { type: 'checkbox', checked: on, 'aria-label': v.n, onchange: ev => { if (ev.target.checked) st.sel.add(c.id); else { st.sel.delete(c.id); st.saved.delete(c.id); } fillSheet(rec); } }),
+            h('div', { style: { minWidth: 0 } }, h('div', { class: 't' }, v.n), h('div', { class: 's' }, `HP ${v.hp}/${v.max}` + (on && amt ? ` → ${Math.max(0, v.hp - Math.max(0, taken(c.id) - (v.tmp || 0)))}` : '')))),
+          on ? h('button', { class: 'chip', 'aria-pressed': st.saved.has(c.id) ? 'true' : 'false', onclick: () => { st.saved.has(c.id) ? st.saved.delete(c.id) : st.saved.add(c.id); fillSheet(rec); } }, 'Saved') : null); })));
+  });
+}
+
+/* ---------- Concentration: a reminder to save when you take damage ---------- */
+function endConcentration(why) {
+  const c = S.char; if (!c) return; const efx = c.efx || [], on = efx.filter(e => e.conc); if (!on.length) return;
+  on.forEach(endSharedEffect); setChar({ efx: efx.filter(e => !e.conc) });
+  toast(`${why} ${on.map(e => e.n.replace(/^Concentrating on /, '')).join(', ')} ends.`, 4200);
+}
+function concentrationCheck(dmg) {
+  const c = S.char; if (!c) return; const on = (c.efx || []).filter(e => e.conc); if (!on.length) return;
+  const what = on.map(e => e.n.replace(/^Concentrating on /, '')).join(', ');
+  if ((c.hp || {}).cur <= 0) { endConcentration('You dropped to 0 hit points, so your Concentration breaks:'); return; }
+  const dc = Math.min(30, Math.max(10, Math.floor(dmg / 2))), d = D(c), bonus = d.save('con');
+  document.querySelectorAll('.concprompt').forEach(x => x.remove());
+  const card = h('div', { class: 'rollcard concprompt', role: 'alertdialog', 'aria-label': 'Concentration check' }, h('div', { class: 'grow' }, h('div', { class: 't' }, 'Concentration: ' + what),
+    h('div', { class: 's small' }, `You took ${dmg} damage. Constitution saving throw, DC ${dc}.`),
+    h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => { card.remove(); const r = doRoll('1d20' + (bonus >= 0 ? '+' : '') + bonus, { label: `Concentration save (DC ${dc})`, kind: 'save' }); if (!r) return;
+      setTimeout(() => { if (r.total >= dc) toast(`${r.total}: you keep concentrating on ${what}.`, 3600); else endConcentration(`${r.total} against DC ${dc}: your Concentration breaks.`); }, 900); } }, icon('d20'), `Roll ${sgn(bonus)}`),
+      h('button', { class: 'btn sm', onclick: () => { card.remove(); toast(`Still concentrating on ${what}.`); } }, 'Kept it'),
+      h('button', { class: 'btn sm', onclick: () => { card.remove(); endConcentration('Concentration lost:'); } }, 'Lost it'))));
+  document.body.append(card);
+}
+
+/* ---------- starting equipment ---------- */
+function parseKit(text) {
+  const t = String(text || '').replace(/[’]/g, "'"), out = [];
+  const re = /\(([a-cA-C])\)\s*([\s\S]*?)(?=;?\s*(?:or\s*)?\([a-cA-C]\)|$)/g; let m;
+  while ((m = re.exec(t))) out.push({ k: m[1].toUpperCase(), raw: m[2].replace(/[;,.\s]+(or\s*)?$/i, '').trim() });
+  if (!out.length && /\bGP\b/.test(t) && !/in your book/i.test(t)) out.push({ k: 'A', raw: t.trim() });
+  return out.map((o, i) => Object.assign(o, { k: 'ABC'[i] || o.k }, kitItems(o.raw)));
+}
+function kitItems(raw) {
+  const items = []; let gp = 0;
+  raw.replace(/,?\s+and\s+(?=\d+ GP)/i, ', ').split(/,\s*(?![^(]*\))/).map(s => s.trim()).filter(Boolean).forEach(part => {
+    const g = /^(\d+)\s*GP$/i.exec(part); if (g) { gp += +g[1]; return; }
+    let q = 1, n = part.replace(/^and\s+/i, ''); const qm = /^(\d+)\s+(.+)$/.exec(n); if (qm) { q = +qm[1]; n = qm[2]; }
+    const base = n.replace(/\s*\(.*\)$/, ''), tries = [n, base, base.replace(/s$/, ''), base.replace(/es$/, ''), base.replace(/ies$/, 'y')];
+    let e = null; for (const x of tries) { e = EQ_BY_NAME[x.toLowerCase()]; if (e) break; }
+    if (!e && /^arrows?$/i.test(base)) e = SRD.eq.find(x => /^arrows?\b/i.test(x.n));
+    if (e) { const per = /\((\d+)\)/.exec(e.n); items.push({ n: e.n, ref: 'eq:' + e.i, q: per && q >= +per[1] ? Math.round(q / +per[1]) : q, w: e.w || 0, eq: false }); }
+    else items.push({ n: /^spellbook$/i.test(base) ? 'Spellbook' : n, q, w: 0, eq: false, note: 'Starting equipment' });
+  });
+  return { items, gp };
+}
+const kitText = o => [o.items.map(i => (i.q > 1 ? i.q + ' × ' : '') + i.n).join(', '), o.gp ? o.gp + ' GP' : ''].filter(Boolean).join(', ');
+function openStartingKit() {
+  const c = S.char; if (!c) return; const cls = CLS_BY[c.cls], bg = SRD.bg.find(b => b.i === c.background);
+  const groups = [[cls ? cls.n : '', parseKit(cls && cls.eq)], [bg ? bg.n + ' background' : '', parseKit(bg && bg.eq)]].filter(g => g[1].length);
+  if (!groups.length) { toast('Your starting equipment is in your book. Add it from Add an item.', 3600); return; }
+  openSheet('Starting equipment', rec => {
+    const st = rec.state; if (!st.pick) st.pick = groups.map(() => 0);
+    add(rec.foot, [h('button', { class: 'btn primary', onclick: () => {
+      let items = (S.char.items || []).slice(), gp = 0;
+      groups.forEach(([, opts], gi) => { const o = opts[st.pick[gi]]; if (!o) return; gp += o.gp; o.items.forEach(i => items.push(Object.assign({ id: nid() }, i))); });
+      /* wear the armour and hold the first weapon, so the sheet is ready to play */
+      const isArm = i => { const e = itemEq(i); return e && e.arm; }, isWpn = i => { const e = itemEq(i); return e && e.dmg; };
+      if (!items.some(i => i.eq && isArm(i))) items.filter(isArm).forEach(i => i.eq = true);
+      if (!items.some(i => i.eq && isWpn(i))) items.filter(isWpn).slice(0, 2).forEach(i => i.eq = true);
+      setChar({ items, coins: { gp: (+((S.char.coins || {}).gp) || 0) + gp }, kit: true }); closeSheet(rec); toast('Starting equipment added. Armour and weapons are equipped.', 3600);
+    } }, 'Add to my pack')]);
+    return h('div', null, h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Choose one option from each. You can change anything afterwards on the Items tab.'),
+      groups.map(([name, opts], gi) => [h('div', { class: 'lbl', style: { margin: '14px 0 6px' } }, name),
+        opts.map((o, oi) => h('label', { class: 'pick' }, h('input', { type: 'radio', name: 'kit' + gi, checked: st.pick[gi] === oi, onchange: () => { st.pick[gi] = oi; } }), h('span', { class: 'grow' }, h('b', null, 'Option ' + o.k), h('div', { class: 'small muted' }, kitText(o)))))]));
+  });
+}
+
+/* ---------- party loot: a shared stash the GM fills and players claim from ---------- */
+const lootOf = () => Object.assign({ items: [], gp: 0 }, S.loot);
+function saveLoot(l) { S.loot = Object.assign({}, l, { upd: Date.now() }); writeDoc('campaign/loot', S.loot); refresh(); refreshSheets(); }
+function lootSplit() {
+  const l = lootOf(), uids = Object.keys(S.chars || {}); if (!uids.length || !l.gp) return;
+  const each = Math.floor(l.gp / uids.length); if (!each) { toast('Not enough gold to give everyone a piece.'); return; }
+  uids.forEach(u => gmSetChar(u, { coins: { gp: (+((S.chars[u].coins || {}).gp) || 0) + each } }));
+  saveLoot(Object.assign(l, { gp: l.gp - each * uids.length })); toast(`${each} gp each to ${uids.length} character${uids.length === 1 ? '' : 's'}.`, 3200);
+}
+function lootGive(id, uid) {
+  const l = lootOf(), it = l.items.find(x => x.id === id); if (!it || !S.chars[uid]) return false;
+  const give = Object.assign({}, it); delete give.id; delete give.by;
+  applyAid(uid, { item: give, from: 'the party loot' });
+  saveLoot(Object.assign(l, { items: l.items.filter(x => x.id !== id) })); return true;
+}
+function lootPickItem(onPick) {
+  openSheet('Add to the party loot', rec => {
+    const st = rec.state; if (st.q == null) { st.q = ''; st.custom = ''; }
+    const listEl = h('div', { class: 'list' }); const pick = it => { onPick(it); closeSheet(rec); };
+    const draw = () => { listEl.textContent = ''; const q = st.q.toLowerCase(); if (q.length < 2) { listEl.append(h('p', { class: 'small muted' }, 'Type at least two letters to search gear and magic items.')); return; }
+      SRD.eq.filter(e => e.n.toLowerCase().includes(q)).slice(0, 25).forEach(e => listEl.append(h('button', { class: 'li', onclick: () => pick({ n: e.n, ref: 'eq:' + e.i, q: 1, w: e.w || 0 }) }, h('div', { class: 'grow' }, h('div', { class: 't' }, e.n), h('div', { class: 's' }, e.k || 'Gear')), icon('plus'))));
+      SRD.mi.filter(m => m.n.toLowerCase().includes(q)).slice(0, 25).forEach(m => listEl.append(h('button', { class: 'li', onclick: () => pick({ n: m.n, ref: 'mi:' + m.i, q: 1 }) }, h('div', { class: 'grow' }, h('div', { class: 't' }, m.n), h('div', { class: 's' }, `${m.ra || ''} ${m.k || ''}`.trim())), icon('plus')))); };
+    draw();
+    return h('div', null, h('label', { class: 'f', style: { marginTop: 0 } }, 'A custom item'), h('div', { class: 'row nowrap' }, h('input', { class: 'in grow', value: st.custom, placeholder: 'e.g. Ruby the size of a thumb', oninput: e => st.custom = e.target.value }), h('button', { class: 'btn sm', onclick: () => { if (st.custom.trim()) pick({ n: st.custom.trim(), q: 1, w: 0 }); } }, 'Add')),
+      h('label', { class: 'f' }, 'Gear and magic items'), h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search', value: st.q, oninput: e => { st.q = e.target.value; draw(); } })), h('div', { class: 'mt' }, listEl));
+  });
+}
+function openLoot() {
+  const gm = S.role === 'gm';
+  openSheet('Party loot', rec => {
+    const l = lootOf(), st = rec.state;
+    if (gm) add(rec.foot, [h('button', { class: 'btn', disabled: l.gp && Object.keys(S.chars || {}).length ? null : true, onclick: lootSplit }, 'Split the gold'), h('button', { class: 'btn primary', onclick: () => lootPickItem(it => { const cur = lootOf(); saveLoot(Object.assign(cur, { items: cur.items.concat([Object.assign({ id: nid() }, it)]) })); }) }, icon('plus'), 'Add an item')]);
+    const claim = it => {
+      if (CAP.local) { const cur = lootOf(); if (!cur.items.some(x => x.id === it.id)) return; const give = Object.assign({}, it); delete give.id; setChar({ items: (S.char.items || []).concat([Object.assign({ id: nid(), q: 1 }, give)]) }); saveLoot(Object.assign(cur, { items: cur.items.filter(x => x.id !== it.id) })); toast(`${it.n} is yours.`); return; }
+      writeDoc('initres/' + ME.id, { claim: { id: it.id, at: Date.now() } }, 'update'); st.asked = it.id; fillSheet(rec); toast(`Asked for ${it.n}. It lands in your pack when the Game Master’s app is open.`, 3600);
+    };
+    return h('div', null,
+      h('div', { class: 'panel lootgold' }, h('div', { class: 'grow' }, h('div', { class: 'lbl' }, 'Shared gold'), h('div', { class: 'big' }, Number(l.gp || 0).toLocaleString(), h('span', null, ' gp'))),
+        gm ? h('button', { class: 'btn sm', onclick: async () => { const v = await askText('Shared gold', String(l.gp || 0), { ok: 'Set', placeholder: 'Gold pieces' }); const n = parseNum(v); if (n != null && n >= 0) saveLoot(Object.assign(lootOf(), { gp: n })); } }, icon('edit'), 'Set') : null),
+      gm ? null : h('p', { class: 'small muted' }, 'Claim what your character takes. The Game Master shares out the gold.'),
+      h('div', { class: 'lbl', style: { margin: '16px 0 8px' } }, l.items.length ? `${l.items.length} item${l.items.length === 1 ? '' : 's'}` : 'Items'),
+      l.items.length ? h('div', { class: 'list' }, l.items.map(it => h('div', { class: 'li', style: { cursor: 'default', flexWrap: 'wrap' } }, h('div', { class: 'grow' }, h('div', { class: 't' }, it.n + (it.q > 1 ? ' ×' + it.q : '')), h('div', { class: 's' }, it.ref && it.ref.startsWith('mi:') ? 'Magic item' : it.ref ? 'Gear' : 'Custom item')),
+        gm ? [h('select', { class: 'in', 'aria-label': 'Give ' + it.n + ' to', style: { width: 'auto', minHeight: '40px', padding: '6px 30px 6px 10px' }, onchange: e => { if (e.target.value && lootGive(it.id, e.target.value)) toast(`${it.n} given to ${pcName(e.target.value)}.`); } }, h('option', { value: '' }, 'Give to…'), Object.keys(S.chars || {}).map(u => h('option', { value: u }, pcName(u)))),
+          h('button', { class: 'icon-btn', 'aria-label': 'Remove ' + it.n, onclick: () => { const cur = lootOf(); saveLoot(Object.assign(cur, { items: cur.items.filter(x => x.id !== it.id) })); } }, icon('trash'))]
+          : h('button', { class: 'btn sm' + (st.asked === it.id ? '' : ' primary'), disabled: st.asked === it.id ? true : null, onclick: () => claim(it) }, st.asked === it.id ? 'Asked' : 'Claim'))))
+        : h('p', { class: 'small muted', style: { margin: 0 } }, gm ? 'Nothing yet. Add treasure here and players can claim it from their Camp page.' : 'Nothing in the stash yet.'));
+  }, { live: true });
+}
+/* the GM's app hands a claimed item to the first player who asked for it */
+function processLootClaims() {
+  if (S.role !== 'gm' || CAP.local) return;
+  const l = lootOf(); if (!l.items.length) return;
+  Object.entries(S.initres || {}).map(([u, r]) => [u, r && r.claim]).filter(x => x[1] && l.items.some(i => i.id === x[1].id)).sort((a, b) => (a[1].at || 0) - (b[1].at || 0))
+    .forEach(([u, c]) => { const it = lootOf().items.find(i => i.id === c.id); if (it && S.chars[u] && lootGive(c.id, u)) toast(`${pcName(u)} claimed ${it.n}.`, 3200); });
+}
+const lootCount = () => { const l = lootOf(); return l.items.length + (l.gp ? 1 : 0); };
+const lootButton = () => h('button', { class: 'btn sm', onclick: openLoot }, icon('items'), 'Party loot', lootCount() ? h('span', { class: 'countdot' }, String(lootOf().items.length || '•')) : null);
+
+/* ---------- wiring into the player and GM sides ---------- */
+{ const _setupPlayer = setupPlayer; setupPlayer = function () {
+    _setupPlayer.apply(this, arguments);
+    S.turn = null; S.rollCall = null; S.loot = null; let lastHp = null;
+    sub(DB.doc('combat/turn'), s => onTurnDoc(s.exists ? s.data() : null));
+    sub(DB.doc('combat/call'), s => { S.rollCall = s.exists ? s.data() : null; if (!S.rollCall) document.querySelectorAll('.callpop').forEach(x => x.remove()); maybeRollCall(); });
+    sub(DB.doc('initres/' + ME.id), () => setTimeout(maybeRollCall));
+    sub(DB.doc('campaign/loot'), s => { S.loot = s.exists ? s.data() : null; refresh(); refreshSheets(); });
+    sub(DB.doc('characters/' + ME.id), s => { const c = s.exists ? s.data() : null; if (!c || !c.hp) { lastHp = null; return; } const now = (+c.hp.cur || 0) + (+c.hp.tmp || 0);
+      if (lastHp != null && now < lastHp) { const dmg = lastHp - now; setTimeout(() => concentrationCheck(dmg), 300); } lastHp = now; });
+  }; }
+{ const _setupGM = setupGM; setupGM = function () {
+    _setupGM.apply(this, arguments);
+    S.loot = null; S.turnDoc = null;
+    sub(DB.doc('campaign/loot'), s => { S.loot = s.exists ? s.data() : null; processLootClaims(); refresh(); refreshSheets(); });
+    sub(DB.doc('combat/turn'), s => { S.turnDoc = s.exists ? s.data() : null; });
+  }; }
+{ const _air = applyInitResponses; applyInitResponses = function () { _air.apply(this, arguments); try { processLootClaims(); refreshSheets(); } catch (e) { console.warn(e); } }; }
+{ const _camp = renderPCamp; renderPCamp = function () {
+    const root = _camp.apply(this, arguments); if (!S.char) return root;
+    const tc = turnCard(); if (tc) root.prepend(tc);
+    const sec = [...root.querySelectorAll('h2.sec')].find(x => /around the fire/i.test(x.textContent));
+    const row = h('div', { class: 'row tablerow' }, lootButton());
+    if (sec) sec.before(row); else root.append(row);
+    return root;
+  }; }
+{ const _gp = renderGParty; renderGParty = function () {
+    const root = _gp.apply(this, arguments);
+    const row = h('div', { class: 'row tablerow' }, h('button', { class: 'btn sm', onclick: openRollCall }, icon('d20'), 'Call for a roll'), lootButton());
+    const camp = root.querySelector('.camp'); if (camp) camp.after(row); else root.append(row);
+    return root;
+  }; }
+{ const _ev = encounterView; encounterView = function (e0) {
+    const root = _ev.apply(this, arguments);
+    const diff = difficultyRow(e0), ttl = root.querySelector('.enc-title'); if (diff && ttl) ttl.after(diff);
+    const chips = root.querySelector('.chips');
+    if (chips && e0.list.length) { const b = h('button', { class: 'chip', onclick: () => openAreaDamage(e0._id) }, 'Area damage'); const sort = [...chips.children].find(x => x.textContent === 'Sort'); if (sort) sort.before(b); else chips.append(b); }
+    return root;
+  }; }
+{ const _items = renderPItems; renderPItems = function () {
+    const root = _items.apply(this, arguments); const c = S.char;
+    if (c && !(c.items || []).length && !c.kit) { const empty = root.querySelector('.empty'); const b = h('div', null, h('button', { class: 'btn primary', onclick: openStartingKit }, icon('items'), 'Add starting equipment')); if (empty) empty.append(b); else root.append(b); }
+    return root;
+  }; }
+
+/* ---------- desktop layout: the sheet and the encounter split into two columns (CSS does the rest) ---------- */
+function splitCols(root, cls, test) {
+  const kids = [...root.childNodes], i = kids.findIndex(test); if (i <= 0) return root;
+  root.classList.add(cls + 'root'); root.append(h('div', { class: cls + '-l' }, kids.slice(0, i)), h('div', { class: cls + '-r' }, kids.slice(i)));
+  return root;
+}
+{ const _sv = sheetView; sheetView = function () { return splitCols(_sv.apply(this, arguments), 'sheet', k => k.classList && k.classList.contains('subtabs')); }; }
+{ const _ev2 = encounterView; encounterView = function () { return splitCols(_ev2.apply(this, arguments), 'enc', k => k.tagName === 'H2' && k.classList.contains('sec')); }; }
 
 boot();
 </script>
