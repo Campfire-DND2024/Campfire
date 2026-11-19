@@ -7,5 +7,8 @@ window.CF_CONFIG = {
   projectId: "campfire-3e79f",
   storageBucket: "campfire-3e79f.firebasestorage.app",
   messagingSenderId: "980862340110",
-  appId: "1:980862340110:web:9f4f0235215927f638405f"
+  appId: "1:980862340110:web:9f4f0235215927f638405f",
+  /* optional: notifications when the app is closed. Paste the public key from
+     npx web-push generate-vapid-keys (see android/firebase/functions/README.md). */
+  vapidKey: "PASTE_VAPID_PUBLIC_KEY"
 };

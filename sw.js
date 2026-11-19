@@ -2,7 +2,7 @@
    The app itself always comes from the internet when there is a signal (so nobody is left on an old copy);
    the saved copy is used only offline. Sounds and icons come from the device and refresh in the background.
    Firebase sign-in and sync go straight to the network (and Firestore keeps its own offline copy). */
-const VERSION = 'campfire-5471e50ee8';
+const VERSION = 'campfire-2ead985fb5';
 const SHELL = ['snd-bell-0.mp3', 'snd-chain-0.mp3', 'snd-chain-1.mp3', 'snd-chain-2.mp3', 'snd-coins-0.mp3', 'snd-coins-1.mp3', 'snd-creak-0.mp3', 'snd-creak-1.mp3', 'snd-dice-0.mp3', 'snd-dice-1.mp3', 'snd-dice-2.mp3', 'snd-dice-3.mp3', 'snd-dooropen-0.mp3', 'snd-drip-0.mp3', 'snd-drip-1.mp3', 'snd-drip-2.mp3', 'snd-drum-0.mp3', 'snd-drum-1.mp3', 'snd-drum-2.mp3', 'snd-explosion-0.mp3', 'snd-explosion-1.mp3', 'snd-firewhoosh-0.mp3', 'snd-firewhoosh-1.mp3', 'snd-glass-0.mp3', 'snd-glass-1.mp3', 'snd-glass-2.mp3', 'snd-growl-0.mp3', 'snd-hit-0.mp3', 'snd-hit-1.mp3', 'snd-hit-2.mp3', 'snd-howl-0.mp3', 'snd-knock-0.mp3', 'snd-knock-1.mp3', 'snd-loop-crickets.mp3', 'snd-loop-fire.mp3', 'snd-loop-rain.mp3', 'snd-loop-wind.mp3', 'snd-metalhit-0.mp3', 'snd-metalhit-1.mp3', 'snd-owl-0.mp3', 'snd-roar-0.mp3', 'snd-roar-1.mp3', 'snd-roar-2.mp3', 'snd-spell-0.mp3', 'snd-spell-1.mp3', 'snd-step-0.mp3', 'snd-step-1.mp3', 'snd-step-2.mp3', 'snd-step-3.mp3', 'snd-sting-0.mp3', 'snd-swell-0.mp3', 'snd-swish-0.mp3', 'snd-swish-1.mp3', 'snd-swish-2.mp3', 'snd-sword-0.mp3', 'snd-sword-1.mp3', 'snd-sword-2.mp3', 'snd-sword-3.mp3', 'snd-thunder-0.mp3', 'snd-thunk-0.mp3', 'snd-thunk-1.mp3', 'snd-victory-0.mp3', 'snd-wail-0.mp3', 'snd-wail-1.mp3', 'snd-whoosh-0.mp3', 'snd-whoosh-1.mp3', './', 'index.html', 'firebase.js', 'firebase-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
@@ -44,4 +44,22 @@ self.addEventListener('fetch', e => {
   const fresh = fetch(req).then(save).catch(() => null);
   e.waitUntil(fresh.then(() => undefined));
   e.respondWith(caches.match(key, { ignoreSearch: true }).then(hit => hit || fresh.then(res => res || new Response('', { status: 504 }))));
+});
+/* notifications from Campfire's Cloud Function, sent only to players who switched them on in the menu */
+self.addEventListener('push', e => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+    /* the app is open and in front: it shows this itself */
+    if (cs.some(c => c.visibilityState === 'visible' && c.focused)) return;
+    return self.registration.showNotification(d.title || 'Campfire', { body: d.body || '', tag: d.tag || 'campfire', renotify: !d.quiet, silent: !!d.quiet,
+      icon: 'icon-192.png', data: { url: d.url || self.registration.scope } });
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || self.registration.scope;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+    const c = cs.find(x => x.url.startsWith(self.registration.scope));
+    return c ? c.focus() : self.clients.openWindow(url);
+  }));
 });
