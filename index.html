@@ -867,6 +867,18 @@ div.xpbar{cursor:default}
 .turnchip .tchp{display:block;height:4px;border-radius:2px;background:rgba(0,0,0,.32);overflow:hidden;min-width:36px}
 .turnchip .tchp i{display:block;height:100%;border-radius:2px}
 .turncard.mine .turnchip .tchp{background:rgba(0,0,0,.38)}
+/* a message with an action (Undo) */
+.toast.hasact{display:flex;align-items:center;gap:12px;pointer-events:auto}
+.toast .toastbtn{flex:none;background:transparent;border:0;color:var(--ember);font:800 0.9375rem/1 var(--sans);padding:8px 4px;min-height:36px;cursor:pointer}
+.toast.hasact{width:min(420px,92vw);text-align:left;justify-content:space-between}
+.toast.hasact > span{flex:1;min-width:0}
+/* creatures hidden from players */
+.turnchip.hid{font-style:italic;opacity:.85}
+.cb .revealbtn{width:38px;height:38px;min-width:38px;flex:none;color:var(--ink-3)}
+.cb .revealbtn.on{color:var(--ember)}
+.cb .revealbtn svg{width:20px;height:20px}
+.chip.ico{display:inline-flex;align-items:center;gap:6px}
+.chip.ico svg{width:16px;height:16px;flex:none}
 
 </style>
 </head>
@@ -1107,6 +1119,8 @@ const ICONS = {
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>',
   up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
   user: '<circle cx="12" cy="9" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  'eye-off': '<path d="M10 5.1A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.7 3.7M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>',
   fog: '<path d="M7 16h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 3.5 3.5 0 0 0 7 16z"/><path d="M6 20h9M18 20h1"/>',
   crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
@@ -1127,6 +1141,11 @@ function flameSvg(cls) {
   s.setAttribute('viewBox', '0 0 64 80'); s.setAttribute('aria-hidden', 'true'); if (cls) s.setAttribute('class', cls);
   s.innerHTML = '<path d="M33 3C35 15 46 22 49 35C52 48 47 62 32 66C17 62 12 50 15 38C17 30 22 25 24 18C26 25 27 29 30 31C29 22 29 12 33 3Z" fill="var(--ember)"/><path d="M32 30C34 38 41 42 41 51C41 58 37 63 32 64C27 63 23 58 23 52C23 47 26 44 28 39C29 43 30 45 32 46C31 41 31 35 32 30Z" fill="var(--flame)"/><rect x="8" y="66" width="48" height="8" rx="4" transform="rotate(-10 32 70)" fill="#7A5236"/><rect x="8" y="66" width="48" height="8" rx="4" transform="rotate(10 32 70)" fill="#5E3F2A"/><circle cx="47" cy="13" r="1.6" fill="var(--ember)"/><circle cx="19" cy="9" r="1.2" fill="var(--ember)"/>';
   return s;
+}
+function toastUndo(msg, undo, ms = 7000) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = h('div', { class: 'toast hasact', role: 'status' }, h('span', null, msg), h('button', { class: 'toastbtn', onclick: () => { t.remove(); undo(); } }, 'Undo'));
+  document.body.append(t); setTimeout(() => t.remove(), ms);
 }
 function toast(msg, ms = 2600) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
@@ -4632,8 +4651,10 @@ function workingsSection(c, d) {
 }
 
 /* ================= Change log: every version of Campfire, newest first ================= */
-const APP_VERSION = '6.15';
+const APP_VERSION = '6.17';
 const CHANGELOG = [
+  ['6.17', 'November 2026', ['Hide creatures: in an encounter, tap Hide creatures and players’ phones stop showing what they’re fighting. Creatures’ turns read “The Game Master”, with no names, numbers or health bars, and the initiative pop-up and turn card don’t show the encounter’s name. Players can’t pick hidden creatures as targets.', 'Reveal them one at a time with the eye on each creature in the turn order (or on its screen), as the party spots them. Revealed creatures appear by name with their health bar. Creatures added during the fight start hidden. Tap Creatures hidden again to show everything.']],
+  ['6.16', 'November 2026', ['When a creature linked to a map token drops to 0 hit points, its token comes off the map, whether the map is open or not, and players’ shared view updates too. A message says which token went, with Undo to put it back. Tokens that aren’t linked to a creature stay where they are.']],
   ['6.15', 'November 2026', ['Health bars change colour with damage: green while a creature is unhurt or healthy, amber when injured, orange when bloodied, red when seriously or grievously wounded. On the Game Master’s turn order the bars show exact health.', 'Players now see a health bar under each creature in the turn order on their phones, in the same colours. It shows a band (healthy, injured, bloodied…), never the numbers. The GM can switch this off for an encounter with Players see health.', 'A map token linked to a creature in an encounter shows the same coloured bar under it, for the GM and for players.']],
   ['6.14', 'November 2026', ['End turn: on your turn, the turn card (and the Actions tab) has an End turn button. The Game Master’s app moves straight on to the next combatant.', 'Spells you keep using: Spiritual Weapon, Flaming Sphere, Moonbeam, Call Lightning, Heat Metal, Vampiric Touch, Arcane Hand, Arcane Sword, Sunbeam and Dragon’s Breath show on your turn card with their attack and damage. If you tap End turn without using one, you’re asked first.', 'Concentration: casting a concentration spell from its slot now starts Concentration (asking first if you’re already concentrating), so taking damage always brings up the Constitution save. The save prompt stays until you answer it, even if you roll something else. Creatures can concentrate too: set it on the creature’s screen, and the Game Master gets the save when it takes damage.', 'Spells that cause conditions: Hold Person, Web, Color Spray, Command and others have a “Put Paralyzed on…” button. Pick who it’s on; the Game Master rolls their saves and applies the condition. A damage spell that also causes one (Ray of Sickness, Sunbeam) sends it with the damage, and the GM ticks it per target. Conditions from a concentration spell end when your Concentration does.', 'The Game Master’s damage, condition and Concentration cards stack up and stay until each is applied or ignored, through other rolls and reloads.', 'In a fight, a roll card asking you to pick a target only closes when you pick one or tap Skip; tapping elsewhere doesn’t dismiss it.', 'Encounters can be deleted from the list (and from inside the encounter). Adding the party asks who’s in this fight.', 'Away this session: on the Camp page, mark a player away. They’re left out of new encounters, roll calls, rests, XP splits and target lists until they’re back, and their own screen says so.', 'Bind a map to an encounter: the encounter gets a button to its map, and the map a button back to the encounter.', 'Tokens linked to creatures: in a token’s settings, pick a creature from the map’s encounter or the bestiary. The token takes its size and name, and Stat block opens it from the map.', 'Custom mounts: in Add an item, Mounts, choose “Any creature as a mount” or “Homebrew mount”. Carrying capacity follows the 2024 rules (Strength × 15, doubled for each size above Medium), and a creature mount keeps its stat block.']],
   ['6.13', 'November 2026', ['Damage of more than one type is rolled together. Tap Damage on a weapon with extra damage (a dagger with 1d4 Poison, a Flame Tongue’s Fire) and a short prompt lists every part: the weapon’s own dice, its extra damage, and anything that only sometimes applies, such as Sneak Attack or “vs Undead”, to tick when it does. Roll them together and the card shows each type’s share (8 Piercing + 4 Poison). Spells work the same way: Flame Strike rolls its Fire and Radiant together, Ice Storm its Bludgeoning and Cold, and a spell that lets you choose its type (Glyph of Warding) asks which. A creature’s attack that deals two types (2d6 + 3 Slashing plus 1d6 Acid) is one roll for the Game Master too.', 'The Game Master’s damage card now shows every type for every target, and applies immunity, resistance and vulnerability to each type on its own, with Petrified counting as resistance to everything: a skeleton takes the dagger’s Piercing and ignores its Poison. A successful save halves each part. Hex and Hunter’s Mark appear in their target’s row. The player hears what happened (Skeleton takes 8 damage, immune to Poison). Damage the GM rolls against players works the same way, and Area damage now has a damage type, with room for a second.', 'Divine Favor’s extra 1d4 is now Radiant damage.']],
@@ -7536,12 +7557,16 @@ function getEnc(id) { return S.encs.find(e => e._id === id); }
 function saveEnc(e) {
   e.upd = Date.now();
   const i = S.encs.findIndex(x => x._id === e._id);
+  /* a creature that drops to 0 hit points: its linked tokens come off the map */
+  const old = i >= 0 ? S.encs[i] : null;
+  const died = old && old !== e ? e.list.filter(c => c.k !== 'pc' && cbView(c).hp <= 0 && (o => o && cbView(o).hp > 0)(old.list.find(x => x.id === c.id))) : [];
   if (i >= 0) S.encs[i] = e; else S.encs.push(e);
   const data = Object.assign({}, e); delete data._id;
   writeDoc(encPath(e._id), data);
   publishTurn(e);
   refresh();
   if (S.mapEd && S.mapEd.draw) try { S.mapEd.draw(); } catch (er) { }
+  if (died.length) removeDeadTokens(e, died);
 }
 /* move an encounter's turn on (or back); starts it when it hasn't started. Returns whose turn it is now */
 function stepEnc(eid, dir) {
@@ -7651,6 +7676,7 @@ function encounterView(e0) {
       sortEnc(e); save(); toast('Rolled for the players who haven’t.');
     } }, 'Roll for players') : null,
     e.list.length ? h('button', { class: 'chip', onclick: () => openAreaDamage(e._id) }, 'Area damage') : null,
+    e.list.some(c => c.k !== 'pc') ? h('button', { class: 'chip ico', 'aria-pressed': e.secret ? 'true' : 'false', title: 'Players see only “The Game Master” for creatures’ turns until you reveal them', onclick: () => { e.secret = !e.secret; save(); toast(e.secret ? 'Creatures hidden from players. Tap the eye on a creature to reveal it.' : 'Players see every creature in the turn order.', 3200); } }, icon(e.secret ? 'eye-off' : 'eye'), e.secret ? 'Creatures hidden' : 'Hide creatures') : null,
     e.list.some(c => c.k === 'mon') ? h('button', { class: 'chip', 'aria-pressed': e.hideHp ? 'false' : 'true', title: 'Whether players see a health bar for each creature', onclick: () => { e.hideHp = !e.hideHp; save(); toast(e.hideHp ? 'Players no longer see creatures’ health.' : 'Players see a health bar for each creature (never the numbers).', 2800); } }, e.hideHp ? 'Health hidden from players' : 'Players see health') : null,
     advMode() === 'xp' && e.list.some(c => c.k === 'mon') ? h('button', { class: 'chip', onclick: () => { const xp = e.list.filter(c => c.k === 'mon').reduce((a, c) => a + ((getMon(c.ref) || {}).xp || 0), 0); openAwardXp(xp, e.list.filter(c => c.k === 'pc').map(c => c.ref), `For ${e.name || 'this encounter'}: ${fmtN(xp)} XP from its creatures.`); } }, 'Award XP') : null,
     h('button', { class: 'chip', onclick: () => { sortEnc(e); save(); } }, 'Sort'),
@@ -7664,6 +7690,7 @@ function encounterView(e0) {
       h('button', { class: 'ini', 'aria-label': 'Initiative for ' + v.n, onclick: async ev => { ev.stopPropagation(); const n = await askText('Initiative for ' + v.n, v.init == null ? '' : String(v.init), { ok: 'Set' }); if (n != null && n !== '' && !isNaN(+n)) { const c = e.list.find(x => x.id === v.id); c.init = +n; c.auto = false; save(); } } }, v.init == null ? '–' : String(v.init)),
       h('div', { class: 'grow', style: { minWidth: 0 } }, h('div', { class: 't' }, v.n), h('div', { class: 'k' }, v.k === 'pc' ? 'Player character' : (getMon(v.ref) ? `CR ${crStr(+getMon(v.ref).cr || 0)} ${cap(getMon(v.ref).t)}` : 'Creature')), hpBar(v.hp, v.max, true),
         (v.cond || []).length || (v.marks || []).length || v.conc ? h('div', { class: 'chips', style: { marginTop: '5px' } }, v.conc ? h('span', { class: 'chip mark', style: { padding: '1px 8px', fontSize: '12px' } }, 'Concentrating: ' + v.conc) : null, (v.cond || []).map(n => h('span', { class: 'chip cond', style: { padding: '1px 8px', fontSize: '12px' } }, n)), (v.marks || []).map(mk => h('span', { class: 'chip mark', title: markText(mk), style: { padding: '1px 8px', fontSize: '12px' } }, `${mk.n} (${pcName(mk.by).split(' ')[0]})`))) : null),
+      e.secret && v.k !== 'pc' ? h('button', { class: 'icon-btn revealbtn' + (encHides(e, e.list[idx]) ? '' : ' on'), 'aria-label': (encHides(e, e.list[idx]) ? 'Reveal ' : 'Hide ') + v.n + (encHides(e, e.list[idx]) ? ' to players' : ' from players'), title: encHides(e, e.list[idx]) ? 'Hidden from players: tap to reveal' : 'Players can see it: tap to hide', onclick: ev => { ev.stopPropagation(); const c = e.list[idx]; c.shown = !c.shown; save(); toast(c.shown ? `${v.n} revealed to players.` : `${v.n} hidden from players.`, 2200); } }, icon(encHides(e, e.list[idx]) ? 'eye-off' : 'eye')) : null,
       h('div', { class: 'acb' }, h('b', null, String(v.ac)), 'AC'),
       h('div', { class: 'hpn' }, `${v.hp}`, h('small', null, `/${v.max}`), v.tmp ? h('div', { class: 'tiny', style: { color: 'var(--blue)', fontWeight: 800 } }, '+' + v.tmp) : null)));
   });
@@ -7709,6 +7736,7 @@ function openCombatant(encId, cbId) {
     if ((c.marks || []).length) body.append(h('div', { class: 'panel mt' }, h('div', { class: 'lbl' }, 'Marked by'), c.marks.map(mk => h('div', { class: 'row nowrap', style: { marginTop: '6px' } }, h('div', { class: 'grow small' }, markText(mk)),
       h('button', { class: 'icon-btn', 'aria-label': 'Remove ' + mk.n, onclick: () => { c.marks = c.marks.filter(x => x.id !== mk.id); save(); } }, icon('close'))))));
     body.append(h('div', { class: 'chips mt' }, (v.cond || []).map(n => h('button', { class: 'chip cond', onclick: () => showCondition(n, () => { if (c.k === 'pc') { const ch = S.chars[c.ref]; const nc = (ch.cond || []).filter(x => x !== n); S.chars[c.ref] = Object.assign({}, ch, { cond: nc }); writeDoc('characters/' + c.ref, { cond: nc }, 'update'); syncParty(c.ref); refresh(); } else { c.cond = c.cond.filter(x => x !== n); save(); } }) }, n)),
+      e.secret && c.k !== 'pc' ? h('button', { class: 'chip ico', 'aria-pressed': c.shown ? 'true' : 'false', onclick: () => { c.shown = !c.shown; save(); } }, icon(c.shown ? 'eye' : 'eye-off'), c.shown ? 'Shown to players' : 'Hidden from players') : null,
       c.k === 'mon' ? h('button', { class: 'chip' + (c.conc ? ' cond' : ''), onclick: async () => { const n = await askText('Concentrating on which spell?', c.conc || '', { placeholder: 'e.g. Hold Person (leave empty for none)', ok: 'Set' }); if (n != null) { c.conc = n.trim(); save(); } } }, c.conc ? `Concentrating: ${c.conc}` : 'Concentration…') : null,
       h('button', { class: 'chip', onclick: () => pickConditions(v.cond || [], nc => { if (c.k === 'pc') { S.chars[c.ref] = Object.assign({}, S.chars[c.ref], { cond: nc }); writeDoc('characters/' + c.ref, { cond: nc }, 'update'); syncParty(c.ref); refresh(); } else { c.cond = nc; save(); } }) }, 'Conditions')));
     body.append(h('div', { class: 'row mt' },
@@ -7879,7 +7907,7 @@ function editLibraryEntry(id) { openSubclassEditor({ where: 'gm', id }); }
 
 /* ---------- asking players to roll initiative ---------- */
 function askInitiative(e, uids) {
-  const p = { id: nid(), enc: e._id, name: e.name, uids, at: Date.now(), flav: Math.floor(Math.random() * INIT_FLAVOUR.length) };
+  const p = { id: nid(), enc: e._id, name: e.secret ? '' : e.name, uids, at: Date.now(), flav: Math.floor(Math.random() * INIT_FLAVOUR.length) };
   S.gmPrompt = p; writeDoc('combat/prompt', p);
 }
 function applyInitResponses() {
@@ -7930,6 +7958,40 @@ function tokHealth(t, player) {
   if (!player) { const e = getEnc(t.cb.enc), c = e && e.list.find(x => x.id === t.cb.id); if (!c) return null; const v = cbView(c); if (!v.max) return null; return { w: clamp(v.hp / v.max, 0, 1), col: tierHex(hpTier(v.hp, v.max)) }; }
   const tt = S.turn, c = turnLive(tt) && tt.enc === t.cb.enc && tt.list.find(x => x.id === t.cb.id); if (!c || c.h == null) return null;
   const k = clamp(+c.h || 0, 0, 6); return { w: TIER_WIDTH[k] / 100, col: tierHex(k) };
+}
+/* a linked creature has died: take its tokens off the maps they're on (the encounter's map, the token's own map, the open map).
+   The GM gets an Undo in the message. */
+const tokOf = (eid, cid) => t => !!(t && t.cb && t.cb.enc === eid && t.cb.id === cid);
+async function editMapTokens(mid, fn) {
+  const meta = S.maps.find(m => m._id === mid); if (!meta) return [];
+  if (S.mapEd && S.mapEd.id === mid && S.mapEd.data) {
+    const ed = S.mapEd, before = ed.data.tokens || [], after = fn(before); if (after === before) return [];
+    ed.data.tokens = after; if (ed.sel && !after.some(t => t.id === ed.sel)) ed.sel = null;
+    ed.dirty = true; ed.flush(); ed.draw(); ed.drawTools(); return [mid];
+  }
+  try {
+    const sn = await DB.doc(dataPath(mid)).get(); const d = sn.exists ? sn.data() : null; if (!d) return [];
+    const before = d.tokens || [], after = fn(before); if (after === before) return [];
+    writeDoc(dataPath(mid), { tokens: after }, 'update'); if (meta.live) writeDoc('livedata/' + mid, { tokens: after }, 'update');
+    meta.upd = Date.now(); writeDoc(metaPath(mid), { upd: meta.upd }, 'update'); return [mid];
+  } catch (er) { return []; }
+}
+async function removeDeadTokens(e, died) {
+  const gone = [];
+  for (const c of died) {
+    const mids = [...new Set([e.map, c.tok && c.tok.map, S.mapEd && S.mapEd.id].filter(Boolean))], match = tokOf(e._id, c.id);
+    for (const mid of mids) {
+      let taken = [];
+      const did = await editMapTokens(mid, ts => { taken = ts.filter(match); return taken.length ? ts.filter(t => !match(t)) : ts; });
+      if (did.length && taken.length) gone.push({ mid, toks: taken, n: cbView(c).n });
+    }
+  }
+  if (!gone.length) return;
+  const names = [...new Set(gone.map(x => x.n))], maps = [...new Set(gone.map(x => (S.maps.find(m => m._id === x.mid) || {}).name || 'the map'))];
+  toastUndo(`${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} down: token${gone.reduce((s, x) => s + x.toks.length, 0) === 1 ? '' : 's'} removed from ${maps.join(', ')}.`, async () => {
+    for (const x of gone) await editMapTokens(x.mid, ts => ts.concat(x.toks.filter(t => !ts.some(y => y.id === t.id))));
+    toast('Token put back.');
+  });
 }
 function openTokCreature(t) {
   const k = tokCreature(t); if (!k) { toast('That creature is no longer in the bestiary or encounter.'); return; }
@@ -8430,6 +8492,7 @@ function MapEditor(meta0, opts = {}) {
           Object.assign(t, { l: st.d.l.slice(0, 4), c: st.d.c, sz: st.d.sz, z: nz, uid: st.d.uid || null, gx, gy, mon: st.d.uid ? null : st.d.mon || null, cb: st.d.uid ? null : st.d.cb || null });
           if (st.d.uid) { writeDoc('ptok/' + st.d.uid, { pos: { [ed.id]: { [t.id]: { gx, gy } } }, at: Date.now() }, 'update'); if (ed.pt[st.d.uid] && ed.pt[st.d.uid][ed.id]) ed.pt[st.d.uid][ed.id][t.id] = { gx, gy }; }
           changed(); closeSheet(rec); drawTools();
+          if (t.cb) { const e0 = getEnc(t.cb.enc), c0 = e0 && e0.list.find(x => x.id === t.cb.id); if (c0 && !(c0.tok && c0.tok.map === ed.id && c0.tok.id === t.id)) { const e1 = clone(e0); e1.list.find(x => x.id === t.cb.id).tok = { map: ed.id, id: t.id }; saveEnc(e1); } }
         } }, 'Save token')]);
       const pcs = Object.keys(S.chars || {});
       /* link a creature: one from this map's encounter (with its hit points), or any stat block */
@@ -9860,11 +9923,17 @@ function difficultyRow(e) {
 }
 
 /* ---------- turn order on players' phones ---------- */
+const encHides = (e, c) => !!e.secret && c.k !== 'pc' && !c.shown;
 function publishTurn(e) {
   if (!DB || S.role !== 'gm') return;
   if (e.turn) {
     const al = e.list.filter(c => { const v = cbView(c); return !v.gone && !(c.k === 'mon' && v.hp <= 0); });
-    writeDoc('combat/turn', { enc: e._id, name: e.name, round: e.round || 1, turn: e.turn, list: al.map(c => { const v = cbView(c); return Object.assign({ id: c.id, n: v.n, pc: c.k === 'pc' ? c.ref : null }, c.k !== 'pc' && !e.hideHp ? { h: hpTier(v.hp, v.max) } : {}); }), at: Date.now() });
+    /* creatures hidden from players (e.secret, until a creature is revealed with c.shown): a run of them shows as one "The Game Master" turn */
+    const list = []; let turn = e.turn;
+    al.forEach(c => { const v = cbView(c);
+      if (encHides(e, c)) { const last = list[list.length - 1]; if (!(last && last.hid)) list.push({ id: 'gm' + list.length, n: 'The Game Master', hid: true }); if (c.id === e.turn) turn = list[list.length - 1].id; return; }
+      list.push(Object.assign({ id: c.id, n: v.n, pc: c.k === 'pc' ? c.ref : null }, c.k !== 'pc' && !e.hideHp ? { h: hpTier(v.hp, v.max) } : {})); });
+    writeDoc('combat/turn', { enc: e._id, name: e.secret ? 'Combat' : e.name, round: e.round || 1, turn, list, at: Date.now() });
     S.turnPub = e._id;
   } else if (S.turnPub === e._id || (S.turnDoc && S.turnDoc.enc === e._id)) { delDoc('combat/turn'); S.turnPub = null; S.turnDoc = null; }
 }
@@ -9880,7 +9949,7 @@ function turnCard() {
     mine && repeatsOf(S.char).length ? h('div', { class: 'list', style: { marginTop: '10px' } }, repeatsOf(S.char).map(repeatRow)) : null,
     mine ? h('div', { class: 'row', style: { marginTop: '10px' } }, endTurnBtn('primary grow')) : null,
     h('div', { class: 'turnstrip', role: 'list', 'aria-label': 'Turn order' }, t.list.map((c, k) => { const tier = c.h != null && !c.pc ? clamp(+c.h || 0, 0, 6) : null;
-      return h('span', { role: 'listitem', class: 'turnchip' + (k === i ? ' on' : '') + (c.pc === ME.id ? ' me' : '') + (tier != null ? ' hashp' : ''), 'aria-label': tier != null ? `${c.n}, ${HP_TIERS[tier][0].toLowerCase()}` : null, title: tier != null ? HP_TIERS[tier][0] : null },
+      return h('span', { role: 'listitem', class: 'turnchip' + (k === i ? ' on' : '') + (c.pc === ME.id ? ' me' : '') + (tier != null ? ' hashp' : '') + (c.hid ? ' hid' : ''), 'aria-label': tier != null ? `${c.n}, ${HP_TIERS[tier][0].toLowerCase()}` : null, title: tier != null ? HP_TIERS[tier][0] : null },
         c.pc === ME.id ? 'You' : c.n, tier != null ? h('span', { class: 'tchp', 'aria-hidden': 'true' }, h('i', { style: { width: TIER_WIDTH[tier] + '%', backgroundColor: tierColour(tier) } })) : null); })));
 }
 function onTurnDoc(t) {
@@ -10378,7 +10447,7 @@ function rollCardExtras(card, r, o) {
   const done = (el, text) => { el.textContent = ''; el.append(h('span', { class: 'small' }, text)); if (card.classList.contains('pending')) { card.classList.remove('pending'); setTimeout(() => { card.remove(); tidyHeld(); }, 5000); } };
   if (S.role === 'player') {
     const t = liveTurn(); if (!t) return;
-    const foes = t.list.filter(c => !c.pc); if (!foes.length) return;
+    const foes = t.list.filter(c => !c.pc && !c.hid); if (!foes.length) return;
     const order = lastTarget && foes.some(f => f.id === lastTarget) ? [foes.find(f => f.id === lastTarget)].concat(foes.filter(f => f.id !== lastTarget)) : foes;
     if (o.kind === 'atk') {
       const el = row('Against', order.slice(0, 8).map(f => h('button', { class: 'chip', onclick: () => {
@@ -10562,7 +10631,7 @@ const spellSave = sp => { const m = /(Strength|Dexterity|Constitution|Intelligen
 function openCondTargets(sp, ctx = {}) {
   const t = liveTurn(); if (!t) { toast('Start a fight first: then you can put conditions on creatures in it.', 3200); return; }
   const conds = spellConds(sp); if (!conds.length) return;
-  const all = t.list.filter(c => c.pc !== ME.id);
+  const all = t.list.filter(c => c.pc !== ME.id && !c.hid);
   openSheet(`${sp.n}: who is it on?`, rec => {
     const st = rec.state; if (!st.sel) { st.sel = new Set(); st.c = new Set(conds); }
     add(rec.foot, [h('button', { class: 'btn primary', disabled: st.sel.size && st.c.size ? null : true, onclick: () => {
@@ -10760,7 +10829,7 @@ function markMods(name, preset, tn, ab) {
 /* choose the creature (and for Hex, the ability) */
 function pickMarkTarget(name, done, exceptId) {
   const t = liveTurn(), info = CURSE_SPELLS[name] || {};
-  const foes = t ? t.list.filter(c => c.pc !== ME.id && c.id !== exceptId) : [];
+  const foes = t ? t.list.filter(c => c.pc !== ME.id && !c.hid && c.id !== exceptId) : [];
   openSheet(`${name}: choose a creature`, rec => {
     const st = rec.state; if (st.t == null) { st.t = foes.length === 1 ? foes[0].id : ''; st.name = ''; st.ab = 'wis'; }
     add(rec.foot, [h('button', { class: 'btn primary', onclick: () => {
