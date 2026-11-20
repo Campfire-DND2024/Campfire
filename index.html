@@ -879,6 +879,12 @@ div.xpbar{cursor:default}
 .cb .revealbtn svg{width:20px;height:20px}
 .chip.ico{display:inline-flex;align-items:center;gap:6px}
 .chip.ico svg{width:16px;height:16px;flex:none}
+/* homebrew spellcasting */
+.castpanel .castgroup{margin-top:4px}
+.chip.castspell{display:inline-flex;align-items:center;gap:4px;padding-right:4px;cursor:default}
+.chip.castspell .chipx{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:0;background:transparent;color:var(--ink-3);border-radius:999px;cursor:pointer;padding:0}
+.chip.castspell .chipx svg{width:14px;height:14px}
+.castpreview{color:var(--ink-2);font-style:italic}
 
 </style>
 </head>
@@ -4651,8 +4657,9 @@ function workingsSection(c, d) {
 }
 
 /* ================= Change log: every version of Campfire, newest first ================= */
-const APP_VERSION = '6.17';
+const APP_VERSION = '6.18';
 const CHANGELOG = [
+  ['6.18', 'November 2026', ['Homebrew creatures can cast spells. In the creature editor, tap Add spellcasting, pick the spellcasting ability, and add spells from the rules under At will, 3/Day, 2/Day or 1/Day each. The spell save DC and spell attack bonus are worked out from the creature’s CR and ability score (you can type your own). The stat block gets a Spellcasting action like the rules’ Mage or Lich: each spell is tappable and rolls with the creature’s numbers.']],
   ['6.17', 'November 2026', ['Hide creatures: in an encounter, tap Hide creatures and players’ phones stop showing what they’re fighting. Creatures’ turns read “The Game Master”, with no names, numbers or health bars, and the initiative pop-up and turn card don’t show the encounter’s name. Players can’t pick hidden creatures as targets.', 'Reveal them one at a time with the eye on each creature in the turn order (or on its screen), as the party spots them. Revealed creatures appear by name with their health bar. Creatures added during the fight start hidden. Tap Creatures hidden again to show everything.']],
   ['6.16', 'November 2026', ['When a creature linked to a map token drops to 0 hit points, its token comes off the map, whether the map is open or not, and players’ shared view updates too. A message says which token went, with Undo to put it back. Tokens that aren’t linked to a creature stay where they are.']],
   ['6.15', 'November 2026', ['Health bars change colour with damage: green while a creature is unhurt or healthy, amber when injured, orange when bloodied, red when seriously or grievously wounded. On the Game Master’s turn order the bars show exact health.', 'Players now see a health bar under each creature in the turn order on their phones, in the same colours. It shows a band (healthy, injured, bloodied…), never the numbers. The GM can switch this off for an encounter with Players see health.', 'A map token linked to a creature in an encounter shows the same coloured bar under it, for the GM and for players.']],
@@ -7521,6 +7528,45 @@ async function setMonsterArt(m, rec) {
 function parseBlocks(txt) {
   return String(txt || '').split(/\n\s*\n|\n(?=[A-Z][^.\n]{0,60}\.)/).map(s => s.trim()).filter(Boolean).map(p => { const m = p.match(/^([^.\n]{1,60})\.\s*([\s\S]*)$/); return m ? { n: m[1].trim(), d: m[2].trim() } : { n: 'Note', d: p }; });
 }
+/* ---------- homebrew spellcasting ----------
+   f.cast = { ab: 'int' | 'wis' | 'cha', dc, atk (blank = worked out), sp: [[spell id, name, 'At Will' | '3/Day' | '2/Day' | '1/Day']], note }.
+   Saved as a Spellcasting action in the same shape as the rules' creatures, so its spells are tappable with the creature's numbers. */
+const CAST_FREQS = ['At Will', '3/Day', '2/Day', '1/Day'];
+const crPB = cr => Math.max(2, Math.ceil((+cr || 0) / 4) + 1);
+function castNums(f) { const c = f.cast, mo = mod(f.ab[ABIL.indexOf(c.ab)] || 10), pb = crPB(f.cr); return { dc: c.dc !== '' && c.dc != null && !isNaN(+c.dc) ? +c.dc : 8 + pb + mo, atk: c.atk !== '' && c.atk != null && !isNaN(+c.atk) ? +c.atk : pb + mo }; }
+function castBlock(f) {
+  const c = f.cast, { dc, atk } = castNums(f), who = (f.n || 'creature').trim(), anyAtk = c.sp.some(([i]) => SPL_BY[i] && SPL_BY[i].at);
+  const d = `The ${who.toLowerCase().startsWith('the ') ? who.slice(4) : who} casts one of the following spells, using ${ABN[c.ab]} as the spellcasting ability (spell save DC ${dc}${anyAtk ? `, ${sgn(atk)} to hit with spell attacks` : ''})${c.note && c.note.trim() ? ', ' + c.note.trim().replace(/[.:]+$/, '') : ''}:`;
+  return { n: 'Spellcasting', d, sp: CAST_FREQS.flatMap(fq => c.sp.filter(s => s[2] === fq)), sdc: dc, sm: atk };
+}
+function pickSpellFor(done, have) {
+  openSheet('Add a spell', rec => {
+    const st = rec.state; if (st.q == null) { st.q = ''; st.lv = 'all'; }
+    const q = st.q.toLowerCase(), list = SPL.filter(s => (!q || s.n.toLowerCase().includes(q)) && (st.lv === 'all' || String(s.l) === st.lv)).sort((a, b) => a.l - b.l || a.n.localeCompare(b.n)).slice(0, 120);
+    return h('div', null,
+      h('input', { class: 'in', type: 'search', placeholder: 'Search spells', value: st.q, oninput: e => { st.q = e.target.value; clearTimeout(st.t); st.t = setTimeout(() => { fillSheet(rec); const i = rec.scrim.querySelector('input[type=search]'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); } }),
+      h('div', { class: 'chips hscroll mt' }, [['all', 'All'], ['0', 'Cantrips'], ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [String(n), 'Level ' + n])].map(([k, l]) => h('button', { class: 'chip', 'aria-pressed': st.lv === k ? 'true' : 'false', onclick: () => { st.lv = k; fillSheet(rec); } }, l))),
+      h('div', { class: 'list mt' }, list.map(s => h('button', { class: 'li', disabled: have.includes(s.i) ? true : null, onclick: () => { closeSheet(rec); done(s); } }, h('div', { class: 'grow' }, h('div', { class: 't' }, s.n), h('div', { class: 's' }, `${+s.l ? 'Level ' + s.l : 'Cantrip'} ${cap(s.sc || '')}${s.cc ? ', concentration' : ''}${have.includes(s.i) ? ', already added' : ''}`)), h('span', { class: 'prep' }, icon('plus'))))));
+  });
+}
+function castSection(f, redraw) {
+  if (!f.cast) return h('div', { class: 'panel mt castpanel' }, h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, h('div', { class: 't', style: { fontWeight: 800 } }, 'Spellcasting'), h('div', { class: 'small muted' }, 'Give it spells it can cast, like the Mage or the Lich.')),
+    h('button', { class: 'btn sm outline', onclick: () => { const best = ['int', 'wis', 'cha'].sort((a, b) => (f.ab[ABIL.indexOf(b)] || 10) - (f.ab[ABIL.indexOf(a)] || 10))[0]; f.cast = { ab: best, dc: '', atk: '', sp: [], note: '' }; redraw(); } }, icon('plus'), 'Add spellcasting')));
+  const c = f.cast, pb = crPB(f.cr), mo = mod(f.ab[ABIL.indexOf(c.ab)] || 10);
+  const numIn = (k, l, auto) => h('div', { class: 'grow' }, h('label', { class: 'f' }, l), h('input', { class: 'in num', type: 'number', inputmode: 'numeric', value: c[k], placeholder: String(auto), 'aria-label': l, oninput: e => { c[k] = e.target.value; clearTimeout(c.t); c.t = setTimeout(() => { const p = document.querySelector('.castpanel .castpreview'); if (p) p.textContent = castBlock(f).d; }, 200); } }));
+  return h('div', { class: 'panel mt castpanel' },
+    h('div', { class: 'row nowrap' }, h('div', { class: 'grow t', style: { fontWeight: 800 } }, 'Spellcasting'), h('button', { class: 'btn sm ghost', onclick: () => { f.cast = null; redraw(); } }, 'Remove')),
+    h('label', { class: 'f' }, 'Spellcasting ability'),
+    h('div', { class: 'seg' }, ['int', 'wis', 'cha'].map(a => h('button', { 'aria-pressed': c.ab === a ? 'true' : 'false', onclick: () => { c.ab = a; redraw(); } }, ABN[a]))),
+    h('div', { class: 'row nowrap' }, numIn('dc', 'Spell save DC', 8 + pb + mo), numIn('atk', 'Spell attack bonus', pb + mo)),
+    h('p', { class: 'tiny muted', style: { margin: '6px 0 0' } }, `Left blank, they’re worked out from CR ${f.cr || 0} (proficiency ${sgn(pb)}) and ${ABN[c.ab]} (${sgn(mo)}): DC ${8 + pb + mo}, ${sgn(pb + mo)} to hit.`),
+    CAST_FREQS.map(fq => { const mine = c.sp.filter(s => s[2] === fq);
+      return h('div', { class: 'castgroup' }, h('label', { class: 'f' }, fq === 'At Will' ? 'At will' : fq + ' each'),
+        h('div', { class: 'chips' }, mine.map(s => h('span', { class: 'chip castspell' }, s[1], h('button', { class: 'chipx', type: 'button', 'aria-label': 'Remove ' + s[1], onclick: () => { c.sp = c.sp.filter(x => x !== s); redraw(); } }, icon('close')))),
+          h('button', { class: 'chip', type: 'button', onclick: () => pickSpellFor(sp => { c.sp = c.sp.concat([[sp.i, sp.n, fq]]); redraw(); }, c.sp.map(x => x[0])) }, '+ Add'))); }),
+    h('label', { class: 'f' }, 'Anything else (optional)'), h('input', { class: 'in', value: c.note || '', placeholder: 'e.g. requiring no Material components', oninput: e => { c.note = e.target.value; const p = document.querySelector('.castpanel .castpreview'); if (p) p.textContent = castBlock(f).d; } }),
+    h('p', { class: 'small castpreview', style: { margin: '10px 0 0' } }, castBlock(f).d));
+}
 function editCustom(id) {
   const ex = id ? S.custom.find(c => c._id === id) : null;
   openSheet(ex ? 'Edit homebrew creature' : 'New homebrew creature', rec => {
@@ -7531,7 +7577,8 @@ function editCustom(id) {
     add(rec.foot, [ex ? h('button', { class: 'btn danger', onclick: async () => { if (await confirmSheet('Delete creature?', f.n + ' will be removed from your bestiary.')) { await delDoc('gm/meta/custom/' + id); closeSheet(rec); } } }, icon('trash')) : null,
       h('button', { class: 'btn primary', onclick: () => {
         if (!f.n.trim()) { toast('Give the creature a name.'); return; }
-        const out = Object.assign({}, f, { n: f.n.trim(), tr: parseBlocks(f.raw.tr), ac2: parseBlocks(f.raw.ac2), ba: parseBlocks(f.raw.ba), re: parseBlocks(f.raw.re), la: parseBlocks(f.raw.la), pb: Math.max(2, Math.ceil((+f.cr || 0) / 4) + 1), pp: 10 + mod(f.ab[4]), upd: Date.now() });
+        if (f.cast) { delete f.cast.t; if (!f.cast.sp.length) f.cast = null; }
+        const out = Object.assign({}, f, { n: f.n.trim(), tr: parseBlocks(f.raw.tr), ac2: (f.cast ? [castBlock(f)] : []).concat(parseBlocks(f.raw.ac2)), ba: parseBlocks(f.raw.ba), re: parseBlocks(f.raw.re), la: parseBlocks(f.raw.la), pb: Math.max(2, Math.ceil((+f.cr || 0) / 4) + 1), pp: 10 + mod(f.ab[4]), upd: Date.now() });
         delete out._id; delete out.i; delete out.custom;
         writeDoc('gm/meta/custom/' + (id || nid()), out); closeSheet(rec); toast(out.n + ' saved');
       } }, 'Save creature')]);
@@ -7539,14 +7586,15 @@ function editCustom(id) {
       inp('Name', 'n', { placeholder: 'e.g. Bog Hag' }),
       h('div', { class: 'row nowrap' }, inp('Size', 'sz'), inp('Type', 't')), inp('Alignment', 'al'),
       h('div', { class: 'row nowrap' }, inp('AC', 'ac', { type: 'number' }), inp('HP', 'hp', { type: 'number' }), inp('HP dice', 'hd')),
-      h('div', { class: 'row nowrap' }, inp('Speed', 'sp'), inp('CR', 'cr', { type: 'number', step: '0.125', min: 0 })),
+      h('div', { class: 'row nowrap' }, inp('Speed', 'sp'), inp('CR', 'cr', { type: 'number', step: '0.125', min: 0, onchange: () => { if (f.cast) fillSheet(rec); } })),
       h('label', { class: 'f' }, 'Ability scores'),
-      h('div', { class: 'arr' }, ABIL.map((a, i) => h('div', { class: 'cell' }, h('div', { class: 'n' }, AB3[a]), h('input', { class: 'in num', type: 'number', value: f.ab[i], oninput: e => f.ab[i] = +e.target.value || 10 })))),
+      h('div', { class: 'arr' }, ABIL.map((a, i) => h('div', { class: 'cell' }, h('div', { class: 'n' }, AB3[a]), h('input', { class: 'in num', type: 'number', value: f.ab[i], oninput: e => f.ab[i] = +e.target.value || 10, onchange: () => { if (f.cast) fillSheet(rec); } })))),
       inp('Senses', 'se', { placeholder: 'Darkvision 60 ft.' }), inp('Languages', 'lg'),
       h('label', { class: 'f' }, 'Description'), h('textarea', { class: 'in', maxlength: 1500, value: f.ds || '', placeholder: 'What it looks like and how it behaves. Shown at the top of its stat block.', oninput: e => f.ds = e.target.value }),
       h('p', { class: 'small muted mt' }, 'Write one ability per paragraph as “Name. What it does.” Dice like 2d6+3 and “Attack Roll: +5” become tappable.'),
       ta('Traits', 'tr', 'Amphibious. The hag can breathe air and water.'),
       ta('Actions', 'ac2', 'Claw. Melee Attack Roll: +5, reach 5 ft. Hit: 8 (2d4 + 3) Slashing damage.'),
+      castSection(f, () => fillSheet(rec)),
       ta('Bonus actions', 'ba', ''), ta('Reactions', 're', ''), ta('Legendary actions', 'la', ''));
   });
 }
