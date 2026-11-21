@@ -414,6 +414,8 @@ mark,.hl{background:linear-gradient(100deg,transparent 0 2px,var(--marker) 3px c
 .cb{display:flex;align-items:center;gap:12px;padding:8px 12px;border:0;background:var(--surface);border-radius:12px;margin-bottom:4px;cursor:pointer;width:100%;text-align:left;position:relative;min-height:56px;color:var(--ink)}
 .cb.turn{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--ember-line)}
 .cb.down{opacity:.5}
+.cb.dying{box-shadow:inset 3px 0 0 var(--red)}
+.cb.dying.turn{box-shadow:inset 3px 0 0 var(--red),inset 0 0 0 1.5px var(--ember-line)}
 .cb .ini{width:34px;height:34px;border-radius:50%;background:transparent;border:1px solid var(--line-2);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;font:800 0.875rem/1 var(--sans);cursor:pointer;color:var(--ink);font-variant-numeric:lining-nums tabular-nums;padding:0}
 .cb .ini small{display:none}
 .cb.turn .ini{background:var(--ember);border-color:var(--ember);color:var(--on-ember)}
@@ -502,6 +504,17 @@ mark,.hl{background:linear-gradient(100deg,transparent 0 2px,var(--marker) 3px c
 .deathpanel.stable{border-color:var(--cool)}
 .deathpanel.dead{border-color:var(--faint);opacity:.85}
 .deathbadge .ds button{width:14px;height:14px}
+/* death saves in place of a health bar: three success pips, three failure pips */
+.dsbar{display:flex;gap:10px;align-items:center;margin-top:5px;min-height:12px}
+.dsbar .grp{display:flex;gap:4px}
+.dsbar i{width:11px;height:11px;border-radius:50%;border:1.5px solid currentColor;opacity:.45;display:block}
+.dsbar i.on{opacity:1}
+.dsbar i.s.on{background:var(--sage);border-color:var(--sage)}
+.dsbar i.f.on{background:var(--red);border-color:var(--red)}
+.dsbar.dead i.on{opacity:.8}
+.turnchip .dsbar{margin:3px 0 0;gap:6px;min-height:0}
+.turnchip .dsbar .grp{gap:2px}
+.turnchip .dsbar i{width:7px;height:7px;border-width:1px}
 
 .mini.insp{border-color:var(--ember);box-shadow:0 0 14px var(--ember-glow)}
 .ring{position:relative}
@@ -754,6 +767,9 @@ body:has(.scrim) .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .panel.lore .t{font-weight:800;font-size:1rem;margin-bottom:4px}
 .panel.lore p{margin:0 0 6px}
 .tag.new{color:var(--ember)}
+.tag.ally{color:var(--sage);border-color:var(--sage)}
+/* the book a spell or creature comes from: quieter than the C / R tags, sentence case, and it may wrap on a narrow phone */
+.tag.book{font-weight:600;letter-spacing:0;background:transparent;border:1px solid var(--line-3);color:var(--ink-3);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:1px}
 .tablerow{flex-wrap:wrap}
 /* the table display */
 .tvscreen{position:fixed;inset:0;z-index:80;background:var(--bg-deep);display:flex;flex-direction:column;color:var(--ink)}
@@ -885,6 +901,25 @@ div.xpbar{cursor:default}
 .chip.castspell .chipx{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:0;background:transparent;color:var(--ink-3);border-radius:999px;cursor:pointer;padding:0}
 .chip.castspell .chipx svg{width:14px;height:14px}
 .castpreview{color:var(--ink-2);font-style:italic}
+/* add-ons */
+.stars{color:var(--ember);letter-spacing:1px;font-size:0.9375rem;white-space:nowrap}
+.stars.sm{font-size:0.75rem;letter-spacing:0}
+.advice{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);color:var(--ink-2)}
+.advice p{margin:4px 0 0}
+.panel.addon{margin-bottom:10px}
+.panel.addon.on{border-color:var(--ember-line)}
+.panel.addon .chip{cursor:default}
+.panel.addon .chip.onchip{background:var(--ember-tint);color:var(--ember)}
+.panel.addon details summary{cursor:pointer;color:var(--ink-3);font-weight:700;min-height:32px;display:flex;align-items:center}
+.panel.addon ul{margin:4px 0 6px;padding-left:20px}
+.panel.addon li{margin:2px 0}
+.rref{display:grid;grid-template-columns:minmax(84px,30%) 1fr;gap:8px 14px;margin:0 0 6px;font-size:0.9375rem}
+.rref dt{font-weight:800}
+.rref dd{margin:0;color:var(--ink-2)}
+.rcards{display:grid;gap:8px;margin-bottom:6px}
+.rcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.rcard>b{display:block;margin-bottom:4px}
+.rcard .kv{font-size:0.875rem;gap:4px 12px}
 
 </style>
 </head>
@@ -913,6 +948,8 @@ const MOUNTS = [["Camel",50.0,50,450],["Elephant",200.0,40,1320],["Horse, Draft"
 const TACK = [["Carriage",100.0,600.0,"vehicle"],["Cart",15.0,200.0,"vehicle"],["Chariot",250.0,100.0,"vehicle"],["Feed (per day)",0.05,10.0,"supply"],["Saddle, Exotic",60.0,40.0,"tack"],["Saddle, Military",20.0,30.0,"tack"],["Saddle, Riding",10.0,25.0,"tack"],["Sled",20.0,300.0,"vehicle"],["Stabling (per day)",0.5,0,"service"],["Wagon",35.0,400.0,"vehicle"]];
 const SHIPS = [["Airship",40000.0,"8","10","20","1","13","300","—"],["Galley",30000.0,"4","80","—","150","15","500","20"],["Keelboat",3000.0,"1","1","6","½","15","100","10"],["Longship",10000.0,"3","40","150","10","15","300","15"],["Rowboat",50.0,"1.5","1","3","—","11","50","—"],["Sailing Ship",10000.0,"2","20","20","100","15","300","15"],["Warship",25000.0,"2.5","60","60","200","15","500","20"]];
 const BOOK_MI = [["Adamantine Weapon","Weapons","Any Melee Weapon or Ammunition","Uncommon","",0,400.0,null,""],["Alchemy Jug","Wondrous Items","—","Uncommon","",0,400.0,null,""],["Apparatus of Kwalish","Wondrous Items","Vehicle","Legendary","",0,200000.0,null,""],["Armor of Gleaming","Armor","Any Medium or Heavy (not Hide)","Common","",0,100.0,null,""],["Axe of the Dwarvish Lords","Weapons","Battleaxe","Artifact","yes",0,null,4.0,""],["Baba Yaga's Dancing Broom","Wondrous Items","Broom","Uncommon","yes",0,400.0,null,""],["Bead of Nourishment","Wondrous Items","Bead","Common","",1,50.0,null,""],["Bead of Refreshment","Wondrous Items","Bead","Common","",1,50.0,null,""],["Belt of Giant Strength (Cloud)","Wondrous Items","Belt","Legendary","yes",0,200000.0,null,"belt-of-giant-strength"],["Belt of Giant Strength (Fire)","Wondrous Items","Belt","Very Rare","yes",0,40000.0,null,"belt-of-giant-strength"],["Belt of Giant Strength (Frost)","Wondrous Items","Belt","Very Rare","yes",0,40000.0,null,"belt-of-giant-strength"],["Belt of Giant Strength (Hill)","Wondrous Items","Belt","Rare","yes",0,4000.0,null,"belt-of-giant-strength"],["Belt of Giant Strength (Stone)","Wondrous Items","Belt","Very Rare","yes",0,40000.0,null,"belt-of-giant-strength"],["Belt of Giant Strength (Storm)","Wondrous Items","Belt","Legendary","yes",0,200000.0,null,"belt-of-giant-strength"],["Blackrazor","Weapons","Greatsword","Artifact","yes",0,null,6.0,""],["Book of Exalted Deeds","Wondrous Items","Book","Artifact","yes",0,null,null,""],["Book of Vile Darkness","Wondrous Items","Book","Artifact","yes",0,null,null,""],["Boomerang, +1","Weapons","Boomerang","Uncommon","",0,400.0,null,""],["Boomerang, +2","Weapons","Boomerang","Rare","",0,4000.0,null,""],["Boomerang, +3","Weapons","Boomerang","Very Rare","",0,40000.0,null,""],["Boots of False Tracks","Wondrous Items","Boots","Common","yes",0,100.0,null,""],["Candle of the Deep","Wondrous Items","Candle","Common","",0,100.0,null,""],["Cap of Water Breathing","Wondrous Items","Cap","Uncommon","",0,400.0,null,""],["Cast-Off Armor","Armor","Any Light, Medium, or Heavy","Common","",0,100.0,null,""],["Cauldron of Rebirth","Wondrous Items","Cauldron","Very Rare","by a Druid or Warlock",0,40000.0,null,""],["Charlatan's Die","Wondrous Items","Die","Common","yes",0,100.0,null,""],["Cloak of Billowing","Wondrous Items","Cloak","Common","",0,100.0,null,""],["Cloak of Invisibility","Wondrous Items","Cloak","Legendary","yes",0,200000.0,null,""],["Cloak of Many Fashions","Wondrous Items","Cloak","Common","",0,100.0,null,""],["Clockwork Amulet","Wondrous Items","Amulet","Common","",0,100.0,null,""],["Clothes of Mending","Wondrous Items","Clothing","Common","",0,100.0,null,""],["Cube of Summoning","Wondrous Items","Cube","Rare","",0,4000.0,null,""],["Daern's Instant Fortress","Wondrous Items","Cube","Rare","yes",0,4000.0,null,""],["Dark Shard Amulet","Wondrous Items","Amulet","Common","by a Warlock",0,100.0,null,""],["Deck of Many Things","Wondrous Items","Deck","Legendary","",0,200000.0,null,""],["Demonomicon of Iggwilv","Wondrous Items","Book","Artifact","yes",0,null,null,""],["Dread Helm","Wondrous Items","Helm","Common","",0,100.0,null,""],["Driftglobe","Wondrous Items","Globe","Uncommon","",0,400.0,null,""],["Ear Horn of Hearing","Wondrous Items","Horn","Common","",0,100.0,null,""],["Efreeti Chain","Armor","Chain Mail","Legendary","yes",0,200075.0,55.0,""],["Elixir of Health","Potions","Potion","Rare","",1,2000.0,0.5,""],["Enduring Spellbook","Wondrous Items","Book","Common","",0,100.0,null,""],["Energy Bow","Weapons","Longbow or Shortbow","Very Rare","yes",0,40000.0,null,""],["Enspelled Armor","Armor","Any Light, Medium, or Heavy","Varies","yes",0,null,null,""],["Enspelled Staff","Staffs","Staff","Varies","by a spellcaster",0,null,null,""],["Enspelled Weapon","Weapons","Any Simple or Martial","Varies","yes",0,null,null,""],["Ersatz Eye","Wondrous Items","Eye","Common","yes",0,100.0,null,""],["Executioner's Axe","Weapons","Battleaxe, Greataxe, Halberd, or Handaxe","Very Rare","",0,40000.0,null,""],["Eye and Hand of Vecna","Wondrous Items","Body part","Artifact","yes",0,null,null,""],["Figurine of Wondrous Power (Bronze Griffon)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Ebony Fly)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Golden Lions)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Ivory Goats)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Marble Elephant)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Obsidian Steed)","Wondrous Items","Figurine","Very Rare","",0,40000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Onyx Dog)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Serpentine Owl)","Wondrous Items","Figurine","Rare","",0,4000.0,null,"figurine-of-wondrous-power"],["Figurine of Wondrous Power (Silver Raven)","Wondrous Items","Figurine","Uncommon","",0,400.0,null,"figurine-of-wondrous-power"],["Gloves of Thievery","Wondrous Items","Gloves","Uncommon","",0,400.0,null,""],["Hag Eye","Wondrous Items","Eye","Uncommon","",0,400.0,null,""],["Hat of Many Spells","Wondrous Items","Hat","Very Rare","by a Wizard",0,40000.0,null,""],["Hat of Vermin","Wondrous Items","Hat","Common","",0,100.0,null,""],["Hat of Wizardry","Wondrous Items","Hat","Common","by a Wizard",0,100.0,null,""],["Heward's Handy Haversack","Wondrous Items","Backpack","Rare","",0,4000.0,5.0,""],["Heward's Handy Spice Pouch","Wondrous Items","Pouch","Common","",0,100.0,null,""],["Horn of Silent Alarm","Wondrous Items","Horn","Common","",0,100.0,null,""],["Horn of Valhalla (Brass)","Wondrous Items","Horn","Rare","",0,4000.0,null,"horn-of-valhalla"],["Horn of Valhalla (Bronze)","Wondrous Items","Horn","Very Rare","",0,40000.0,null,"horn-of-valhalla"],["Horn of Valhalla (Iron)","Wondrous Items","Horn","Legendary","",0,200000.0,null,"horn-of-valhalla"],["Horn of Valhalla (Silver)","Wondrous Items","Horn","Rare","",0,4000.0,null,"horn-of-valhalla"],["Instrument of Illusions","Wondrous Items","Musical Instrument","Common","",0,100.0,null,""],["Instrument of Scribing","Wondrous Items","Musical Instrument","Common","",0,100.0,null,""],["Instrument of the Bards (Anstruth Harp)","Wondrous Items","Musical Instrument","Very Rare","by a Bard",0,40000.0,null,""],["Instrument of the Bards (Canaith Mandolin)","Wondrous Items","Musical Instrument","Rare","by a Bard",0,4000.0,null,""],["Instrument of the Bards (Cli Lyre)","Wondrous Items","Musical Instrument","Rare","by a Bard",0,4000.0,null,""],["Instrument of the Bards (Doss Lute)","Wondrous Items","Musical Instrument","Uncommon","by a Bard",0,400.0,null,""],["Instrument of the Bards (Fochlucan Bandore)","Wondrous Items","Musical Instrument","Uncommon","by a Bard",0,400.0,null,""],["Instrument of the Bards (Mac-Fuirmidh Cittern)","Wondrous Items","Musical Instrument","Uncommon","by a Bard",0,400.0,null,""],["Instrument of the Bards (Ollamh Harp)","Wondrous Items","Musical Instrument","Legendary","by a Bard",0,200000.0,null,""],["Ioun Stone (Absorption)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Agility)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Awareness)","Wondrous Items","Ioun Stone","Rare","yes",0,4000.0,null,"ioun-stone"],["Ioun Stone (Fortitude)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Greater Absorption)","Wondrous Items","Ioun Stone","Legendary","yes",0,200000.0,null,"ioun-stone"],["Ioun Stone (Insight)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Intellect)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Leadership)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Mastery)","Wondrous Items","Ioun Stone","Legendary","yes",0,200000.0,null,"ioun-stone"],["Ioun Stone (Protection)","Wondrous Items","Ioun Stone","Rare","yes",0,4000.0,null,"ioun-stone"],["Ioun Stone (Regeneration)","Wondrous Items","Ioun Stone","Legendary","yes",0,200000.0,null,"ioun-stone"],["Ioun Stone (Reserve)","Wondrous Items","Ioun Stone","Rare","yes",0,4000.0,null,"ioun-stone"],["Ioun Stone (Strength)","Wondrous Items","Ioun Stone","Very Rare","yes",0,40000.0,null,"ioun-stone"],["Ioun Stone (Sustenance)","Wondrous Items","Ioun Stone","Rare","yes",0,4000.0,null,"ioun-stone"],["Iron Bands of Bilarro","Wondrous Items","Sphere","Rare","",0,4000.0,null,""],["Keoghtom's Ointment","Wondrous Items","Ointment","Uncommon","",1,200.0,null,""],["Lock of Trickery","Wondrous Items","Lock","Common","",0,100.0,null,""],["Lute of Thunderous Thumping","Weapons","Club","Very Rare","",0,40000.1,2.0,""],["Mariner's Armor","Armor","Any Light, Medium, or Heavy","Uncommon","",0,400.0,null,""],["Master's Amulet","Wondrous Items","Amulet","Rare","",0,4000.0,null,""],["Moon-Touched Sword","Weapons","Any Sword","Common","",0,100.0,null,""],["Moonblade","Weapons","Longsword","Legendary","by an Elf",0,200015.0,3.0,""],["Mystery Key","Wondrous Items","Key","Common","",0,100.0,null,""],["Nature's Mantle","Wondrous Items","Cloak","Uncommon","by a Druid or Ranger",0,400.0,null,""],["Niko's Mace","Weapons","Mace","Very Rare","yes",0,40005.0,4.0,""],["Nolzur's Marvelous Pigments","Wondrous Items","Paint","Very Rare","",1,20000.0,null,""],["Orb of Direction","Wondrous Items","Orb","Common","",0,100.0,null,""],["Orb of Dragonkind","Wondrous Items","Orb","Artifact","yes",0,null,null,""],["Orb of Time","Wondrous Items","Orb","Common","",0,100.0,null,""],["Perfume of Bewitching","Wondrous Items","Vial","Common","",1,50.0,null,""],["Pipe of Smoke Monsters","Wondrous Items","Pipe","Common","",0,100.0,null,""],["Pole of Angling","Wondrous Items","Pole","Common","",0,100.0,null,""],["Pole of Collapsing","Wondrous Items","Pole","Common","",0,100.0,null,""],["Pot of Awakening","Wondrous Items","Pot","Common","",0,100.0,null,""],["Potion of Comprehension","Potions","Potion","Common","",1,50.0,0.5,""],["Potion of Fire Breath","Potions","Potion","Uncommon","",1,200.0,0.5,""],["Potion of Giant Strength (Cloud)","Potions","Potion","Very Rare","",1,20000.0,0.5,"potion-of-giant-strength"],["Potion of Giant Strength (Fire)","Potions","Potion","Rare","",1,2000.0,0.5,"potion-of-giant-strength"],["Potion of Giant Strength (Frost)","Potions","Potion","Rare","",1,2000.0,0.5,"potion-of-giant-strength"],["Potion of Giant Strength (Hill)","Potions","Potion","Uncommon","",1,200.0,0.5,"potion-of-giant-strength"],["Potion of Giant Strength (Stone)","Potions","Potion","Rare","",1,2000.0,0.5,"potion-of-giant-strength"],["Potion of Giant Strength (Storm)","Potions","Potion","Legendary","",1,100000.0,0.5,"potion-of-giant-strength"],["Potion of Greater Invisibility","Potions","Potion","Very Rare","",1,20000.0,0.5,""],["Potion of Healing","Potions","Potion","Common","",1,50.0,0.5,""],["Potion of Healing (Greater)","Potions","Potion","Uncommon","",1,200.0,0.5,""],["Potion of Healing (Superior)","Potions","Potion","Rare","",1,2000.0,0.5,""],["Potion of Healing (Supreme)","Potions","Potion","Very Rare","",1,20000.0,0.5,""],["Potion of Invulnerability","Potions","Potion","Rare","",1,2000.0,0.5,""],["Potion of Longevity","Potions","Potion","Very Rare","",1,20000.0,0.5,""],["Potion of Pugilism","Potions","Potion","Uncommon","",1,200.0,0.5,""],["Potion of Vitality","Potions","Potion","Very Rare","",1,20000.0,0.5,""],["Prosthetic Limb","Wondrous Items","Limb","Common","",0,100.0,null,""],["Quaal's Feather Token","Wondrous Items","Token","Varies","",1,null,null,""],["Quarterstaff of the Acrobat","Weapons","Quarterstaff","Very Rare","yes",0,40000.2,4.0,""],["Quiver of Ehlonna","Wondrous Items","Quiver","Uncommon","",0,400.0,2.0,""],["Rival Coin","Wondrous Items","Coin","Common","",0,100.0,null,""],["Rod of Resurrection","Rods","Rod","Legendary","by a Cleric, Druid, or Paladin",0,200000.0,null,""],["Rod of the Pact Keeper, +1","Rods","Rod","Uncommon","by a Warlock",0,400.0,null,""],["Rod of the Pact Keeper, +2","Rods","Rod","Rare","by a Warlock",0,4000.0,null,""],["Rod of the Pact Keeper, +3","Rods","Rod","Very Rare","by a Warlock",0,40000.0,null,""],["Rope of Mending","Wondrous Items","Rope","Common","",0,100.0,null,""],["Ruby of the War Mage","Wondrous Items","Gem","Common","by a spellcaster",0,100.0,null,""],["Saddle of the Cavalier","Wondrous Items","Saddle","Uncommon","",0,400.0,null,""],["Scroll of Protection","Scrolls","Scroll","Rare","",1,2000.0,null,""],["Scroll of Titan Summoning","Scrolls","Scroll","Legendary","",1,100000.0,null,""],["Sending Stones","Wondrous Items","Stones","Uncommon","",0,400.0,null,""],["Sentinel Shield","Armor","Shield","Uncommon","",0,410.0,6.0,""],["Shield of Expression","Armor","Shield","Common","",0,110.0,6.0,""],["Shield of the Cavalier","Armor","Shield","Very Rare","yes",0,40010.0,6.0,""],["Silvered Weapon","Weapons","Any Simple or Martial","Common","",0,100.0,null,""],["Smoldering Armor","Armor","Any Light, Medium, or Heavy","Common","",0,100.0,null,""],["Spell Scroll of Fireball","Scrolls","Scroll","Uncommon","",1,300.0,null,""],["Spirit Board","Wondrous Items","Board","Very Rare","",0,40000.0,null,""],["Staff of Adornment","Staffs","Staff","Common","",0,100.0,null,""],["Staff of Birdcalls","Staffs","Staff","Common","",0,100.0,null,""],["Staff of Flowers","Staffs","Staff","Common","",0,100.0,null,""],["Staff of the Adder","Staffs","Staff","Uncommon","by a Cleric, Druid, or Warlock",0,400.0,null,""],["Sword of Answering","Weapons","Longsword","Legendary","yes",0,200015.0,3.0,""],["Sword of Kas","Weapons","Longsword","Artifact","yes",0,null,3.0,""],["Sword of Vengeance","Weapons","Any Sword","Uncommon","yes",0,400.0,null,""],["Sylvan Talon","Weapons","Dagger, Rapier, Scimitar, Shortsword, Sickle, or Spear","Common","yes",0,100.0,null,""],["Talking Doll","Wondrous Items","Doll","Common","yes",0,100.0,null,""],["Tankard of Sobriety","Wondrous Items","Tankard","Common","",0,100.0,null,""],["Tentacle Rod","Rods","Rod","Rare","yes",0,4000.0,null,""],["Thunderous Greatclub","Weapons","Greatclub","Very Rare","yes",0,40000.2,10.0,""],["Tome of the Stilled Tongue","Wondrous Items","Book","Legendary","by a Wizard",0,200000.0,null,""],["Veteran's Cane","Wondrous Items","Cane","Common","",0,100.0,null,""],["Walloping Ammunition","Weapons","Any Ammunition","Common","",1,50.0,null,""],["Wand of Conducting","Wands","Wand","Common","",0,100.0,null,""],["Wand of Orcus","Wands","Wand","Artifact","yes",0,null,null,""],["Wand of Pyrotechnics","Wands","Wand","Common","",0,100.0,null,""],["Wave","Weapons","Trident","Artifact","yes",0,null,4.0,""],["Whelm","Weapons","Warhammer","Artifact","yes",0,null,5.0,""],["Wraps of Unarmed Power, +1","Wondrous Items","Wraps","Uncommon","",0,400.0,null,""],["Wraps of Unarmed Power, +2","Wondrous Items","Wraps","Rare","",0,4000.0,null,""],["Wraps of Unarmed Power, +3","Wondrous Items","Wraps","Very Rare","",0,40000.0,null,""]];
+/* corrections so the built-in equipment matches the 2024 Player’s Handbook (from the items workbook, November 2026): equipment id -> fields */
+const EQ_FIX = {"javelin":{"co":"5 sp"},"mace":{"w":4},"spear":{"co":"1 gp","w":3},"dart":{"co":"5 cp"},"pike":{"w":18},"trident":{"dmg":"1d8","v":"1d10"},"hand-crossbow":{"co":"75 gp","w":3},"longbow":{"co":"50 gp"},"hide-armor":{"ak":"medium"},"chain-shirt":{"w":20},"alchemists-fire":{"co":"50 gp"},"antitoxin":{"w":0},"basket":{"co":"4 sp"},"bedroll":{"co":"1 gp","w":7},"bell":{"w":0},"blanket":{"co":"5 sp"},"burglars-pack":{"w":42},"caltrops":{"co":"1 gp"},"chain":{"w":10},"chest":{"co":"5 gp","w":25},"climbers-kit":{"w":12},"clothes-fine":{"w":6},"clothes-travelers":{"co":"2 gp"},"component-pouch":{"co":"25 gp","w":2},"diplomat-pack":{"w":39},"entertainers-pack":{"w":58.5},"parchment":{"co":"1 sp"},"robe":{"w":4},"sack":{"w":0.5},"spikes-iron":{"w":5},"poisoners-kit":{"co":"50 gp"},"viol":{"w":1}};
 
 'use strict';
 /* ================= SRD data ================= */
@@ -945,22 +982,27 @@ const BG_EXTRA = [
 ];
 SRD.bg.forEach(b => { b.d = BG_BLURB[b.i] || ''; if (b.i === 'soldier' && !(b.to || []).length) b.to = ['One kind of Gaming Set']; });
 const BOOK_SRC = { PHB: 'Player’s Handbook', HoF: 'Heroes of Faerûn', EFA: 'Forge of the Artificer', AU: 'Arcana Unleashed', RHW: 'The Horrors Within', ABH: 'Astarion’s Book of Hungers', LFL: 'Lorwyn: First Light', Drops: 'D&D Beyond Drops' };
-(typeof BOOK_BG !== 'undefined' ? BOOK_BG : []).forEach(([i, n, src, ab, ft, sk, to, eq, d]) => {
-  if (SRD.bg.some(b => b.i === i || b.n === n)) return;
+/* adds one book background ([id, name, source, abilities, feat, skills, tools, equipment, concept]); add-ons use it too */
+function addBookBg([i, n, src, ab, ft, sk, to, eq, d]) {
+  if (SRD.bg.some(b => b.i === i || b.n === n)) return null;
   const mine = BG_EXTRA.find(e => e[0] === i);
-  SRD.bg.push({ i, n, ab, ft, fi: ft.replace(/ \(.*\)$/, ''), sk, to, d: mine ? mine[6] : d, phb: src === 'PHB', book: BOOK_SRC[src] || src, eq: eq ? `(a) ${eq}; or (b) 50 GP` : '' });
-});
+  const b = { i, n, ab, ft, fi: ft.replace(/ \(.*\)$/, ''), sk, to, d: mine ? mine[6] : d, phb: src === 'PHB', book: BOOK_SRC[src] || src, eq: eq ? `(a) ${eq}; or (b) 50 GP` : '' };
+  SRD.bg.push(b); return b;
+}
+(typeof BOOK_BG !== 'undefined' ? BOOK_BG : []).forEach(addBookBg);
 BG_EXTRA.forEach(([i, n, ab, ft, sk, to, d]) => { if (!SRD.bg.some(b => b.i === i)) SRD.bg.push({ i, n, ab, ft, fi: ft.replace(/ \(.*\)$/, ''), sk, to, d, phb: true, book: 'Player’s Handbook', eq: '' }); });
 /* Every feat the app knows: the free SRD ones (with full rules text) plus book feats (category, prerequisite and ability increase only). */
 const FEAT_INFO = {};
 [['Alert', 'Origin'], ['Magic Initiate', 'Origin'], ['Savage Attacker', 'Origin'], ['Skilled', 'Origin'], ['Ability Score Improvement', 'General', 'Level 4+'], ['Grappler', 'General', 'Level 4+, Strength or Dexterity 13+', ['str', 'dex']], ['Archery', 'Fighting Style', 'Fighting Style feature'], ['Defense', 'Fighting Style', 'Fighting Style feature'], ['Great Weapon Fighting', 'Fighting Style', 'Fighting Style feature'], ['Two Weapon Fighting', 'Fighting Style', 'Fighting Style feature']]
   .forEach(([n, cat, pre, asi]) => { FEAT_INFO[n] = { n, cat, src: 'SRD', pre: pre || 'None', rep: n === 'Ability Score Improvement' || n === 'Magic Initiate' || n === 'Skilled', asi: asi || null, srd: true, by: [] }; });
 SRD.feat.filter(f => /^Boon of/.test(f.n)).forEach(f => { FEAT_INFO[f.n] = { n: f.n, cat: 'Epic Boon', src: 'SRD', pre: 'Level 19+', rep: false, asi: 'any', srd: true, by: [] }; });
-(typeof BOOK_FEATS !== 'undefined' ? BOOK_FEATS : []).forEach(([n, cat, src, pre, rep, asi, by]) => {
+/* adds one book feat ([name, category, source, prerequisite, repeatable, ability increase, granted by]); add-ons use it too */
+function addBookFeat([n, cat, src, pre, rep, asi, by]) {
   const ex = FEAT_INFO[n];
   if (ex) { ex.by = by; ex.book = BOOK_SRC[src] || src; return; }
   FEAT_INFO[n] = { n, cat, src, book: BOOK_SRC[src] || src, pre: pre || 'None', rep: !!rep, asi, srd: false, by };
-});
+}
+(typeof BOOK_FEATS !== 'undefined' ? BOOK_FEATS : []).forEach(addBookFeat);
 
 SRD.bg.sort((a, b) => a.n.localeCompare(b.n));
 /* The Artificer (Eberron: Forge of the Artificer). Its features aren't in the free rules, so only the
@@ -983,6 +1025,7 @@ SRD.bg.sort((a, b) => a.n.localeCompare(b.n));
   const g = grp ? SRD.mi.find(x => x.i === grp) : null;
   SRD.mi.push({ i, n, k, ra, at: at ? 1 : 0, atBy: at && at !== 'yes' ? at : '', d: g ? g.d : '', base: base && base !== '—' ? base : '', cons: !!cons, price, w: w || 0, book: g ? '' : 'Dungeon Master’s Guide' });
 });
+(typeof EQ_FIX !== 'undefined' ? Object.entries(EQ_FIX) : []).forEach(([i, f]) => { const e = SRD.eq.find(x => x.i === i); if (e) Object.assign(e, f); });
 SRD.mi.sort((a, b) => a.n.localeCompare(b.n));
 const MON_BY = by(MON), SPL_BY = by(SPL), CLS_BY = by(SRD.cls), SPC_BY = by(SRD.spc), BG_BY = by(SRD.bg), EQ_BY = by(SRD.eq), MI_BY = by(SRD.mi);
 /* mounts, tack, drawn vehicles and ships, as items with their own ids */
@@ -1873,7 +1916,8 @@ function spellView(sp, ctx = {}, rec) {
     if (sp.rt) el.append(h('p', { class: 'small muted' }, 'This spell can also be cast as a ritual without using a slot.'));
   }
   if (ctx.cast && +sp.l === 0 && canReady(sp) && S.role === 'player') el.append(h('h2', { class: 'sec' }, 'Ready'), h('button', { class: 'btn sm outline', onclick: () => openReadySpell(sp, ctx) }, 'Ready it for later…'));
-  el.append(h('p', { class: 'tiny muted mt2' }, 'Source: System Reference Document 5.2 (CC-BY-4.0).'));
+  el.append(h('p', { class: 'tiny muted mt2' }, sp.bk ? 'Source: stat lines from a Campfire add-on (your spell data). The rules text is in the book.'
+    : sp.hb ? (sp.hb === 'gm' ? 'Source: your Game Master’s homebrew.' : 'Source: your homebrew.') : 'Source: System Reference Document 5.2 (CC-BY-4.0).'));
   return el;
 }
 
@@ -1924,7 +1968,7 @@ function slotsAt(c, lvl) {
   return (row && row.sl) ? row.sl.slice() : [0, 0, 0, 0, 0, 0, 0, 0, 0];
 }
 /* every class list a (possibly multiclass) character casts from */
-const spellListsOf = c => [...new Set(classesOf(c).map(k => { const t = subCasts(k.cls, k.sub, c); return t ? t.list : (CLS_BY[k.cls] && CLS_BY[k.cls].sa && !CLS_BY[k.cls].book) ? k.cls : null; }).filter(Boolean))];
+const spellListsOf = c => [...new Set(classesOf(c).map(k => { const t = subCasts(k.cls, k.sub, c); return t ? t.list : (CLS_BY[k.cls] && CLS_BY[k.cls].sa && (!CLS_BY[k.cls].book || CLS_BY[k.cls].full)) ? k.cls : null; }).filter(Boolean))];
 const norm = s => String(s || '').trim().toLowerCase();
 /* the GM's subclass library: features typed in once, shared with every player in the campaign */
 const libEntry = (cls, name) => (S.library || []).find(e => !e.kind && e.cls === cls && norm(e.name) === norm(name)) || null;
@@ -2074,6 +2118,8 @@ function wearing(c) { let armor = null, shield = false; (c.items || []).forEach(
 function classLevelNote(c, n) {
   const m = classRow(c, 'monk'), r = classRow(c, 'rogue'), b = classRow(c, 'barbarian'), bd = classRow(c, 'bard');
   if (n === 'Martial Arts' && m) return `At your level: Martial Arts die d${m.cs.martial_arts_die}.`;
+  const ar = classRow(c, 'artificer');
+  if (n === 'Replicate Magic Item' && ar && ar.cs.plans_known) return `At your level: ${ar.cs.plans_known} plans known, and up to ${ar.cs.magic_items} of your magic items at once.`;
   if (/^Unarmored Movement/.test(n) && m && m.cs.unarmored_movement_bonus) return `At your level: +${m.cs.unarmored_movement_bonus} ft Speed while you wear no armour or shield (already on your sheet).`;
   if (/Focus/.test(n) && m && m.cs.focus_points) return `At your level: ${m.cs.focus_points} Focus Points.`;
   if (n === 'Sneak Attack' && r) return `At your level: ${r.cs.sneak_attack.dice_count}d${r.cs.sneak_attack.dice_value} (a button on your finesse and ranged weapon attacks).`;
@@ -2268,7 +2314,7 @@ function sheetView(c, o = {}) {
     if (k === 'features') {
       const feats = featuresOf(c);
       if (!o.ro) s.append(h('div', { class: 'row', style: { marginBottom: '10px' } }, h('span', { class: 'grow muted small' }, 'From your class, species, background and feats.'), h('button', { class: 'btn sm', onclick: () => addFeat(c, o) }, icon('plus'), 'Add')));
-      const bookCls = CLS_BY[c.cls] && CLS_BY[c.cls].book;
+      const bookCls = CLS_BY[c.cls] && CLS_BY[c.cls].book && !CLS_BY[c.cls].full;
       if (!o.ro && bookCls) {
         const lv = (BOOK_CLASS_FEATURE_LEVELS[c.cls] || []).filter(l => l <= D(c).lvl);
         s.append(h('div', { class: 'panel', style: { marginBottom: '10px' } }, h('div', { class: 'lbl' }, clsName(c) + ' class features'), h('p', { class: 'small muted', style: { margin: '6px 0 10px' } }, `${clsName(c)} features come from ${bookCls}, so they aren’t built in. Your ${clsName(c)} has gained features at level${lv.length === 1 ? '' : 's'} ${listLevels(lv)}. Add each one from your book.`), h('button', { class: 'btn sm outline', onclick: () => writeFeature(c, o, 'Class feature') }, icon('plus'), 'Add a class feature')));
@@ -2390,6 +2436,7 @@ function addFeat(c, o) {
         h('p', { class: 'small', style: { color: p.ok ? '' : 'var(--ember)', fontWeight: p.ok ? 400 : 700 } }, fi.pre === 'None' ? 'No prerequisite.' : p.ok ? `Prerequisite: ${fi.pre}. You meet it.` : `Prerequisite: ${fi.pre}. You need ${p.note}; only take it if your GM allows.`),
         opts.length ? [h('label', { class: 'f' }, 'Ability score increase (+1, up to 20)'), h('div', { class: 'chips' }, opts.map(a => h('button', { class: 'chip', 'aria-pressed': st.ab === a ? 'true' : 'false', disabled: c.abilities[a] >= 20 ? true : null, onclick: () => { st.ab = a; fillSheet(rec); } }, `${ABN[a]} ${c.abilities[a]}`)))] : null,
         sd ? richText(sd.d, { label: fi.n }) : BOOK_FEAT_TEXT[fi.n] ? [richText(BOOK_FEAT_TEXT[fi.n], { label: fi.n }), h('p', { class: 'tiny muted' }, 'A summary of the feat. Check your book for the exact wording.')] : h('p', { class: 'small muted' }, 'Its rules aren’t built into Campfire. After adding it, use Write your own to copy its rules from your book.'),
+        featAdvice(fi.n),
         featNeedsChoices(fi.n) ? h('p', { class: 'small', style: { color: 'var(--ember)' } }, 'After adding it you’ll choose its options, and your sheet updates to match.') : null,
         fi.by && fi.by.length ? h('p', { class: 'tiny muted' }, 'Granted by: ' + fi.by.join(', ')) : null);
     }
@@ -2400,7 +2447,7 @@ function addFeat(c, o) {
         const fs = Object.values(FEAT_INFO).filter(fi => fi.cat === cat && (!q || fi.n.toLowerCase().includes(q)) && (fi.rep || !have.has(fi.n))).sort((a, b) => a.n.localeCompare(b.n));
         if (!fs.length) return;
         listEl.append(h('h2', { class: 'sec' }, cat + ' feats'), h('div', { class: 'list' }, fs.map(fi => { const p = featPrereq(c, fi);
-          return h('button', { class: 'li', onclick: () => { st.pick = fi.n; st.ab = ''; fillSheet(rec); } }, h('div', { class: 'grow' }, h('div', { class: 't' }, fi.n), h('div', { class: 's' }, [fi.srd ? 'SRD' : fi.book, fi.pre !== 'None' ? 'Needs ' + fi.pre : '', asiOpts(fi).length ? '+1 ability' : ''].filter(Boolean).join(' · '))), p.ok ? null : h('span', { class: 'tiny', style: { color: 'var(--ember)', fontWeight: 800 } }, 'Not yet')); })));
+          return h('button', { class: 'li', onclick: () => { st.pick = fi.n; st.ab = ''; fillSheet(rec); } }, h('div', { class: 'grow' }, h('div', { class: 't' }, fi.n, featStars(fi.n) ? h('span', { class: 'stars sm' }, ' ' + featStars(fi.n)) : null), h('div', { class: 's' }, [fi.srd ? 'SRD' : fi.book, fi.pre !== 'None' ? 'Needs ' + fi.pre : '', asiOpts(fi).length ? '+1 ability' : ''].filter(Boolean).join(' · '))), p.ok ? null : h('span', { class: 'tiny', style: { color: 'var(--ember)', fontWeight: 800 } }, 'Not yet')); })));
       });
     };
     draw();
@@ -2641,6 +2688,7 @@ function classLevelUp(c0, o, k, isNew) {
       const mine = () => editMySubclass(c0, k.cls, nd => { if (nd) { st.sub = nd.name; o.set({ csubs: c0.csubs }); } fillSheet(rec); }, st.sub ? (subDef(k.cls, st.sub, c0) || null) : null);
       body.append(h('select', { class: 'in', onchange: e => { if (e.target.value === '_new') { e.target.value = st.sub || ''; editMySubclass(c0, k.cls, nd => { if (nd) { st.sub = nd.name; o.set({ csubs: c0.csubs }); } fillSheet(rec); }); return; } st.sub = e.target.value; fillSheet(rec); } }, h('option', { value: '' }, 'Choose…'), subOptions(c.cls, c0).map(([s, l]) => h('option', { value: s, selected: st.sub === s ? true : null }, l)), h('option', { value: '_new' }, 'Create your own subclass…')));
       if (st.sub && isOwnSub(subDef(k.cls, st.sub, c0))) body.append(h('button', { class: 'btn sm ghost mt', onclick: mine }, icon('edit'), 'Edit ' + st.sub));
+      { const th = subTheme(k.cls, st.sub); if (th) body.append(th); }
     }
     if ((st.sub || c.subclass) === 'Circle of the Land' && !c.land) {
       sec('Choose your land');
@@ -2684,7 +2732,7 @@ function classLevelUp(c0, o, k, isNew) {
     const subNow = st.sub || c.subclass, cAfter = nextChar(subNow, st.land), dB = D(c0), dA = D(cAfter);
     const slB = dB.slots, slA = dA.slots;
     const flags = [];
-    if (cls && cls.book && (BOOK_CLASS_FEATURE_LEVELS[c.cls] || []).includes(to)) flags.push(`${cls.n} gains a class feature at level ${to}.`);
+    if (cls && cls.book && !cls.full && (BOOK_CLASS_FEATURE_LEVELS[c.cls] || []).includes(to)) flags.push(`${cls.n} gains a class feature at level ${to}.`);
     if (subNow && !srdSub(c.cls, subNow) && (SUBCLASS_LEVELS[c.cls] || []).includes(to)) {
       const le = subDef(c.cls, subNow, c0); const inLib = le && (le.features || []).some(f => (+f.l || 3) === to);
       if (!inLib) flags.push(`${subNow}${subBook(c.cls, subNow) ? ' (' + subBook(c.cls, subNow) + ')' : ''} gains a subclass feature at level ${to}.`);
@@ -2760,7 +2808,7 @@ function openLevelUp(c, o) {
         const cls = CLS_BY[k.cls], nx = k.lvl + 1;
         const nf = cls ? SRD.fea.filter(f => f.c === k.cls && f.l === nx && (!f.s || f.s === k.sub)).map(f => f.n) : [];
         const asi = cls && (ASI_LEVELS[k.cls] || ASI_LEVELS._).includes(nx);
-        const bookF = (cls && cls.book && (BOOK_CLASS_FEATURE_LEVELS[k.cls] || []).includes(nx)) || (k.sub && !srdSub(k.cls, k.sub) && (SUBCLASS_LEVELS[k.cls] || []).includes(nx));
+        const bookF = (cls && cls.book && !cls.full && (BOOK_CLASS_FEATURE_LEVELS[k.cls] || []).includes(nx)) || (k.sub && !srdSub(k.cls, k.sub) && (SUBCLASS_LEVELS[k.cls] || []).includes(nx));
         const hint = [...nf.filter(n => n !== 'Ability Score Improvement'), asi ? 'Ability Score Improvement' : '', bookF ? 'a feature from your book' : '', cls && nx === 3 && !k.sub ? 'choose a subclass' : ''].filter(Boolean);
         body.append(h('button', { class: 'li', style: { marginBottom: '8px', width: '100%' }, onclick: () => { closeSheet(rec); classLevelUp(c, o, k, false); } },
           h('span', { class: 'mono-tile cr' }, h('small', null, 'LVL'), String(nx)),
@@ -2817,10 +2865,10 @@ function deathPatch(c, p, info = {}) {
 function applyDeathSave(c, o, n, base, reroll) {
   const next = Object.assign({}, base, { last: { r: n }, at: Date.now(), stable: false, dead: false });
   const awake = (c.cond || []).filter(x => x !== 'Unconscious'), asleep = [...new Set(awake.concat(['Unconscious']))];
-  if (n === 20) { o.set({ hp: { cur: 1 }, death: { s: 0, f: 0, stable: false, dead: false, last: { r: 20 }, at: Date.now() }, cond: awake }); toast('Natural 20! You regain 1 hit point and wake up.', 3600); return; }
+  if (n === 20) { o.set({ hp: { cur: 1 }, death: { s: 0, f: 0, stable: false, dead: false, last: { r: 20 }, at: Date.now() }, cond: awake }); toast(o.nm ? `Natural 20! ${o.nm} regains 1 hit point and wakes up.` : 'Natural 20! You regain 1 hit point and wake up.', 3600); return; }
   if (n === 1) next.f = Math.min(3, next.f + 2); else if (n >= 10) next.s = Math.min(3, next.s + 1); else next.f = Math.min(3, next.f + 1);
-  if (next.f >= 3) { next.dead = true; toast('Three failures. Your character has died.', 4200); }
-  else if (next.s >= 3) { next.stable = true; toast('Three successes. You’re stable, but still unconscious at 0 hit points.', 4200); }
+  if (next.f >= 3) { next.dead = true; toast(o.nm ? `Three failures. ${o.nm} has died.` : 'Three failures. Your character has died.', 4200); }
+  else if (next.s >= 3) { next.stable = true; toast(o.nm ? `Three successes. ${o.nm} is stable, but still unconscious at 0 hit points.` : 'Three successes. You’re stable, but still unconscious at 0 hit points.', 4200); }
   else toast(n === 1 ? 'Natural 1: two failures.' : n >= 10 ? `${n}: a success.` : `${n}: a failure.`, 2400);
   o.set(reroll ? { death: next, hp: { cur: 0 }, cond: asleep } : { death: next });
 }
@@ -2840,8 +2888,19 @@ function deathPanel(c, o, who) {
     h('div', { class: 'row mt' }, h('span', { class: 'small muted', style: { width: '80px' } }, 'Successes'), dsPips(ds.s, 's', edit ? v => setDs({ s: v }) : null)),
     h('div', { class: 'row', style: { marginTop: '8px' } }, h('span', { class: 'small muted', style: { width: '80px' } }, 'Failures'), dsPips(ds.f, 'f', edit ? v => setDs({ f: v }) : null)),
     ds.last ? h('p', { class: 'small muted', style: { margin: '8px 0 0' } }, ds.last.r === 'damage' ? `Last: took damage at 0 hit points${ds.last.crit ? ' from a critical hit' : ''}.` : `Last roll: ${ds.last.r}${ds.last.r === 20 ? ', back on their feet' : ds.last.r === 1 ? ', two failures' : ds.last.r >= 10 ? ', success' : ', failure'}.`) : null,
-    h('p', { class: 'tiny muted', style: { margin: '6px 0 0' } }, ds.dead ? 'If this was a mistake, tap the pips to change it, or heal the character.' : ds.stable ? 'Stable at 0 hit points. Any healing wakes them up.' : '10 or higher succeeds; a natural 20 restores 1 hit point; a natural 1 counts as two failures. Damage at 0 hit points is a failure. Only you and the GM can see this.'));
+    h('p', { class: 'tiny muted', style: { margin: '6px 0 0' } }, ds.dead ? 'If this was a mistake, tap the pips to change it, or heal the character.' : ds.stable ? 'Stable at 0 hit points. Any healing wakes them up.' : '10 or higher succeeds; a natural 20 restores 1 hit point; a natural 1 counts as two failures. Damage at 0 hit points is a failure. The party sees the pips in place of the health bar.'));
 }
+/* a downed character's health bar becomes their death saves: three pips that light green for successes, three that light red
+   for failures. ds = { s, f, stable, dead } */
+function dsBar(ds) {
+  ds = Object.assign({ s: 0, f: 0 }, ds);
+  const word = ds.dead ? 'Dead' : ds.stable ? 'Stable' : 'Dying';
+  const pip = (on, k) => h('i', { class: k + (on ? ' on' : '') });
+  return h('div', { class: 'dsbar' + (ds.dead ? ' dead' : ds.stable ? ' stable' : ''), role: 'img', title: word, 'aria-label': `${word}: ${ds.s} death save success${ds.s === 1 ? '' : 'es'}, ${ds.f} failure${ds.f === 1 ? '' : 's'}` },
+    h('span', { class: 'grp' }, [0, 1, 2].map(i => pip(i < ds.s, 's'))), h('span', { class: 'grp' }, [0, 1, 2].map(i => pip(i < ds.f, 'f'))));
+}
+/* the health bar, or the death saves when the character is down */
+const hpOrDs = (cur, max, ds, tone) => max && cur <= 0 && ds ? dsBar(ds) : hpBar(cur, max, tone);
 /* compact view for the GM's Camp page */
 function deathBadge(c) {
   const ds = Object.assign({ s: 0, f: 0 }, c.death);
@@ -4657,8 +4716,12 @@ function workingsSection(c, d) {
 }
 
 /* ================= Change log: every version of Campfire, newest first ================= */
-const APP_VERSION = '6.18';
+const APP_VERSION = '6.22';
 const CHANGELOG = [
+  ['6.22', 'November 2026', ['Party member NPCs: open a creature in an encounter and tap Make a party member (or tick Party member NPC on its map token). At 0 hit points it falls Unconscious and makes death saving throws instead of leaving the fight: it stays in the turn order, the Game Master rolls its saves from the Now card or its screen, damage while it’s down adds failures (two from a critical hit), and healing wakes it. Party members are tagged Party, always show their health to players, never hide with Hide creatures, and don’t count towards the encounter’s XP.', 'Player character tokens on the map now have health bars: exact for the Game Master and the token’s own player, the health band for everyone else.', 'When a player character or party member goes down, their health bar turns into their death saves: three pips that light green for successes and three that light red for failures. This shows in the Game Master’s turn order, on players’ turn order and party cards, on the table display and under map tokens, and updates with every roll.']],
+  ['6.21', 'November 2026', ['New add-on, More 2024 spells: 174 spells the free rules leave out, from the rest of the Player’s Handbook (Toll the Dead, Hunger of Hadar, the smites and summons), Heroes of Faerûn, Forge of the Artificer, Arcana Unleashed and World of Warcraft. Each has its stat lines and class lists, so players can add them to their sheets, plus its damage types, saving throw and conditions and the book and page for the full rules.', 'New add-on, Legacy spells (2014 books): 135 spells from Xanathar’s, Tasha’s, Fizban’s, Wildemount and other 2014 books that were never reprinted for 2024, such as Booming Blade, Silvery Barbs and Shadow Blade, with the 2024 classes that can use them.', 'New add-on, Creature index: 576 creatures from the 2024 Monster Manual and every 2024 book with stat blocks, listed in the bestiary with their CR, XP, type, alignment, habitat and book. Filter the bestiary by book and habitat (the free-rules creatures get their Monster Manual habitats too). Tap one and Write its stat block to make it homebrew with its name, size, type, alignment and CR filled in.', 'The Artificer add-on now has the 2024 artificer spell list: 73 spells from the free rules and Homunculus Servant, plus the rest (such as Arcane Vigor and Thorn Whip) when More 2024 spells is on.', 'Spells from add-ons show their book as a tag in spell lists, and the Game Master’s spell reference can filter by the Artificer.']],
+  ['6.20', 'November 2026', ['New add-on, More magic items and gear: 171 magic items from the books after the Dungeon Master’s Guide (Arcana Unleashed, World of Warcraft, Icecrown Citadel, Forge of the Artificer, Faerûn, Drops and more), each with a summary, price and crafting cost; three new weapons (Pitchfork, Bola, Weighted Chain); and 16 pieces of gear such as camouflage, Underdark clothing and Forgotten Realms poisons.', 'Built-in equipment now matches the 2024 Player’s Handbook: 32 corrections to costs, weights and stats (for example the javelin costs 5 SP, the trident deals 1d8 (1d10 two-handed), hide is medium armour and the entertainer’s pack weighs 58.5 lb).', 'Build advice now rates the four Project Lamordia backgrounds and the Upper Planes Pact feats, and suggests Lamordia backgrounds for barbarians and fighters.']],
+  ['6.19', 'November 2026', ['Add-ons: extra rules the Game Master can switch on for a campaign from the menu (Add-ons). Everyone at the table gets them automatically, and they keep working offline once loaded.', 'Upper Planes Pact and Project Lamordia: the Upper Planes Pact (its Radiant resistance, Religion and Detect Evil and Good go on the sheet), Elysium Diplomat, Ysgardian Warrior, and four Project Lamordia backgrounds. Pact Seeker can take the new pact.', 'The Artificer: its class features (with plans known and magic items at each level), all six subclasses with their features and always-prepared spells, and an artificer spell list in Add spells.', 'Subclass features: every subclass beyond the free rules now has its features on the sheet and at level up, with always-prepared spells and a one-line playstyle when you choose it.', 'Build advice: star ratings and what each background and feat does for a character, in character creation and the feat list, plus quick background picks for every class.', 'Tools, crafting and rules reference: what each tool does and can craft, magic item values with crafting cost and time, carrying notes on gear, and a searchable Rules reference (coins, weapon properties and masteries, armour, carrying, movement, travel pace, crafting, spell scrolls) from the menu.']],
   ['6.18', 'November 2026', ['Homebrew creatures can cast spells. In the creature editor, tap Add spellcasting, pick the spellcasting ability, and add spells from the rules under At will, 3/Day, 2/Day or 1/Day each. The spell save DC and spell attack bonus are worked out from the creature’s CR and ability score (you can type your own). The stat block gets a Spellcasting action like the rules’ Mage or Lich: each spell is tappable and rolls with the creature’s numbers.']],
   ['6.17', 'November 2026', ['Hide creatures: in an encounter, tap Hide creatures and players’ phones stop showing what they’re fighting. Creatures’ turns read “The Game Master”, with no names, numbers or health bars, and the initiative pop-up and turn card don’t show the encounter’s name. Players can’t pick hidden creatures as targets.', 'Reveal them one at a time with the eye on each creature in the turn order (or on its screen), as the party spots them. Revealed creatures appear by name with their health bar. Creatures added during the fight start hidden. Tap Creatures hidden again to show everything.']],
   ['6.16', 'November 2026', ['When a creature linked to a map token drops to 0 hit points, its token comes off the map, whether the map is open or not, and players’ shared view updates too. A message says which token went, with Undo to put it back. Tokens that aren’t linked to a creature stay where they are.']],
@@ -6178,7 +6241,7 @@ const S = {
   char: null, charLoaded: false, portrait: null, thread: null, msgs: [], partyHO: [], myHO: [], ustate: { seen: {} }, journal: [], jOpen: null, jKP: false, inboxSeg: 'msgs', viewingChat: false,
   // gm
   chars: {}, portraits: {}, rolls: {}, threads: {}, tmsgs: [], best: { art: {}, notes: {} }, encs: [], encOpen: null, maps: [], mapOpen: null, hlib: [], custom: [], msgOpen: null,
-  bq: '', bcr: 'all', btype: 'all', blimit: 60,
+  bq: '', bcr: 'all', btype: 'all', blimit: 60, bbook: 'all', bhab: 'all',
 };
 const KEEP = Symbol('keep');
 let renderQueued = false, renderDeferred = false;
@@ -6191,6 +6254,7 @@ function refresh() {
     const main = $('main');
     if (main && main.contains(document.activeElement) && isEditable(document.activeElement)) { renderDeferred = true; renderTabbar(); refreshSheets(); return; }
     renderMain(); renderTabbar(); refreshSheets();
+    if (typeof redrawPartyTokens === 'function') redrawPartyTokens();
   });
 }
 document.addEventListener('focusout', () => setTimeout(() => { if (renderDeferred && !(document.activeElement && isEditable(document.activeElement) && $('main') && $('main').contains(document.activeElement))) { renderDeferred = false; refresh(); } }, 120));
@@ -6382,6 +6446,8 @@ function openMenu() {
       h('div', { class: 'mt2' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: () => { closeSheet(rec); leave(); } }, CAP.local ? 'Switch role or player seat' : 'Switch role')),
       CAP.cloud ? h('div', { class: 'mt' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: () => { closeSheet(rec); exitCampaign(); } }, 'Back to your fires')) : null,
       CAP.cloud ? h('div', { class: 'mt' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: openAccount }, 'Account')) : null,
+      S.role ? h('div', { class: 'mt' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: () => { closeSheet(rec); openAddons(); } }, icon('plus'), 'Add-ons' + (addonsWanted().length ? ` (${addonsWanted().length} on)` : ''))) : null,
+      addonOn('gear-rules') ? h('div', { class: 'mt' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: () => { closeSheet(rec); openRulesRef(); } }, icon('journal'), 'Rules reference')) : null,
       S.role === 'gm' ? h('div', { class: 'mt' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: () => { closeSheet(rec); openLibrary(); } }, 'Subclass library')) : null,
       S.role === 'player' && !CAP.local ? h('label', { class: 'pick mt' }, h('input', { type: 'checkbox', checked: tableSoundsOn(), onchange: e => { try { localStorage.setItem('cf-table-snd', e.target.checked ? '1' : '0'); } catch (x) { } if (!e.target.checked) stopAllSound(); else audio(); } }), h('span', { class: 'grow' }, 'Play the GM’s table sounds on this phone')) : null,
       S.role === 'gm' ? h('div', { class: 'mt' }, h('button', { class: 'btn', style: { width: '100%' }, onclick: () => openSoundboard() }, icon('sound'), 'Soundboard')) : null,
@@ -6613,6 +6679,7 @@ function renderWizard() {
     const bg = BG_BY[c.background];
     if (bg) root.append(h('div', { class: 'helper' }, bg.d ? h('div', { style: { color: 'var(--ink-2)', marginBottom: '4px' } }, bg.d) : null, `Ability scores ${bg.ab.map(a => AB3[a]).join(', ')}. Skills ${bg.sk.join(', ')}. Origin feat ${bg.ft}${bg.to.length ? '. Tool ' + bg.to.join(', ') : ''}.`, bg.eq ? h('div', { style: { marginTop: '4px' } }, h('b', null, 'Equipment: '), bg.eq) : null, BOOK_FEAT_TEXT[featBase(bg.fi)] ? h('div', { style: { marginTop: '6px' } }, h('b', null, bg.ft + ': '), BOOK_FEAT_TEXT[featBase(bg.fi)].split('\n')[0]) : null,
       BOOK_BG_NOTE[bg.n] && BOOK_BG_NOTE[bg.n].fit ? h('div', { class: 'tiny', style: { marginTop: '4px' } }, 'Suits: ' + BOOK_BG_NOTE[bg.n].fit + '.') : null,
+      bgAdvice(bg),
       bg.book ? h('div', { class: 'tiny', style: { marginTop: '4px' } }, `From ${bg.book}.${featNeedsChoices(bg.fi) ? ' You’ll make the feat’s choices on your sheet after creating your character.' : ''}`) : null));
     root.append(h('label', { class: 'f' }, 'Alignment (optional)'), sel(c.alignment, ['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil'].map(a => [a, a]), v => { c.alignment = v; }, 'No alignment'));
     root.append(h('p', { class: 'tiny muted mt' }, 'Lists include the options in the free 2024 rules reference. Choose Other to use anything from your own books.'));
@@ -6626,6 +6693,7 @@ function renderWizard() {
     list.append(h('button', { class: 'li', onclick: async () => { const n = await askText('Class name', c.clsName || '', { placeholder: 'e.g. Artificer' }); if (n) { c.cls = ''; c.clsName = n; w.picks = []; wr(); } } },
       h('span', { class: 'prep' + (!c.cls && c.clsName ? ' on' : '') }, !c.cls && c.clsName ? icon('check') : null), h('div', { class: 'grow' }, h('div', { class: 't' }, c.clsName && !c.cls ? c.clsName : 'Other class'), h('div', { class: 's' }, 'Type a class from another book'))));
     root.append(list);
+    if (c.cls) { const qp = classPicks(c.cls); if (qp) root.append(qp); }
     root.append(h('div', { class: 'row mt' }, h('b', { class: 'grow' }, 'Level'), h('div', { class: 'stepper' }, h('button', { onclick: () => { c.level = Math.max(1, c.level - 1); wr(); } }, '−'), h('span', { class: 'v' }, String(c.level)), h('button', { onclick: () => { c.level = Math.min(20, c.level + 1); wr(); } }, '+'))));
     const k = CLS_BY[c.cls];
     if (c.level >= 3 && (k || c.clsName)) {
@@ -6636,6 +6704,7 @@ function renderWizard() {
       const own = k && c.subclass ? subDef(k.i, c.subclass, c) : null;
       if (isOwnSub(own)) root.append(h('button', { class: 'btn sm ghost mt', onclick: () => mine(own) }, icon('edit'), 'Edit ' + own.name));
       const note = subclassNote(c); if (note) root.append(note);
+      if (k) { const th = subTheme(k.i, c.subclass); if (th) root.append(th); }
       if (c.subclass && !subs.includes(c.subclass)) root.append(h('input', { class: 'in mt', value: c.subclass.trim(), placeholder: 'Subclass name', oninput: e => { c.subclass = e.target.value || ' '; } }));
     }
     if (c.cls === 'sorcerer' || WILD_SUBS.includes((c.subclass || '').trim())) { root.append(h('label', { class: 'f' }, 'Wild Magic Surge table'), h('div', { class: 'seg' }, [[100, 'Standard (d100)'], [1000, 'd1000']].map(([v, l]) => h('button', { 'aria-pressed': wildDie(c) === v ? 'true' : 'false', onclick: () => { c.wild = Object.assign({}, c.wild, { die: v }); wr(); } }, l))), h('p', { class: 'tiny muted', style: { margin: '4px 0 0' } }, c.subclass === 'Wild Magic Sorcery' ? 'Used when your magic surges. You’ll import the table after creating your character.' : 'Used if you take Wild Magic Sorcery at level 3.')); }
@@ -6873,7 +6942,7 @@ function openSpellBrowser() {
       const q = st.q.toLowerCase();
       const res = SPL_SORTED.filter(sp => spellMatches(sp, q, st.sch) && (st.lv === 'all' || sp.l === +st.lv) && (!st.mine || lists.some(l => sp.c.includes(l)) || featFx(S.char).extra.has(sp.n)));
       res.slice(0, 150).forEach(sp => listEl.append(h('div', { class: 'li', role: 'button', tabindex: 0, onclick: () => openSpell(sp, { atk: D(S.char).satk, dc: D(S.char).sdc, mod: spellModFor(S.char, D(S.char), sp), charLevel: D(S.char).lvl }) },
-        h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.hb ? h('span', { class: 'tag' }, sp.hb === 'gm' ? 'Campaign' : 'Homebrew') : null), h('div', { class: 's' }, spellSub(sp))),
+        h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.hb ? h('span', { class: 'tag' }, sp.hb === 'gm' ? 'Campaign' : 'Homebrew') : null, bookTag(sp)), h('div', { class: 's' }, spellSub(sp))),
         sp.hb === 'me' ? h('button', { class: 'icon-btn', 'aria-label': 'Edit ' + sp.n, onclick: e => { e.stopPropagation(); openSpellEditor('me', sp); } }, icon('edit')) : null,
         h('button', { class: 'prep' + (have.has(sp.i) ? ' on' : ''), 'aria-label': have.has(sp.i) ? 'Remove ' + sp.n : 'Add ' + sp.n, onclick: e => { e.stopPropagation(); const cur = (S.char.spells && S.char.spells.list) || []; setChar({ spells: { list: have.has(sp.i) ? cur.filter(x => x.i !== sp.i) : cur.concat([{ i: sp.i, p: sp.l === 0 }]) } }); draw(); } }, have.has(sp.i) ? icon('check') : icon('plus')))));
       if (!res.length) listEl.append(h('p', { class: 'muted center' }, 'No spells match.'));
@@ -7177,7 +7246,10 @@ function chooseMagicInitiate(cls) {
 /* ---------- the party: what everyone in the campaign can see about each other ---------- */
 function partySummary(c, pic) {
   const d = D(c);
-  return { name: c.name || '', cls: classText(c), lvl: d.lvl, sp: spcName(c), sub: c.subclass || '', hp: { tier: hpTier((c.hp || {}).cur || 0, (c.hp || {}).max || 0) }, ac: d.ac, cond: c.cond || [], insp: !!c.insp, pic: pic || null };
+  const hp = c.hp || {}, down = hp.max && (hp.cur || 0) <= 0, ds = Object.assign({ s: 0, f: 0 }, c.death);
+  /* when they're down, everyone sees their death saves in place of their health */
+  return { name: c.name || '', cls: classText(c), lvl: d.lvl, sp: spcName(c), sub: c.subclass || '', hp: { tier: hpTier(hp.cur || 0, hp.max || 0) }, ac: d.ac, cond: c.cond || [], insp: !!c.insp, pic: pic || null,
+    ds: down ? { s: ds.s || 0, f: ds.f || 0, stable: !!ds.stable, dead: !!ds.dead } : null };
 }
 let lastParty = '';
 const publishParty = debounce(() => {
@@ -7215,7 +7287,7 @@ function renderPCamp() {
     root.append(h('section', { class: 'selcard', 'aria-live': 'polite' },
       h('div', { class: 'row nowrap' }, h('div', { class: 'grow' }, h('div', { style: { fontSize: '18px', fontWeight: 800 } }, sel.name + (S.pcampSel === ME.id ? ' (you)' : '')), h('div', { class: 'small muted' }, `${[sel.sp, sel.cls].filter(Boolean).join(' ')}, level ${sel.lvl}${sel.sub ? ', ' + sel.sub : ''}`)),
         h('span', { class: 'acbox' }, h('span', { class: 'lbl' }, 'AC'), h('b', null, String(sel.ac)))),
-      mine ? h('div', { class: 'row nowrap' }, h('span', { class: 'num', style: { fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' } }, `${hp.cur} / ${hp.max} HP`, hp.tmp ? h('span', { style: { color: 'var(--cool)' } }, ` +${hp.tmp}`) : null), h('div', { class: 'grow' }, hpBar(hp.cur, hp.max)), bloodied ? h('span', { class: 'chip', style: { minHeight: 0, padding: '3px 9px', fontSize: '12px', borderColor: 'var(--ember)', color: 'var(--ember)' } }, 'Bloodied') : null) : hpTierView(tier),
+      mine ? h('div', { class: 'row nowrap' }, h('span', { class: 'num', style: { fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' } }, `${hp.cur} / ${hp.max} HP`, hp.tmp ? h('span', { style: { color: 'var(--cool)' } }, ` +${hp.tmp}`) : null), h('div', { class: 'grow' }, hpOrDs(hp.cur, hp.max, S.char.death)), bloodied ? h('span', { class: 'chip', style: { minHeight: 0, padding: '3px 9px', fontSize: '12px', borderColor: 'var(--ember)', color: 'var(--ember)' } }, 'Bloodied') : null) : sel.ds ? dsBar(sel.ds) : hpTierView(tier),
       (sel.cond || []).length ? h('div', { class: 'chips' }, sel.cond.map(x => h('span', { class: 'chip cond', style: { minHeight: 0, padding: '3px 9px', fontSize: '12px' } }, x))) : null,
       S.pcampSel === ME.id ? h('div', { class: 'row' }, h('button', { class: 'btn outline sm grow', onclick: () => go('sheet') }, 'Open my sheet'), h('button', { class: 'btn sm grow', onclick: () => doRoll('1d20' + (D(S.char).init >= 0 ? '+' : '') + D(S.char).init, { label: 'Initiative', kind: 'init' }) }, 'Roll initiative')) : null));
   }
@@ -7340,6 +7412,7 @@ function setupGM() {
     const before = S.chars || {};
     S.chars = mapOf(s);
     Object.keys(S.chars).forEach(uid => { if (before[uid]) noticeDeath(uid, before[uid].death, S.chars[uid].death); });
+    { const re = typeof runningEnc === 'function' ? runningEnc() : null; if (re) publishTurn(re, true); }   // a character going down shows on players' turn order
     Object.keys(S.chars).forEach(uid => { if (!pSubs[uid]) pSubs[uid] = sub(DB.doc('characters/' + uid + '/media/portrait'), ps => { const d = ps.exists ? ps.data() : null; S.portraits[uid] = d ? (d.data || imgSrc(d.img)) : null; refresh(); }); });
     refresh();
   });
@@ -7380,7 +7453,7 @@ function syncParty(uid) {
   const c = S.chars[uid]; if (!c || !c.name) return;
   const cur = (S.partyDocs || {})[uid] || {};
   const sum = partySummary(c, cur.pic || null);
-  const pick = o => JSON.stringify([o.name, o.cls, o.lvl, o.sp, o.sub, o.hp, o.ac, o.cond, !!o.insp]);
+  const pick = o => JSON.stringify([o.name, o.cls, o.lvl, o.sp, o.sub, o.hp, o.ac, o.cond, !!o.insp, o.ds || null]);
   if (pick(sum) === pick(cur)) return;
   S.partyDocs[uid] = Object.assign({}, cur, sum);
   writeDoc('party/' + uid, Object.assign({ upd: Date.now() }, sum));
@@ -7454,6 +7527,19 @@ const MON_TYPES = [...new Set(MON.map(m => m.t.split(' ')[0].toLowerCase()))].so
 function customAsMon(x) { return Object.assign({}, x, { i: 'c:' + x._id, custom: true }); }
 function getMon(ref) { if (ref && ref.startsWith('c:')) { const x = S.custom.find(c => c._id === ref.slice(2)); return x ? customAsMon(x) : null; } return MON_BY[ref] || null; }
 function allMons() { return S.custom.map(customAsMon).concat(MON); }
+/* the bestiary's list: homebrew first, then the free rules and the creature index (when it's on) in name order */
+let BEST_ALL = null, BEST_SIG = '';
+function bestiaryMons() {
+  if (!ADDON.creatures.length) return allMons();
+  const sig = ADDON.creatures.length + ':' + MON.length;
+  if (sig !== BEST_SIG) { BEST_SIG = sig; BEST_ALL = MON.concat(ADDON.creatures).sort((a, b) => a.n.localeCompare(b.n)); }
+  const hb = new Set(S.custom.map(c => String(c.n || '').toLowerCase()));   // once written up as homebrew, the index entry steps aside
+  return S.custom.map(customAsMon).concat(hb.size ? BEST_ALL.filter(m => !m.idx || !hb.has(m.n.toLowerCase())) : BEST_ALL);
+}
+const monCr = m => m.idx ? (m.cr == null ? NaN : m.cr) : (+m.cr || 0);
+/* a habitat filter matches creatures found there and those the Monster Manual says live anywhere */
+const habMatch = (m, hb) => hb === 'all' || (m.hab || []).includes(hb) || (hb !== 'Any' && (m.hab || []).includes('Any'));
+const bookMatch = (m, b) => b === 'all' || (b === 'free' ? !m.idx && !m.custom : b === 'hb' ? !!m.custom : m.src === b);
 const refSeg = () => h('div', { class: 'seg', style: { marginBottom: '12px' }, role: 'tablist' }, [['mon', 'Creatures'], ['spells', 'Spells']].map(([k, l]) => h('button', { role: 'tab', 'aria-pressed': S.bmode === k ? 'true' : 'false', 'aria-selected': S.bmode === k ? 'true' : 'false', onclick: () => { S.bmode = k; renderMain(); } }, l)));
 function renderGSpellbook() {
   const root = h('div'); root.append(refSeg());
@@ -7465,17 +7551,19 @@ function renderGSpellbook() {
     const res = SPL_SORTED.filter(sp => spellMatches(sp, q, S.ssch) && (S.slv === 'all' || sp.l === +S.slv) && (S.scls === 'all' || sp.c.includes(S.scls)));
     res.forEach(sp => listEl.append(h('button', { class: 'li', onclick: () => openSpell(sp, {}) },
       h('span', { class: 'mono-tile cr' }, h('small', null, sp.l === 0 ? 'CAN' : 'LVL'), sp.l === 0 ? '0' : String(sp.l)),
-      h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.cc ? h('span', { class: 'tag' }, 'C') : null, sp.rt ? h('span', { class: 'tag' }, 'R') : null), h('div', { class: 's' }, `${sp.s}, ${sp.ct}, ${sp.r}`)))));
+      h('div', { class: 'grow' }, h('div', { class: 't' }, sp.n, sp.cc ? h('span', { class: 'tag' }, 'C') : null, sp.rt ? h('span', { class: 'tag' }, 'R') : null, bookTag(sp)), h('div', { class: 's' }, `${sp.s}, ${sp.ct.replace(/, which .*$/, '')}, ${sp.r}`)))));
     if (!res.length) listEl.append(h('div', { class: 'empty' }, h('b', null, 'No spells match'), 'Try a different name, school, level or class.'));
     cnt.textContent = `${res.length} of ${SPL.length} spells`;
   };
   root.append(h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search spells or schools', value: S.sq, oninput: e => { S.sq = e.target.value; draw(); } })));
   root.append(schoolChips(S.ssch, k => { S.ssch = k; renderMain(); }));
   root.append(h('div', { class: 'chips hscroll mt' }, ['all', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => h('button', { class: 'chip', 'aria-pressed': String(S.slv) === String(l) ? 'true' : 'false', onclick: () => { S.slv = String(l); renderMain(); } }, l === 'all' ? 'All levels' : l === 0 ? 'Cantrips' : ordinal(l)))));
-  root.append(h('div', { class: 'row mt nowrap' }, h('select', { class: 'in', 'aria-label': 'Class', onchange: e => { S.scls = e.target.value; draw(); } }, h('option', { value: 'all' }, 'All classes'), SRD.cls.filter(k => k.sa && !k.book).map(k => h('option', { value: k.i, selected: S.scls === k.i ? true : null }, k.n)))));
+  root.append(h('div', { class: 'row mt nowrap' }, h('select', { class: 'in', 'aria-label': 'Class', onchange: e => { S.scls = e.target.value; draw(); } }, h('option', { value: 'all' }, 'All classes'), SRD.cls.filter(k => k.sa && (!k.book || k.full)).map(k => h('option', { value: k.i, selected: S.scls === k.i ? true : null }, k.n)))));
   root.append(h('div', { style: { margin: '10px 0 4px' } }, cnt), listEl);
   draw();
-  root.append(h('p', { class: 'tiny muted mt' }, 'Every spell in the free 2024 rules (SRD 5.2). C means concentration, R means ritual. Tap a spell for its full text and dice.'));
+  root.append(h('p', { class: 'tiny muted mt' }, SPL.some(sp => sp.bk)
+    ? 'Every spell in the free 2024 rules (SRD 5.2), with full text and dice, plus the spells from your add-ons: those show their book, and the book has their full rules. C means concentration, R means ritual.'
+    : 'Every spell in the free 2024 rules (SRD 5.2). C means concentration, R means ritual. Tap a spell for its full text and dice.'));
   return root;
 }
 function renderGBestiary() {
@@ -7485,10 +7573,14 @@ function renderGBestiary() {
   const draw = () => {
     listEl.textContent = '';
     const q = S.bq.toLowerCase(); const band = CR_BANDS.find(b => b[0] === S.bcr) || CR_BANDS[0];
-    const res = allMons().filter(m => (!q || m.n.toLowerCase().includes(q)) && band[2](+m.cr || 0) && (S.btype === 'all' || (m.t || '').toLowerCase().startsWith(S.btype)));
-    res.slice(0, S.blimit).forEach(m => listEl.append(h('button', { class: 'li', onclick: () => openMonster(m.i) }, monTile(m, S.best.art[m.i]),
-      h('div', { class: 'grow' }, h('div', { class: 't' }, m.n, m.custom ? h('span', { class: 'tag' }, 'Homebrew') : null), h('div', { class: 's' }, monMeta(m).split(',')[0])),
-      h('div', { class: 'end small muted' }, `AC ${m.ac}`, h('br'), `HP ${m.hp}`))));
+    const res = bestiaryMons().filter(m => (!q || m.n.toLowerCase().includes(q)) && band[2](monCr(m)) && (S.btype === 'all' || (m.t || '').toLowerCase().startsWith(S.btype)) && habMatch(m, S.bhab) && bookMatch(m, S.bbook));
+    res.slice(0, S.blimit).forEach(m => listEl.append(m.idx
+      ? h('button', { class: 'li', onclick: () => openIndexCreature(m) }, h('div', { class: 'mono-tile cr', 'aria-hidden': 'true' }, h('small', null, 'CR'), m.cr == null ? '—' : crStr(m.cr)),
+        h('div', { class: 'grow' }, h('div', { class: 't' }, m.n, bookTag(m)), h('div', { class: 's' }, monMeta(m).split(',')[0])),
+        h('div', { class: 'end small muted' }, m.xp != null ? `${fmtN(m.xp)} XP` : 'Summoned'))
+      : h('button', { class: 'li', onclick: () => openMonster(m.i) }, monTile(m, S.best.art[m.i]),
+        h('div', { class: 'grow' }, h('div', { class: 't' }, m.n, m.custom ? h('span', { class: 'tag' }, 'Homebrew') : null), h('div', { class: 's' }, monMeta(m).split(',')[0])),
+        h('div', { class: 'end small muted' }, `AC ${m.ac}`, h('br'), `HP ${m.hp}`))));
     if (!res.length) listEl.append(h('div', { class: 'empty' }, h('b', null, 'No creatures match'), 'Try a different name, CR or type, or create your own.'));
     if (res.length > S.blimit) listEl.append(h('div', { class: 'center mt' }, h('button', { class: 'btn', onclick: () => { S.blimit += 80; draw(); } }, `Show more (${res.length - S.blimit} left)`)));
     cnt.textContent = `${res.length} creature${res.length === 1 ? '' : 's'}`;
@@ -7498,10 +7590,21 @@ function renderGBestiary() {
   root.append(h('div', { class: 'chips hscroll mt' }, CR_BANDS.map(([k, l]) => h('button', { class: 'chip', 'aria-pressed': S.bcr === k ? 'true' : 'false', onclick: () => { S.bcr = k; S.blimit = 60; renderMain(); } }, l))));
   root.append(h('div', { class: 'row mt nowrap' }, h('select', { class: 'in', style: { flex: 1 }, 'aria-label': 'Creature type', onchange: e => { S.btype = e.target.value; S.blimit = 60; draw(); } }, h('option', { value: 'all' }, 'All creature types'), MON_TYPES.map(t => h('option', { value: t, selected: S.btype === t ? true : null }, cap(t)))),
     h('button', { class: 'btn', onclick: () => editCustom(null) }, icon('plus'), 'Homebrew')));
+  if (ADDON.creatures.length) {
+    const books = [...new Set(ADDON.creatures.map(m => m.src).concat(MON.map(m => m.src).filter(Boolean)))].sort((a, b) => crBook(a, 1).localeCompare(crBook(b, 1)));
+    const habs = [...new Set(bestiaryMons().flatMap(m => m.hab || []))].sort((a, b) => (a.startsWith('Planar') - b.startsWith('Planar')) || a.localeCompare(b));
+    root.append(h('div', { class: 'row mt nowrap' },
+      h('select', { class: 'in', style: { flex: 1, minWidth: 0 }, 'aria-label': 'Book', onchange: e => { S.bbook = e.target.value; S.blimit = 60; draw(); } },
+        [['all', 'Every book'], ['free', 'Full stat blocks here'], ['hb', 'Homebrew']].concat(books.map(b => [b, crBook(b, 1)])).map(([v, l]) => h('option', { value: v, selected: S.bbook === v ? true : null }, l))),
+      h('select', { class: 'in', style: { flex: 1, minWidth: 0 }, 'aria-label': 'Habitat', onchange: e => { S.bhab = e.target.value; S.blimit = 60; draw(); } },
+        [['all', 'Any habitat']].concat(habs.map(x => [x, x === 'Any' ? 'Anywhere' : x])).map(([v, l]) => h('option', { value: v, selected: S.bhab === v ? true : null }, l)))));
+  }
   root.append(h('div', { class: 'row', style: { margin: '10px 0 4px' } }, cnt));
   root.append(listEl);
   draw();
-  root.append(h('p', { class: 'tiny muted mt' }, 'Stat blocks from the free 2024 rules reference (SRD 5.2). Add artwork and lore to any creature, or write homebrew creatures for anything else.'));
+  root.append(h('p', { class: 'tiny muted mt' }, ADDON.creatures.length
+    ? 'Full stat blocks come from the free 2024 rules (SRD 5.2). The creature index adds the rest of the 2024 books: tap one to see its CR and where its stat block is, then write it in as homebrew. A habitat also shows the creatures that live anywhere.'
+    : 'Stat blocks from the free 2024 rules reference (SRD 5.2). Add artwork and lore to any creature, or write homebrew creatures for anything else.'));
   return root;
 }
 function openMonster(ref, ctxx = {}) {
@@ -7513,7 +7616,9 @@ function openMonster(ref, ctxx = {}) {
       h('button', { class: 'btn', onclick: () => setMonsterArt(m, rec) }, icon('image'), S.best.art[m.i] ? 'Change art' : 'Add art'),
       m.custom ? h('button', { class: 'btn', onclick: () => { closeSheet(rec); editCustom(m._id); } }, icon('edit'), 'Edit') : null,
       h('button', { class: 'btn primary', onclick: () => addToEncounterSheet(m) }, icon('plus'), 'Encounter')]);
-    return statBlock(m, { who: ctxx.who || m.n, art: S.best.art[m.i], notesEl: notes });
+    const sb = statBlock(m, { who: ctxx.who || m.n, art: S.best.art[m.i], notesEl: notes });
+    if (m.hab || m.src) sb.append(h('p', { class: 'tiny muted mt' }, [m.hab ? 'Habitat: ' + m.hab.join(', ') + '.' : '', m.src ? `In the ${crBook(m.src)}.` : ''].filter(Boolean).join(' ')));
+    return sb;
   }, { live: true });
 }
 async function setMonsterArt(m, rec) {
@@ -7567,10 +7672,10 @@ function castSection(f, redraw) {
     h('label', { class: 'f' }, 'Anything else (optional)'), h('input', { class: 'in', value: c.note || '', placeholder: 'e.g. requiring no Material components', oninput: e => { c.note = e.target.value; const p = document.querySelector('.castpanel .castpreview'); if (p) p.textContent = castBlock(f).d; } }),
     h('p', { class: 'small castpreview', style: { margin: '10px 0 0' } }, castBlock(f).d));
 }
-function editCustom(id) {
+function editCustom(id, pre) {
   const ex = id ? S.custom.find(c => c._id === id) : null;
   openSheet(ex ? 'Edit homebrew creature' : 'New homebrew creature', rec => {
-    const st = rec.state; if (!st.f) st.f = ex ? clone(ex) : { n: '', sz: 'Medium', t: 'humanoid', al: '', ac: 12, hp: 11, hd: '2d8+2', sp: '30 ft.', ab: [10, 10, 10, 10, 10, 10], cr: 1, se: '', lg: '', raw: { tr: '', ac2: '', ba: '', re: '', la: '' } };
+    const st = rec.state; if (!st.f) st.f = ex ? clone(ex) : Object.assign({ n: '', sz: 'Medium', t: 'humanoid', al: '', ac: 12, hp: 11, hd: '2d8+2', sp: '30 ft.', ab: [10, 10, 10, 10, 10, 10], cr: 1, se: '', lg: '', raw: { tr: '', ac2: '', ba: '', re: '', la: '' } }, pre || {});
     const f = st.f; f.raw = f.raw || { tr: '', ac2: '', ba: '', re: '', la: '' };
     const inp = (l, k, o = {}) => h('div', { class: 'grow' }, h('label', { class: 'f' }, l), h('input', Object.assign({ class: 'in' + (o.type === 'number' ? ' num' : ''), value: f[k], oninput: e => f[k] = o.type === 'number' ? +e.target.value : e.target.value }, o)));
     const ta = (l, k, ph) => [h('label', { class: 'f' }, l), h('textarea', { class: 'in', value: f.raw[k], placeholder: ph, oninput: e => f.raw[k] = e.target.value })];
@@ -7602,12 +7707,52 @@ function editCustom(id) {
 /* ---------- encounters ---------- */
 const encPath = id => 'gm/meta/encounters/' + id;
 function getEnc(id) { return S.encs.find(e => e._id === id); }
+/* party member NPCs (c.ally): at 0 hit points they fall Unconscious and make death saving throws, like a player character.
+   Damage while down adds failures (two from a critical hit), damage of their hit point maximum kills, healing wakes them.
+   Every path that changes a creature's hit points goes through here. info = { dmg, over, crit } */
+function cbSetHp(c, cur, info = {}) {
+  const prev = +c.hp || 0; c.hp = cur;
+  if (!c.ally) return;
+  const ds = Object.assign({ s: 0, f: 0 }, c.ds), cond = new Set(c.cond || []);
+  if (prev > 0 && cur <= 0) { c.ds = { s: 0, f: 0, stable: false, dead: (info.over || 0) >= (c.max || 0), at: Date.now() }; cond.add('Unconscious'); }
+  else if (prev <= 0 && cur > 0) { delete c.ds; cond.delete('Unconscious'); }
+  else if (prev <= 0 && cur <= 0 && (info.dmg || 0) > 0 && !ds.dead) {
+    ds.f = Math.min(3, ds.f + (info.crit ? 2 : 1)); ds.stable = false; ds.last = { r: 'damage', crit: !!info.crit }; ds.at = Date.now();
+    if (ds.f >= 3 || info.dmg >= (c.max || 0)) ds.dead = true; c.ds = ds;
+  }
+  c.cond = [...cond];
+}
+const cbDying = c => !!(c && c.ally && c.k !== 'pc' && (+c.hp || 0) <= 0 && !(c.ds && c.ds.dead));
+/* out of the fight: a creature at 0 hit points, unless it's a party member still making death saves */
+const cbOut = c => c.k === 'mon' && cbView(c).hp <= 0 && !cbDying(c);
+/* death saves for a downed combatant: the player character's own, or a party member's */
+const cbDs = c => c.k === 'pc' ? (S.chars[c.ref] && S.chars[c.ref].death) || { s: 0, f: 0 } : c.ally ? c.ds || { s: 0, f: 0 } : null;
+/* marks an encounter creature as a party member NPC (or not); one already at 0 hit points starts dying */
+function setAlly(c, on, save, nm) {
+  c.ally = !!on;
+  if (on && (+c.hp || 0) <= 0) { c.ds = c.ds || { s: 0, f: 0, stable: false, dead: false, at: Date.now() }; c.cond = [...new Set((c.cond || []).concat(['Unconscious']))]; }
+  if (!on) delete c.ds;
+  save();
+  if (nm) toast(on ? `${nm} is a party member: at 0 hit points they fall unconscious and make death saving throws.` : `${nm} is a creature again.`, 3400);
+}
+/* lets the death save panel and rolls work on a party member in an encounter */
+function allyDeathCtl(encId, cbId, nm) {
+  const ee = getEnc(encId), c = ee && ee.list.find(x => x.id === cbId);
+  const ch = { hp: { cur: c ? c.hp : 0, max: c ? c.max : 0 }, death: Object.assign({ s: 0, f: 0 }, c && c.ds), cond: (c && c.cond) || [] };
+  const set = patch => { const e = clone(getEnc(encId)); const x = e && e.list.find(y => y.id === cbId); if (!x) return;
+    if (patch.death) x.ds = Object.assign({}, patch.death);
+    if (patch.cond) x.cond = patch.cond.slice();
+    if (patch.hp && patch.hp.cur != null) { x.hp = patch.hp.cur; if (x.hp > 0) { delete x.ds; x.cond = (x.cond || []).filter(n => n !== 'Unconscious'); } }
+    saveEnc(e); };
+  return { ch, o: { set, nm } };
+}
 function saveEnc(e) {
   e.upd = Date.now();
   const i = S.encs.findIndex(x => x._id === e._id);
-  /* a creature that drops to 0 hit points: its linked tokens come off the map */
+  /* a creature that drops to 0 hit points (a party member: that dies) has its linked tokens taken off the map */
   const old = i >= 0 ? S.encs[i] : null;
-  const died = old && old !== e ? e.list.filter(c => c.k !== 'pc' && cbView(c).hp <= 0 && (o => o && cbView(o).hp > 0)(old.list.find(x => x.id === c.id))) : [];
+  const fell = (c, o) => c.k !== 'pc' && (c.ally ? !!(c.ds && c.ds.dead) && !(o.ally && o.ds && o.ds.dead) : cbView(c).hp <= 0 && (cbView(o).hp > 0 || o.ally));
+  const died = old && old !== e ? e.list.filter(c => (o => o && fell(c, o))(old.list.find(x => x.id === c.id))) : [];
   if (i >= 0) S.encs[i] = e; else S.encs.push(e);
   const data = Object.assign({}, e); delete data._id;
   writeDoc(encPath(e._id), data);
@@ -7619,7 +7764,7 @@ function saveEnc(e) {
 /* move an encounter's turn on (or back); starts it when it hasn't started. Returns whose turn it is now */
 function stepEnc(eid, dir) {
   const e0 = getEnc(eid); if (!e0) return null; const e = clone(e0);
-  const alive = () => e.list.filter(c => { const v = cbView(c); return !(c.k === 'mon' && v.hp <= 0); });
+  const alive = () => e.list.filter(c => !cbOut(c));
   const al = alive(); if (!al.length) return null;
   if (!e.turn) { sortEnc(e); e.turn = alive()[0].id; e.round = 1; saveEnc(e); return cbView(alive()[0]).n; }
   let i = al.findIndex(c => c.id === e.turn); if (i < 0) i = 0;
@@ -7678,7 +7823,7 @@ function encounterView(e0) {
   const save = () => saveEnc(e);
   const root = h('div');
   const views = e.list.map(cbView);
-  const alive = () => e.list.filter(c => { const v = cbView(c); return !(c.k === 'mon' && v.hp <= 0); });
+  const alive = () => e.list.filter(c => !cbOut(c));
   const step = dir => { const n = stepEnc(e._id, dir); if (n && e.turn) toast(`${n}’s turn`, 1300); };
   root.append(h('div', { class: 'enc-head' },
     h('button', { class: 'back', onclick: () => { S.encOpen = null; renderMain(); } }, icon('back'), 'Encounters'), h('span', { class: 'grow' }),
@@ -7696,6 +7841,9 @@ function encounterView(e0) {
         h('span', { class: 'initdot', 'aria-label': 'Initiative ' + (cur.init == null ? 'not set' : cur.init) }, cur.init == null ? '–' : String(cur.init))),
       h('div', { class: 'row nowrap' }, h('span', { class: 'grow small muted' }, 'Up next: ', h('strong', { style: { color: 'var(--ink)' } }, nx ? nx.n : '—')),
         h('button', { class: 'btn ghost sm', onclick: () => step(-1) }, 'Back'), h('button', { class: 'btn primary', onclick: () => step(1) }, 'Next turn')),
+      cbDying(e.list.find(c => c.id === cur.id)) ? (() => { const x = e.list.find(c => c.id === cur.id), ds = Object.assign({ s: 0, f: 0 }, x.ds), ctl = allyDeathCtl(e._id, x.id, cur.n);
+        return h('div', { class: 'row nowrap', style: { marginTop: '8px' } }, h('div', { class: 'grow' }, h('div', { class: 'small', style: { fontWeight: 800 } }, ds.stable ? 'Stable at 0 hit points' : 'Down: death saving throw'), dsBar(ds)),
+          ds.stable ? null : h('button', { class: 'btn primary sm', onclick: () => rollDeathSave(ctl.ch, ctl.o, cur.n) }, icon('d20'), 'Roll death save')); })() : null,
       h('button', { class: 'btn sm', onclick: () => openCombatant(e._id, cur.id) }, cur.k === 'pc' ? 'Open sheet' : 'Stat block and HP')));
   } else if (e.list.length) {
     root.append(h('section', { class: 'nowcard' }, h('div', { class: 'lbl' }, 'Ready'), h('div', { class: 'small muted' }, 'Roll initiative, then start. Players’ own initiative rolls are used when they’ve rolled recently.'),
@@ -7726,17 +7874,19 @@ function encounterView(e0) {
     e.list.length ? h('button', { class: 'chip', onclick: () => openAreaDamage(e._id) }, 'Area damage') : null,
     e.list.some(c => c.k !== 'pc') ? h('button', { class: 'chip ico', 'aria-pressed': e.secret ? 'true' : 'false', title: 'Players see only “The Game Master” for creatures’ turns until you reveal them', onclick: () => { e.secret = !e.secret; save(); toast(e.secret ? 'Creatures hidden from players. Tap the eye on a creature to reveal it.' : 'Players see every creature in the turn order.', 3200); } }, icon(e.secret ? 'eye-off' : 'eye'), e.secret ? 'Creatures hidden' : 'Hide creatures') : null,
     e.list.some(c => c.k === 'mon') ? h('button', { class: 'chip', 'aria-pressed': e.hideHp ? 'false' : 'true', title: 'Whether players see a health bar for each creature', onclick: () => { e.hideHp = !e.hideHp; save(); toast(e.hideHp ? 'Players no longer see creatures’ health.' : 'Players see a health bar for each creature (never the numbers).', 2800); } }, e.hideHp ? 'Health hidden from players' : 'Players see health') : null,
-    advMode() === 'xp' && e.list.some(c => c.k === 'mon') ? h('button', { class: 'chip', onclick: () => { const xp = e.list.filter(c => c.k === 'mon').reduce((a, c) => a + ((getMon(c.ref) || {}).xp || 0), 0); openAwardXp(xp, e.list.filter(c => c.k === 'pc').map(c => c.ref), `For ${e.name || 'this encounter'}: ${fmtN(xp)} XP from its creatures.`); } }, 'Award XP') : null,
+    advMode() === 'xp' && e.list.some(c => c.k === 'mon' && !c.ally) ? h('button', { class: 'chip', onclick: () => { const xp = e.list.filter(c => c.k === 'mon' && !c.ally).reduce((a, c) => a + ((getMon(c.ref) || {}).xp || 0), 0); openAwardXp(xp, e.list.filter(c => c.k === 'pc').map(c => c.ref), `For ${e.name || 'this encounter'}: ${fmtN(xp)} XP from its creatures.`); } }, 'Award XP') : null,
     h('button', { class: 'chip', onclick: () => { sortEnc(e); save(); } }, 'Sort'),
     e.turn ? h('button', { class: 'chip', onclick: async () => { if (await confirmSheet('Reset encounter?', 'Clears initiative and goes back to round 1. Hit points stay as they are.', 'Reset', false)) { e.turn = null; e.round = 1; e.list.forEach(c => { c.init = null; c.auto = false; c.resPid = null; }); save(); if (S.gmPrompt && S.gmPrompt.enc === e._id) delDoc('combat/prompt'); } } }, 'Reset') : null));
   if (e.list.length) root.append(h('h2', { class: 'sec', style: { marginTop: '8px' } }, 'Turn order'));
   if (!e.list.length) root.append(h('div', { class: 'empty' }, h('b', null, 'Nobody’s fighting yet'), 'Add the party and some creatures, then tap Roll initiative: creatures roll straight away and each player gets a pop-up to roll their own.'));
   views.forEach((v, idx) => {
     if (v.gone) { root.append(h('div', { class: 'cb' }, h('span', { class: 'grow muted' }, 'A character who left the campaign'), h('button', { class: 'btn sm', onclick: () => { e.list.splice(idx, 1); save(); } }, 'Remove'))); return; }
-    const isTurn = e.turn === v.id; const down = v.hp <= 0;
-    root.append(h('div', { class: 'cb' + (isTurn ? ' turn' : '') + (down ? ' down' : ''), role: 'button', tabindex: 0, onclick: () => openCombatant(e._id, v.id) },
+    const isTurn = e.turn === v.id; const down = v.hp <= 0, ally = v.k !== 'pc' && !!e.list[idx].ally;
+    /* dimmed when it's out of the fight; a character or party member still making death saves stays bright */
+    const dying = down && (v.k === 'pc' || ally) && !((cbDs(e.list[idx]) || {}).dead);
+    root.append(h('div', { class: 'cb' + (isTurn ? ' turn' : '') + (down && !dying ? ' down' : '') + (dying ? ' dying' : ''), role: 'button', tabindex: 0, onclick: () => openCombatant(e._id, v.id) },
       h('button', { class: 'ini', 'aria-label': 'Initiative for ' + v.n, onclick: async ev => { ev.stopPropagation(); const n = await askText('Initiative for ' + v.n, v.init == null ? '' : String(v.init), { ok: 'Set' }); if (n != null && n !== '' && !isNaN(+n)) { const c = e.list.find(x => x.id === v.id); c.init = +n; c.auto = false; save(); } } }, v.init == null ? '–' : String(v.init)),
-      h('div', { class: 'grow', style: { minWidth: 0 } }, h('div', { class: 't' }, v.n), h('div', { class: 'k' }, v.k === 'pc' ? 'Player character' : (getMon(v.ref) ? `CR ${crStr(+getMon(v.ref).cr || 0)} ${cap(getMon(v.ref).t)}` : 'Creature')), hpBar(v.hp, v.max, true),
+      h('div', { class: 'grow', style: { minWidth: 0 } }, h('div', { class: 't' }, v.n, ally ? h('span', { class: 'tag ally' }, 'Party') : null), h('div', { class: 'k' }, v.k === 'pc' ? 'Player character' : (ally ? 'Party member, ' : '') + (getMon(v.ref) ? `CR ${crStr(+getMon(v.ref).cr || 0)} ${cap(getMon(v.ref).t)}` : 'Creature')), hpOrDs(v.hp, v.max, cbDs(e.list[idx]), true),
         (v.cond || []).length || (v.marks || []).length || v.conc ? h('div', { class: 'chips', style: { marginTop: '5px' } }, v.conc ? h('span', { class: 'chip mark', style: { padding: '1px 8px', fontSize: '12px' } }, 'Concentrating: ' + v.conc) : null, (v.cond || []).map(n => h('span', { class: 'chip cond', style: { padding: '1px 8px', fontSize: '12px' } }, n)), (v.marks || []).map(mk => h('span', { class: 'chip mark', title: markText(mk), style: { padding: '1px 8px', fontSize: '12px' } }, `${mk.n} (${pcName(mk.by).split(' ')[0]})`))) : null),
       e.secret && v.k !== 'pc' ? h('button', { class: 'icon-btn revealbtn' + (encHides(e, e.list[idx]) ? '' : ' on'), 'aria-label': (encHides(e, e.list[idx]) ? 'Reveal ' : 'Hide ') + v.n + (encHides(e, e.list[idx]) ? ' to players' : ' from players'), title: encHides(e, e.list[idx]) ? 'Hidden from players: tap to reveal' : 'Players can see it: tap to hide', onclick: ev => { ev.stopPropagation(); const c = e.list[idx]; c.shown = !c.shown; save(); toast(c.shown ? `${v.n} revealed to players.` : `${v.n} hidden from players.`, 2200); } }, icon(encHides(e, e.list[idx]) ? 'eye-off' : 'eye')) : null,
       h('div', { class: 'acb' }, h('b', null, String(v.ac)), 'AC'),
@@ -7774,17 +7924,19 @@ function openCombatant(encId, cbId) {
     const c = e.list[idx]; const v = cbView(c);
     rec.titleEl.textContent = v.n;
     const save = () => saveEnc(e);
-    const setHP = (p, info) => { if (c.k === 'pc') gmSetPCHP(c.ref, p, info); else { Object.assign(c, { hp: p.cur != null ? p.cur : c.hp, tmp: p.tmp != null ? p.tmp : c.tmp, max: p.max != null ? p.max : c.max }); save(); if (info && info.dmg > 0 && c.conc && c.hp > 0) { queueConcCheck(encId, c, info.dmg); drawDamagePrompts(); } } };
+    const setHP = (p, info) => { if (c.k === 'pc') gmSetPCHP(c.ref, p, info); else { Object.assign(c, { tmp: p.tmp != null ? p.tmp : c.tmp, max: p.max != null ? p.max : c.max }); cbSetHp(c, p.cur != null ? p.cur : c.hp, info || {}); save(); if (info && info.dmg > 0 && c.conc && c.hp > 0) { queueConcCheck(encId, c, info.dmg); drawDamagePrompts(); } } };
     const getHP = () => { const ee = getEnc(encId); const cc = ee && ee.list.find(x => x.id === cbId); const vv = cc ? cbView(cc) : v; return { cur: vv.hp, max: vv.max, tmp: vv.tmp || 0 }; };
     const body = h('div');
     body.append(h('div', { class: 'vitals', style: { gridTemplateColumns: '1.6fr 1fr 1fr' } },
       h('button', { class: 'vital hp', onclick: () => openHP(v.n + ': hit points', getHP, setHP) }, h('div', { class: 'k' }, 'Hit points'), h('div', { class: 'v' }, String(v.hp), h('span', null, ' / ' + v.max)), v.tmp ? h('span', { class: 'tmp' }, '+' + v.tmp) : null, hpBar(v.hp, v.max)),
       h('div', { class: 'vital' }, h('div', { class: 'v' }, String(v.ac)), h('div', { class: 'k' }, 'AC')),
       h('button', { class: 'vital', onclick: async () => { const n = await askText('Initiative', v.init == null ? '' : String(v.init), { ok: 'Set' }); if (n != null && n !== '' && !isNaN(+n)) { c.init = +n; c.auto = false; save(); } } }, h('div', { class: 'v' }, v.init == null ? '–' : String(v.init)), h('div', { class: 'k' }, 'Initiative'))));
+    if (c.k === 'mon' && c.ally && c.hp <= 0) { const ctl = allyDeathCtl(encId, cbId, v.n); body.append(deathPanel(ctl.ch, ctl.o, v.n)); }
     if ((c.marks || []).length) body.append(h('div', { class: 'panel mt' }, h('div', { class: 'lbl' }, 'Marked by'), c.marks.map(mk => h('div', { class: 'row nowrap', style: { marginTop: '6px' } }, h('div', { class: 'grow small' }, markText(mk)),
       h('button', { class: 'icon-btn', 'aria-label': 'Remove ' + mk.n, onclick: () => { c.marks = c.marks.filter(x => x.id !== mk.id); save(); } }, icon('close'))))));
     body.append(h('div', { class: 'chips mt' }, (v.cond || []).map(n => h('button', { class: 'chip cond', onclick: () => showCondition(n, () => { if (c.k === 'pc') { const ch = S.chars[c.ref]; const nc = (ch.cond || []).filter(x => x !== n); S.chars[c.ref] = Object.assign({}, ch, { cond: nc }); writeDoc('characters/' + c.ref, { cond: nc }, 'update'); syncParty(c.ref); refresh(); } else { c.cond = c.cond.filter(x => x !== n); save(); } }) }, n)),
-      e.secret && c.k !== 'pc' ? h('button', { class: 'chip ico', 'aria-pressed': c.shown ? 'true' : 'false', onclick: () => { c.shown = !c.shown; save(); } }, icon(c.shown ? 'eye' : 'eye-off'), c.shown ? 'Shown to players' : 'Hidden from players') : null,
+      c.k === 'mon' ? h('button', { class: 'chip', 'aria-pressed': c.ally ? 'true' : 'false', title: 'A party member makes death saving throws at 0 hit points instead of dying', onclick: () => setAlly(c, !c.ally, save, v.n) }, c.ally ? 'Party member' : 'Make a party member') : null,
+      e.secret && c.k !== 'pc' && !c.ally ? h('button', { class: 'chip ico', 'aria-pressed': c.shown ? 'true' : 'false', onclick: () => { c.shown = !c.shown; save(); } }, icon(c.shown ? 'eye' : 'eye-off'), c.shown ? 'Shown to players' : 'Hidden from players') : null,
       c.k === 'mon' ? h('button', { class: 'chip' + (c.conc ? ' cond' : ''), onclick: async () => { const n = await askText('Concentrating on which spell?', c.conc || '', { placeholder: 'e.g. Hold Person (leave empty for none)', ok: 'Set' }); if (n != null) { c.conc = n.trim(); save(); } } }, c.conc ? `Concentrating: ${c.conc}` : 'Concentration…') : null,
       h('button', { class: 'chip', onclick: () => pickConditions(v.cond || [], nc => { if (c.k === 'pc') { S.chars[c.ref] = Object.assign({}, S.chars[c.ref], { cond: nc }); writeDoc('characters/' + c.ref, { cond: nc }, 'update'); syncParty(c.ref); refresh(); } else { c.cond = nc; save(); } }) }, 'Conditions')));
     body.append(h('div', { class: 'row mt' },
@@ -8000,12 +8152,40 @@ function tokCreature(t) {
   if (t.cb) { const e = getEnc(t.cb.enc), c = e && e.list.find(x => x.id === t.cb.id); if (c) return { e, c, m: getMon(c.ref), n: cbView(c).n }; }
   const m = t.mon ? getMon(t.mon) : null; return m ? { m, n: m.n } : null;
 }
-/* { w: 0–1, col } for a token linked to an encounter's creature: exact for the GM, the published tier for players */
+/* { w: 0–1, col } for a token's health bar, or { ds } for its death saves when it's down. Tokens linked to an encounter's
+   creature: exact for the GM, the published tier for players. A player character's token: exact for the GM and its own
+   player, the party's published tier for everyone else. */
+const tokDs = ds => ({ ds: Object.assign({ s: 0, f: 0 }, ds) });
 function tokHealth(t, player) {
-  if (!t || !t.cb) return null;
-  if (!player) { const e = getEnc(t.cb.enc), c = e && e.list.find(x => x.id === t.cb.id); if (!c) return null; const v = cbView(c); if (!v.max) return null; return { w: clamp(v.hp / v.max, 0, 1), col: tierHex(hpTier(v.hp, v.max)) }; }
-  const tt = S.turn, c = turnLive(tt) && tt.enc === t.cb.enc && tt.list.find(x => x.id === t.cb.id); if (!c || c.h == null) return null;
+  if (!t) return null;
+  if (t.uid) {
+    const c = !player ? (S.chars || {})[t.uid] : t.uid === ME.id ? S.char : null;
+    if (c) { const hp = c.hp || {}; if (!hp.max) return null; return (hp.cur || 0) <= 0 ? tokDs(c.death) : { w: clamp(hp.cur / hp.max, 0, 1), col: tierHex(hpTier(hp.cur, hp.max)) }; }
+    const p = (S.party || {})[t.uid]; if (!p || !p.hp) return null; if (p.ds) return tokDs(p.ds);
+    const k = clamp(+p.hp.tier || 0, 0, 6); return { w: TIER_WIDTH[k] / 100, col: tierHex(k) };
+  }
+  if (!t.cb) return null;
+  if (!player) { const e = getEnc(t.cb.enc), c = e && e.list.find(x => x.id === t.cb.id); if (!c) return null; const v = cbView(c); if (!v.max) return null; if (c.ally && v.hp <= 0) return tokDs(c.ds); return { w: clamp(v.hp / v.max, 0, 1), col: tierHex(hpTier(v.hp, v.max)) }; }
+  const tt = S.turn, c = turnLive(tt) && tt.enc === t.cb.enc && tt.list.find(x => x.id === t.cb.id); if (!c) return null;
+  if (Array.isArray(c.ds)) return tokDs({ s: +c.ds[0] || 0, f: +c.ds[1] || 0, stable: c.ds[2] === 1, dead: c.ds[2] === 2 });
+  if (c.h == null) return null;
   const k = clamp(+c.h || 0, 0, 6); return { w: TIER_WIDTH[k] / 100, col: tierHex(k) };
+}
+/* open maps with player character tokens redraw when the party's health changes */
+function redrawPartyTokens() {
+  [S.mapEd, S.liveView && S.liveView.ed].forEach(m => { try { if (m && m.draw && m.data && (m.data.tokens || []).some(t => t.uid)) m.draw(); } catch (e) { } });
+}
+/* death saves under a downed token: three pips that light green for successes and three that light red for failures */
+function drawTokDs(x, cx, top, r, ds) {
+  const pr = Math.max(3, r * 0.13), gap = pr * 0.8, mid = pr * 2.2, w = 12 * pr + 4 * gap + mid;
+  x.fillStyle = 'rgba(20,16,13,.82)'; x.fillRect(cx - w / 2 - 3, top - 2.5, w + 6, pr * 2 + 5);
+  let px = cx - w / 2 + pr;
+  for (let i = 0; i < 6; i++) {
+    const succ = i < 3, on = succ ? i < (ds.s || 0) : i - 3 < (ds.f || 0), col = succ ? tierHex(1) : tierHex(5);
+    x.beginPath(); x.arc(px, top + pr, pr, 0, Math.PI * 2);
+    x.fillStyle = on ? col : 'rgba(237,227,209,.18)'; x.fill(); x.lineWidth = Math.max(1, pr * 0.35); x.strokeStyle = col; x.stroke();
+    px += pr * 2 + (i === 2 ? mid : gap);
+  }
 }
 /* a linked creature has died: take its tokens off the maps they're on (the encounter's map, the token's own map, the open map).
    The GM gets an Undo in the message. */
@@ -8235,7 +8415,7 @@ function MapEditor(meta0, opts = {}) {
       x.lineWidth = 3; x.strokeStyle = '#FFFFFF'; x.stroke(); x.lineWidth = 1; x.strokeStyle = 'rgba(0,0,0,.35)'; x.stroke();
       x.fillStyle = (t.c === 7 || t.c === 2 || t.c === 6) ? '#2B2118' : '#FFFFFF'; x.font = `800 ${Math.max(9, Math.round(r * 2 * (t.l && t.l.length > 2 ? 0.31 : 0.45)))}px "CF Sans", "Alegreya Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
       x.fillText((t.l || '').slice(0, z < 1 ? 2 : 4), cx, cy + 1);
-      if (!exporting && t.cb) { const hb = tokHealth(t, PLAYER); if (hb) { const bw = Math.max(r * 1.7, 16), bh = Math.max(4, r * 0.2), bx = cx - bw / 2, by = cy + r + 4; x.fillStyle = 'rgba(20,16,13,.8)'; x.fillRect(bx - 1.5, by - 1.5, bw + 3, bh + 3); x.fillStyle = hb.col; x.fillRect(bx, by, bw * hb.w, bh); } }
+      if (!exporting && (t.cb || t.uid)) { const hb = tokHealth(t, PLAYER); if (hb && hb.ds) drawTokDs(x, cx, cy + r + 4 + (t.uid ? 4 : 0), r, hb.ds); else if (hb) { const bw = Math.max(r * 1.7, 16), bh = Math.max(4, r * 0.2), bx = cx - bw / 2, by = cy + r + 4 + (t.uid ? 4 : 0); x.fillStyle = 'rgba(20,16,13,.8)'; x.fillRect(bx - 1.5, by - 1.5, bw + 3, bh + 3); x.fillStyle = hb.col; x.fillRect(bx, by, bw * hb.w, bh); } }
       if (!exporting && !PLAYER && ed.sel === t.id) { x.save(); x.beginPath(); x.arc(cx, cy, r + 7 / Math.max(ed.view.s, 0.2), 0, Math.PI * 2); x.setLineDash([8 / ed.view.s, 6 / ed.view.s]); x.lineWidth = 3 / ed.view.s; x.strokeStyle = '#F08A3C'; x.stroke(); x.restore(); }
     });
     if (!exporting) {
@@ -8532,28 +8712,42 @@ function MapEditor(meta0, opts = {}) {
   }
   function tokenSheet(t) {
     openSheet('Token', rec => {
-      const st = rec.state; if (!st.d) st.d = { l: t.l || '', c: t.c, sz: tokSz(t), uid: t.uid || '', mon: t.mon || null, cb: t.cb || null };
+      const st = rec.state; if (!st.d) st.d = { l: t.l || '', c: t.c, sz: tokSz(t), uid: t.uid || '', mon: t.mon || null, cb: t.cb || null, ally: null };
       add(rec.foot, [h('button', { class: 'btn danger', onclick: () => { pushUndo(); ed.data.tokens = ed.data.tokens.filter(x => x !== t); changed(); closeSheet(rec); } }, icon('trash'), 'Remove'),
         h('button', { class: 'btn primary', onclick: () => {
+          /* a party member NPC that isn't in an encounter yet joins this map's encounter, so its hit points and death saves are tracked */
+          if (!st.d.uid && !st.d.cb && st.d.mon && st.d.ally && encs[0] && getMon(st.d.mon)) { const e1 = clone(encs[0]); addMonstersTo(e1, getMon(st.d.mon), 1, 'avg'); const c1 = e1.list[e1.list.length - 1]; c1.ally = true; c1.tok = { map: ed.id, id: t.id }; saveEnc(e1); st.d.cb = { enc: e1._id, id: c1.id }; toast(`${c1.n} joined ${e1.name} as a party member.`, 3000); }
           pushUndo(); const tp = tokPos(t), nz = TOKEN_SIZE[st.d.sz][2], nst = nz < 1 ? 0.5 : 1;
           const gx = clamp(Math.round(tp.gx / nst) * nst, 0, ed.meta.cols - nz), gy = clamp(Math.round(tp.gy / nst) * nst, 0, ed.meta.rows - nz);
           Object.assign(t, { l: st.d.l.slice(0, 4), c: st.d.c, sz: st.d.sz, z: nz, uid: st.d.uid || null, gx, gy, mon: st.d.uid ? null : st.d.mon || null, cb: st.d.uid ? null : st.d.cb || null });
           if (st.d.uid) { writeDoc('ptok/' + st.d.uid, { pos: { [ed.id]: { [t.id]: { gx, gy } } }, at: Date.now() }, 'update'); if (ed.pt[st.d.uid] && ed.pt[st.d.uid][ed.id]) ed.pt[st.d.uid][ed.id][t.id] = { gx, gy }; }
           changed(); closeSheet(rec); drawTools();
-          if (t.cb) { const e0 = getEnc(t.cb.enc), c0 = e0 && e0.list.find(x => x.id === t.cb.id); if (c0 && !(c0.tok && c0.tok.map === ed.id && c0.tok.id === t.id)) { const e1 = clone(e0); e1.list.find(x => x.id === t.cb.id).tok = { map: ed.id, id: t.id }; saveEnc(e1); } }
+          if (t.cb) { const e0 = getEnc(t.cb.enc), c0 = e0 && e0.list.find(x => x.id === t.cb.id);
+            if (c0) { const relink = !(c0.tok && c0.tok.map === ed.id && c0.tok.id === t.id), ally = st.d.ally != null && !!st.d.ally !== !!c0.ally;
+              if (relink || ally) { const e1 = clone(e0), c1 = e1.list.find(x => x.id === t.cb.id); if (relink) c1.tok = { map: ed.id, id: t.id }; if (ally) setAlly(c1, st.d.ally, () => { }, cbView(c1).n); saveEnc(e1); } } }
         } }, 'Save token')]);
       const pcs = Object.keys(S.chars || {});
       /* link a creature: one from this map's encounter (with its hit points), or any stat block */
-      const link = (mon, cb, name) => { const m = getMon(mon); st.d.mon = mon; st.d.cb = cb; st.d.uid = ''; if (m) st.d.sz = tokSizeFor(m); st.d.l = tokLabelFor(name || (m && m.n)); fillSheet(rec); };
+      const link = (mon, cb, name) => { const m = getMon(mon); st.d.mon = mon; st.d.cb = cb; st.d.uid = ''; st.d.ally = null; if (m) st.d.sz = tokSizeFor(m); st.d.l = tokLabelFor(name || (m && m.n)); fillSheet(rec); };
       const encs = (S.encs || []).filter(e => e.map === ed.id).concat((S.encs || []).filter(e => e.map !== ed.id && S.encOpen === e._id));
       const inEnc = encs.flatMap(e => e.list.filter(c => c.k === 'mon').map(c => ({ e, c, v: cbView(c) })));
       const linked = st.d.cb || st.d.mon ? tokCreature({ cb: st.d.cb, mon: st.d.mon }) : null;
+      /* a party member NPC: an ally who makes death saving throws at 0 hit points, with a health bar on its token */
+      const allyPart = () => {
+        const on = st.d.ally != null ? !!st.d.ally : !!(linked && linked.c && linked.c.ally);
+        const can = linked && (linked.c || encs[0]);
+        return h('div', { style: { marginTop: '10px' } },
+          can ? h('label', { class: 'pick' }, h('input', { type: 'checkbox', checked: on, onchange: e => { st.d.ally = e.target.checked; fillSheet(rec); } }), h('span', { class: 'grow' }, 'Party member NPC', h('span', { class: 'small muted', style: { display: 'block' } }, 'At 0 hit points it falls unconscious and makes death saving throws instead of dying.'))) : null,
+          can && on && !linked.c ? h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, `Saving adds it to ${encs[0].name}, so its hit points and death saves are tracked.`) : null,
+          linked && !can ? h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, 'To make it a party member NPC with death saves, add it to an encounter for this map first.') : null);
+      };
       const creaturePart = h('div', { class: 'panel mt' }, h('div', { class: 'lbl' }, 'Creature'),
         linked ? h('div', { class: 'row nowrap', style: { marginTop: '6px' } }, h('div', { class: 'grow' }, h('div', { class: 't', style: { fontWeight: 800 } }, linked.n), h('div', { class: 's small muted' }, linked.m ? `${linked.m.sz} ${linked.m.t}, AC ${linked.c ? cbView(linked.c).ac : linked.m.ac}${linked.c ? `, HP ${cbView(linked.c).hp}/${cbView(linked.c).max} in ${linked.e.name}` : ''}` : '')),
           h('button', { class: 'btn sm', onclick: () => openTokCreature({ cb: st.d.cb, mon: st.d.mon }) }, 'Stat block'), h('button', { class: 'icon-btn', 'aria-label': 'Unlink the creature', onclick: () => { st.d.mon = null; st.d.cb = null; fillSheet(rec); } }, icon('close')))
           : h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, 'Link a creature to size the token to it and open its stat block from the map.'),
         inEnc.length ? h('div', { class: 'chips', style: { marginTop: '8px' } }, inEnc.map(x => h('button', { class: 'chip', 'aria-pressed': st.d.cb && st.d.cb.id === x.c.id ? 'true' : 'false', onclick: () => link(x.c.ref, { enc: x.e._id, id: x.c.id }, x.v.n) }, x.v.n))) : null,
-        h('button', { class: 'btn sm ghost', style: { marginTop: '8px' }, onclick: () => pickCreature(m => link(m.i, null, m.n)) }, icon('bestiary'), inEnc.length ? 'Any creature from the bestiary…' : 'Pick a creature…'));
+        h('button', { class: 'btn sm ghost', style: { marginTop: '8px' }, onclick: () => pickCreature(m => link(m.i, null, m.n)) }, icon('bestiary'), inEnc.length ? 'Any creature from the bestiary…' : 'Pick a creature…'),
+        allyPart());
       return h('div', null,
         st.d.uid ? null : creaturePart,
         h('label', { class: 'f' }, 'Belongs to'), h('select', { class: 'in', onchange: e => { st.d.uid = e.target.value; if (st.d.uid && (!st.d.l || /^[A-Z]$/.test(st.d.l))) st.d.l = initials(pcName(st.d.uid)); fillSheet(rec); } }, h('option', { value: '' }, 'Nobody (only you can move it)'), pcs.map(u => h('option', { value: u, selected: st.d.uid === u ? true : null }, pcName(u)))),
@@ -9945,6 +10139,348 @@ function hoBody(text, gm) {
   return wrap;
 }
 
+/* ================= Add-ons =================
+   Extra rules data the Game Master switches on for a campaign (campaign/info.addons = { id: true }): new backgrounds and
+   feats, class and subclass features, build advice, tool and crafting details, a rules reference, spells from newer and older
+   books, and an index of every creature in the 2024 books.
+   Each add-on is a JSON file shipped beside the app (addon-<id>.json), downloaded the first time it's switched on and
+   then kept for offline use; the single-file versions carry them inside the page (#addon-data).
+   Every device in the campaign loads the same add-ons, so a character built with one reads the same everywhere.
+   Switching one off takes effect the next time Campfire is opened. */
+const ADDON_CATALOG = [
+ {
+  "id": "planar-lamordia",
+  "version": 1,
+  "name": "Upper Planes Pact and Project Lamordia",
+  "blurb": "The newest D&D Beyond drop: the Upper Planes Pact and its two follow-on feats, and four Project Lamordia backgrounds for Ravenloft.",
+  "contents": [
+   "4 backgrounds: Discredited Neural Tuner, Fabricated Mind, Mutated Commuter, Reconstructed Runaway",
+   "3 feats: Upper Planes Pact (its effects go on the sheet), Elysium Diplomat, Ysgardian Warrior",
+   "Pact Seeker can now take the Upper Planes Pact",
+   "Build notes for each new background"
+  ],
+  "about": "From your book data update of 20 November 2026. Feat texts are summaries; Elysium Diplomat and Ysgardian Warrior weren’t fully confirmed when this was written."
+ },
+ {
+  "id": "build-advice",
+  "version": 1,
+  "name": "Build advice",
+  "blurb": "Star ratings and what each background and feat really does for a character, plus quick background picks for every class.",
+  "contents": [
+   "Ratings (1 to 5) for 75 backgrounds",
+   "Ratings and player impact for 96 feats",
+   "Quick picks for 13 classes in character creation"
+  ],
+  "about": "An editorial shortlist from your backgrounds and feats workbook (compiled October 2026). Ratings are opinions; play what you enjoy."
+ },
+ {
+  "id": "artificer",
+  "version": 1,
+  "name": "The Artificer",
+  "blurb": "Fills in the Artificer from Eberron: Forge of the Artificer: its class features, all six subclasses and a spell list.",
+  "contents": [
+   "19 class features, with plans known and magic items at each level",
+   "6 subclasses with 40 features: Alchemist, Armorer, Artillerist, Battle Smith, Cartographer, Reanimator",
+   "Always-prepared subclass spells on the sheet",
+   "The 2024 artificer spell list: 73 spells from the free rules, plus Homunculus Servant from the book"
+  ],
+  "about": "Feature texts are summaries from your classes workbook; check the book for exact wording. The spell list comes from your spell data of 21 November 2026. Switch on More 2024 spells as well and the artificer gets the rest of its list, such as Arcane Vigor, Thorn Whip and Thunderclap."
+ },
+ {
+  "id": "subclasses",
+  "version": 1,
+  "name": "Subclass features",
+  "blurb": "Every subclass beyond the free rules gets its features on the sheet and at level up, with always-prepared spells and a one-line playstyle.",
+  "contents": [
+   "59 subclasses from the Player’s Handbook, Heroes of Faerûn, The Horrors Within, Arcana Unleashed and D&D Beyond Drops",
+   "309 subclass features, shown at the right levels",
+   "Always-prepared spells for 24 subclasses",
+   "A playstyle line for every subclass when you choose one"
+  ],
+  "about": "Feature texts are summaries from your classes workbook; check the book for exact wording. Subclasses from the free rules keep their full text."
+ },
+ {
+  "id": "gear-rules",
+  "version": 1,
+  "name": "Tools, crafting and rules reference",
+  "blurb": "What each tool does and can craft, magic item values and crafting costs, and a rules reference for coins, weapons, armour, carrying, movement, travel and scrolls.",
+  "contents": [
+   "37 tools: ability, what you can do with them (and the DC), what you can craft",
+   "Value, crafting cost and crafting time for 413 magic items",
+   "Carrying notes for 21 pieces of gear, and what spellcasting foci are for",
+   "A Rules reference with 11 tables, from the menu"
+  ],
+  "about": "From your weapons, armour and items workbook. Values follow the 2024 Dungeon Master’s Guide crafting rules."
+ },
+ {
+  "id": "more-items",
+  "version": 1,
+  "name": "More magic items and gear",
+  "blurb": "Magic items, weapons and gear from the books after the Dungeon Master’s Guide: Arcana Unleashed, World of Warcraft, Forge of the Artificer, Faerûn and more.",
+  "contents": [
+   "171 magic items: Arcana Unleashed (60), World of Warcraft (28), Icecrown Citadel (16), Arcana Unleashed: Deadfall (14), D&D Beyond Drops (11), Forge of the Artificer (9), Netheril’s Fall (8), Adventures in Faerûn (8), Stranger Things: Welcome to the Hellfire Club (8), Heroes of Faerûn and Adventures in Faerûn (3), Heroes of Faerûn (2), The Horrors Within (2), Lorwyn: First Light (2)",
+   "3 weapons: Pitchfork, Bola, Weighted Chain",
+   "16 pieces of gear: clothing, camouflage, poisons and more",
+   "Each item has a short summary, its price and its crafting cost and time"
+  ],
+  "about": "From your item data of 20 November 2026. Many of these books’ rules aren’t public yet, so several items have only a short description: their notes say so. The three new weapons’ statistics come from early reviews; check D&D Beyond."
+ },
+ {
+  "id": "spells-2024",
+  "version": 1,
+  "name": "More 2024 spells",
+  "blurb": "The 2024 spells the free rules leave out: the rest of the Player’s Handbook, plus Heroes of Faerûn, Forge of the Artificer, Arcana Unleashed and World of Warcraft.",
+  "contents": [
+   "174 spells: World of Warcraft (69), Player’s Handbook (52), Arcana Unleashed (33), Heroes of Faerûn (19), Forge of the Artificer (1)",
+   "Each has its level, school, casting time, range, components, duration and class lists, so players can add them to their sheets",
+   "Damage types, saving throws, conditions and areas, with the book and page for the full rules",
+   "23 of the World of Warcraft spells belong to its Death Knight and Demon Hunter classes, so no class here lists them: they’re in the spell reference"
+  ],
+  "about": "Stat lines from your spell data of 21 November 2026. The rules text isn’t included: each spell names the book and page that has it."
+ },
+ {
+  "id": "spells-legacy",
+  "version": 1,
+  "name": "Legacy spells (2014 books)",
+  "blurb": "Spells from Xanathar’s, Tasha’s and the other 2014 books that were never reprinted for 2024, with the 2024 classes that can use them.",
+  "contents": [
+   "135 spells: Xanathar’s (78), Wildemount (15), Tasha’s (11), Acquisitions Inc. (7), Fizban’s (6), Strixhaven (4), Book of Many Things (3), Kwalish (3), Spelljammer (2), Icewind Dale (2), Sigil (2), Ravnica (1), A Verdant Tomb (1)",
+   "Class lists for the 2024 classes, so players can add them to their sheets",
+   "Stat lines, damage types, saving throws, conditions and areas, with the book and page for the full rules",
+   "16 dunamancy and guild spells with no class list say who can learn them"
+  ],
+  "about": "The 2024 rules allow older spells with the Game Master’s say-so. Spells reprinted for 2024, such as Toll the Dead and Ice Knife, are left out here: they come with the free rules or More 2024 spells."
+ },
+ {
+  "id": "creature-index",
+  "version": 1,
+  "name": "Creature index",
+  "blurb": "Every creature in the 2024 Monster Manual and the other 2024 books, in your bestiary with its CR, XP, type, habitat and the book its stat block is in.",
+  "contents": [
+   "576 creatures beyond the free rules: Monster Manual (181), World of Warcraft (90), Horrors Within (69), Adventures in Faerûn (41), Hellfire Club (31), Forge of the Artificer (25), Icecrown Citadel (23), D&D Beyond Drops (21) and 14 more books",
+   "Filter the bestiary by book and by habitat; the free-rules creatures get their Monster Manual habitats too",
+   "Each one shows its CR, XP, size, type, alignment and where its stat block is",
+   "Write any of them into your bestiary as homebrew, with the name, size, type, alignment and CR filled in, ready for encounters"
+  ],
+  "about": "An index only: the stat blocks are in the books. From your creature data of 21 November 2026."
+ }
+];
+const ADDON = { applied: {}, loading: {}, failed: {}, rec: null,
+  bgRating: {}, featRating: {}, picks: {}, themes: {}, tools: {}, mi: {}, gear: {}, rules: [], creatures: [], crBooks: {} };
+let ADDON_EMBED;
+const addonInfo = id => ADDON_CATALOG.find(a => a.id === id) || null;
+const addonsWanted = () => { const a = (S.campaign || {}).addons || {}; return ADDON_CATALOG.map(x => x.id).filter(id => a[id]); };
+const addonOn = id => !!ADDON.applied[id];
+function addonEmbedded(id) {
+  if (ADDON_EMBED === undefined) { const el = document.getElementById('addon-data'); try { ADDON_EMBED = el ? JSON.parse(el.textContent) : null; } catch (e) { ADDON_EMBED = null; } }
+  return ADDON_EMBED && ADDON_EMBED[id];
+}
+async function fetchAddon(id) {
+  const emb = addonEmbedded(id); if (emb) return emb;
+  const r = await fetch('addon-' + id + '.json', { cache: 'no-cache' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+function loadAddon(id) {
+  if (!ADDON.loading[id]) ADDON.loading[id] = fetchAddon(id).then(p => { applyAddon(p); delete ADDON.failed[id]; return p; })
+    .catch(e => { delete ADDON.loading[id]; ADDON.failed[id] = String(e && e.message || e); throw e; });
+  return ADDON.loading[id];
+}
+/* loads whatever the campaign has switched on and isn't loaded yet; called whenever campaign/info changes */
+async function syncAddons() {
+  const want = addonsWanted().filter(id => !ADDON.applied[id] && !ADDON.loading[id]);
+  if (!want.length) return;
+  const res = await Promise.allSettled(want.map(loadAddon));
+  const bad = want.filter((id, i) => res[i].status !== 'fulfilled');
+  if (bad.length) toast(`Couldn’t load ${bad.map(id => (addonInfo(id) || { name: id }).name).join(' and ')}. Check your connection, then open Add-ons from the menu to try again.`, 4600);
+  if (res.some(r => r.status === 'fulfilled') && S.role) { refresh(); refreshAddonSheet(); }
+}
+function refreshAddonSheet() { if (ADDON.rec && document.body.contains(ADDON.rec.scrim)) fillSheet(ADDON.rec); }
+
+/* puts an add-on's data into the app's tables; safe to call twice */
+function applyAddon(p) {
+  if (!p || p.format !== 'campfire-addon' || p.system !== PACK_SYSTEM) throw new Error('Not a Campfire add-on');
+  if (ADDON.applied[p.id]) return;
+  const d = p.data || {};
+  Object.assign(BOOK_SRC, d.bookSrc || {});
+  (d.backgrounds || []).forEach(row => { const b = addBookBg(row); if (b) BG_BY[b.i] = b; });
+  Object.entries(d.bgPatch || {}).forEach(([i, patch]) => { const b = BG_BY[i]; if (b) Object.assign(b, patch, patch.ft ? { fi: patch.ft.replace(/ \(.*\)$/, '') } : {}); });
+  SRD.bg.sort((a, b) => a.n.localeCompare(b.n));
+  (d.feats || []).forEach(addBookFeat);
+  Object.entries(d.featBy || {}).forEach(([n, by]) => { if (FEAT_INFO[n]) FEAT_INFO[n].by = by; });
+  Object.assign(BOOK_FEAT_TEXT, d.featText || {});
+  Object.assign(BOOK_BG_NOTE, d.bgNotes || {});
+  Object.assign(FX, d.featFx || {});
+  /* class and subclass features: [class, level, name, text, subclass?] */
+  (d.classFeatures || []).forEach(([c, l, n, t, s]) => {
+    if (SRD.fea.some(f => f.c === c && f.l === l && f.n === n && (f.s || '') === (s || ''))) return;
+    SRD.fea.push(s ? { n, c, l, d: t, s } : { n, c, l, d: t });
+    if (s && CLS_BY[c] && !CLS_BY[c].sub.includes(s)) CLS_BY[c].sub.push(s);
+  });
+  Object.entries(d.classTable || {}).forEach(([c, lv]) => { const k = CLS_BY[c]; if (k) Object.entries(lv).forEach(([l, cs]) => { const row = k.lv[l - 1]; if (row) row.cs = Object.assign({}, row.cs, cs); }); });
+  (d.classFull || []).forEach(c => { if (CLS_BY[c]) CLS_BY[c].full = true; });
+  Object.entries(d.spellLists || {}).forEach(([c, names]) => names.forEach(n => { const sp = SPL_BY[spellId(n) || '']; if (sp && !sp.c.includes(c)) sp.c.push(c); }));
+  Object.assign(SUBCLASS_SPELLS, d.subclassSpells || {});
+  Object.assign(ADDON.themes, d.subclassThemes || {});
+  Object.assign(ADDON.bgRating, d.bgRating || {});
+  Object.entries(d.featRating || {}).forEach(([n, v]) => { ADDON.featRating[n] = { r: v[0], impact: v[1] }; });
+  (d.quickPicks || []).forEach(([c, abil, top, alt, also, core]) => { ADDON.picks[c] = { abil, top, alt, also, core }; });
+  Object.entries(d.tools || {}).forEach(([n, v]) => { ADDON.tools[n.toLowerCase()] = { ab: v[0], use: v[1], craft: v[2] }; });
+  Object.entries(d.magicItems || {}).forEach(([n, v]) => { ADDON.mi[n] = { value: v[0], price: v[1], cost: v[2], days: v[3] }; });
+  Object.entries(d.gearNotes || {}).forEach(([n, v]) => { ADDON.gear[n.toLowerCase()] = v; });
+  if (d.rules) ADDON.rules = ADDON.rules.concat(d.rules);
+  /* magic items and equipment from newer books: [id, name, kind, form, rarity, attunement, consumable, price, weight, book] */
+  (d.magicItemsNew || []).forEach(([i, n, k, base, ra, at, cons, price, w, book]) => {
+    if (MI_BY[i] || SRD.mi.some(m => m.n === n)) return;
+    const m = { i, n, k, ra, at: at ? 1 : 0, atBy: at && at !== 'yes' ? at : '', d: '', base: base || '', cons: !!cons, price: price == null ? null : price, w: w || 0, book };
+    SRD.mi.push(m); MI_BY[i] = m;
+  });
+  if (d.magicItemsNew) SRD.mi.sort((a, b) => a.n.localeCompare(b.n));
+  Object.assign(ITEM_TEXT, d.itemText || {});
+  (d.equipment || []).forEach(e => { if (EQ_BY[e.i] || EQ_BY_NAME[e.n.toLowerCase()]) return; const x = Object.assign({}, e); SRD.eq.push(x); EQ_BY[x.i] = x; EQ_BY_NAME[x.n.toLowerCase()] = x; });
+  /* spells from other books: the app's spell format plus bk (book), pg (page), tg (short book name), cn (conditions it can cause) */
+  (d.spellsNew || []).forEach(addBookSpell);
+  if (d.spellsNew) { SPL_SORTED.sort((a, b) => a.l - b.l || a.n.localeCompare(b.n)); SPELL_RX = null; }
+  /* the creature index: [id, name, book, CR, size, type, tags, alignment, legendary, habitats, XP]; free-rules creatures get habitats and a book */
+  Object.assign(ADDON.crBooks, d.creatureBooks || {});
+  Object.entries(d.habitats || {}).forEach(([i, hab]) => { if (MON_BY[i]) MON_BY[i].hab = hab; });
+  Object.entries(d.monsterBooks || {}).forEach(([i, b]) => { if (MON_BY[i]) MON_BY[i].src = b; });
+  (d.creatures || []).forEach(([i, n, src, cr, sz, t, tags, al, leg, hab, xp]) => {
+    if (ADDON.creatures.some(x => x.n === n) || MON.some(m => m.n === n)) return;
+    const crn = cr === '' || cr == null ? null : cr.includes('/') ? 1 / +cr.split('/')[1] : +cr;
+    ADDON.creatures.push({ i: 'ix:' + i, n, src, tg: crBook(src, 1), cr: crn, sz, t, tags: tags || [], al, leg: !!leg, hab: hab || [], xp, idx: true });
+  });
+  if (d.creatures) ADDON.creatures.sort((a, b) => a.n.localeCompare(b.n));
+  ADDON.applied[p.id] = { name: p.name, version: p.version };
+}
+
+function addBookSpell(sp) {
+  if (!sp || !sp.i || SPL_BY[sp.i] || spellId(sp.n)) return;
+  const x = Object.assign({}, sp, { c: (sp.c || []).slice() });
+  SPL.push(x); SPL_SORTED.push(x); SPL_BY[x.i] = x; SPL_BY_NAME[x.n.toLowerCase().replace(/’/g, "'")] = x.i;
+  if (x.cn) SPELL_CONDS[x.n] = x.cn;
+}
+
+/* ---------- what the add-ons show around the app ---------- */
+/* the book a spell or creature comes from, as a tag in lists */
+const bookTag = x => x && x.tg ? h('span', { class: 'tag book' }, x.tg) : null;
+/* a creature book's name, or its short name for tags: creatureBooks is { code: [name, short] } */
+const crBook = (code, short) => { const b = ADDON.crBooks[code]; return b ? (Array.isArray(b) ? b[short ? 1 : 0] : b) : code; };
+/* a creature from the index: what's known about it and where its stat block is */
+function openIndexCreature(x) {
+  openSheet(x.n, rec => {
+    const pb = x.cr == null ? null : Math.max(2, Math.ceil((x.cr || 0) / 4) + 1);
+    const notes = h('textarea', { class: 'in', placeholder: 'Description, lore, tactics, where the party met it…', value: S.best.notes[x.i] || '', onchange: e => { S.best.notes[x.i] = e.target.value; writeDoc('gm/bestiary', { notes: { [x.i]: e.target.value } }, 'update'); toast('Notes saved', 1200); } });
+    add(rec.foot, [h('button', { class: 'btn primary', onclick: () => { closeSheet(rec); editCustom(null, indexPrefill(x)); } }, icon('edit'), 'Write its stat block')]);
+    const row = (k, v) => v ? [h('dt', null, k), h('dd', null, v)] : null;
+    return h('div', null,
+      h('p', { class: 'meta', style: { fontStyle: 'italic', color: 'var(--ink-2)', margin: '0 0 8px' } }, monMeta(x) + (x.tags.length ? ` (${x.tags.join(', ')})` : '')),
+      h('dl', { class: 'kv' },
+        row('Challenge', x.cr == null ? 'Set by the spell or feature that creates it' : `${crStr(x.cr)} (${fmtN(x.xp)} XP)`),
+        row('Proficiency Bonus', pb ? '+' + pb : ''), row('Legendary', x.leg ? 'Yes: it has legendary actions' : ''),
+        row('Habitat', x.hab.join(', ')), row('Stat block', crBook(x.src))),
+      h('p', { class: 'small muted' }, 'Campfire has the stat blocks from the free rules only. Write this one in from your book and it joins your bestiary as homebrew, ready for encounters.'),
+      h('label', { class: 'f' }, 'Notes'), notes);
+  });
+}
+const indexPrefill = x => ({ n: x.n, sz: x.sz, t: x.t + (x.tags.length ? ` (${x.tags.join(', ').toLowerCase()})` : ''), al: x.al, cr: x.cr || 0, ds: `Stat block: ${crBook(x.src)}.` });
+const stars = n => h('span', { class: 'stars', 'aria-label': `${n} out of 5` }, '★'.repeat(n) + '☆'.repeat(5 - n));
+/* the background helper in character creation: rating, what it does for you and what to watch */
+function bgAdvice(bg) {
+  if (!addonOn('build-advice')) return null;
+  const r = ADDON.bgRating[bg.n], note = BOOK_BG_NOTE[bg.n] || {};
+  if (!r && !note.impact) return null;
+  return h('div', { class: 'advice' }, r ? h('div', { class: 'row nowrap' }, h('b', { class: 'grow' }, 'Build advice'), stars(r)) : h('b', null, 'Build advice'),
+    note.impact ? h('p', null, note.impact) : null, note.watch ? h('p', { class: 'tiny' }, 'Watch out: ' + note.watch) : null);
+}
+/* quick background picks under the class list */
+function classPicks(cls) {
+  const p = addonOn('build-advice') && ADDON.picks[cls]; if (!p) return null;
+  const row = (k, v) => v ? [h('dt', null, k), h('dd', null, v)] : null;
+  return h('div', { class: 'helper' }, h('b', { style: { color: 'var(--ink)' } }, `Backgrounds that suit ${/^[AEIOU]/.test(CLS_BY[cls] ? CLS_BY[cls].n : cls) ? 'an' : 'a'} ${CLS_BY[cls] ? CLS_BY[cls].n : cls}`),
+    h('dl', { class: 'kv mt', style: { fontSize: '0.875rem' } }, row('Key scores', p.abil), row('Top pick', p.top), row('Strong alternative', p.alt), row('Also consider', p.also), row('Player’s Handbook only', p.core)));
+}
+/* a subclass's playstyle, shown under the subclass list */
+function subTheme(cls, sub) { const t = sub && ADDON.themes[cls + ':' + sub]; return t ? h('div', { class: 'helper' }, t + '.') : null; }
+/* rating and impact in the feat browser */
+const featStars = n => { const r = addonOn('build-advice') && ADDON.featRating[n]; return r ? '★'.repeat(r.r) : ''; };
+function featAdvice(n) {
+  const r = addonOn('build-advice') && ADDON.featRating[n]; if (!r) return null;
+  return h('div', { class: 'advice' }, h('div', { class: 'row nowrap' }, h('b', { class: 'grow' }, 'Build advice'), stars(r.r)), r.impact ? h('p', null, r.impact) : null);
+}
+/* tool, gear and magic item details for the item panel */
+function addonItemRows(e, mi) {
+  const out = [];
+  if (e) {
+    const t = ADDON.tools[e.n.toLowerCase()];
+    if (t) out.push(['Ability', t.ab], ['Use it to', t.use], ['Can craft', t.craft && t.craft !== '—' ? t.craft : '']);
+    const g = ADDON.gear[e.n.toLowerCase()]; if (g) out.push(['Use it to', g[1] || ''], ['Carrying', g[0] || '']);
+    if (e.book) out.push(['From', e.book]);
+  }
+  if (mi) {
+    const m = ADDON.mi[mi.n];
+    if (m) out.push(['Value', m.value ? m.value + ' GP' : ''], ['Guide price', !mi.price && m.price ? m.price + ' GP' : ''], ['To craft', m.cost && m.cost !== '—' ? `${m.cost} GP and ${m.days} days` : '']);
+  }
+  return out.filter(r => r[1]);
+}
+
+/* ---------- the Add-ons screen ---------- */
+function setAddon(id, on) {
+  const a = Object.assign({}, (S.campaign || {}).addons, { [id]: !!on });
+  S.campaign = Object.assign({}, S.campaign, { addons: a });
+  writeDoc('campaign/info', { addons: a }, 'update');
+  const nm = (addonInfo(id) || { name: id }).name;
+  if (on) { toast(`Loading ${nm}…`); loadAddon(id).then(() => { toast(`${nm} is on for everyone in this campaign.`, 3000); refresh(); refreshAddonSheet(); }).catch(() => { toast(`Couldn’t load ${nm}. Check your connection and try again.`, 4200); refreshAddonSheet(); }); }
+  else toast(`${nm} is off. It leaves each device the next time Campfire is opened.`, 4200);
+  refreshAddonSheet();
+}
+function openAddons() {
+  openSheet('Add-ons', rec => {
+    ADDON.rec = rec;
+    const gm = S.role === 'gm', want = new Set(addonsWanted());
+    const card = a => {
+      const on = want.has(a.id), loaded = addonOn(a.id), busy = on && !loaded && ADDON.loading[a.id], bad = on && !loaded && ADDON.failed[a.id];
+      const state = busy ? 'Loading…' : bad ? 'Couldn’t load' : on ? 'On' : loaded ? 'Off from next time' : 'Off';
+      return h('div', { class: 'panel addon' + (on ? ' on' : '') },
+        h('div', { class: 'row nowrap' }, h('b', { class: 'grow', style: { fontSize: '1.0625rem' } }, a.name), h('span', { class: 'chip' + (on ? ' onchip' : '') }, state)),
+        h('p', { class: 'small', style: { margin: '6px 0' } }, a.blurb),
+        h('details', null, h('summary', { class: 'small' }, 'What’s inside'), h('ul', { class: 'small' }, a.contents.map(x => h('li', null, x))), a.about ? h('p', { class: 'tiny muted' }, a.about) : null),
+        gm ? h('div', { class: 'row mt' }, on ? h('button', { class: 'btn', onclick: () => setAddon(a.id, false) }, 'Switch off')
+          : h('button', { class: 'btn primary', onclick: () => setAddon(a.id, true) }, icon('plus'), 'Switch on'),
+          bad ? h('button', { class: 'btn ghost', onclick: () => { delete ADDON.failed[a.id]; syncAddons(); fillSheet(rec); } }, 'Try again') : null) : null);
+    };
+    return h('div', null,
+      h('p', { style: { marginTop: 0 } }, gm ? 'Add-ons bring extra rules into this campaign: more backgrounds and feats, class and subclass features, build advice, reference tables, spells from other books and an index of every 2024 creature. Switch one on and everyone at the table gets it.'
+        : 'Add-ons bring extra rules into this campaign. Your Game Master chooses which ones to use, and they load on your device by themselves.'),
+      ADDON_CATALOG.map(card),
+      addonOn('gear-rules') ? h('button', { class: 'btn', style: { width: '100%' }, onclick: () => { closeSheet(rec); openRulesRef(); } }, icon('journal'), 'Open the rules reference') : null,
+      h('p', { class: 'tiny muted' }, 'Summaries come from your own reference workbooks and data files. Check the books for exact wording.'));
+  }, { onClose: () => { ADDON.rec = null; } });
+}
+/* the rules reference: the tables from the Tools, crafting and rules add-on */
+function openRulesRef() {
+  openSheet('Rules reference', rec => {
+    const st = rec.state; if (st.q == null) st.q = '';
+    const list = h('div');
+    const draw = () => {
+      list.textContent = ''; const q = st.q.trim().toLowerCase();
+      ADDON.rules.forEach(t => {
+        const rows = !q || t.title.toLowerCase().includes(q) ? t.rows : t.rows.filter(r => r.join(' ').toLowerCase().includes(q));
+        if (!rows.length) return;
+        const two = t.cols.length === 2;
+        add(list, [h('h2', { class: 'sec' }, t.title.replace(/^OPTIONAL - /, 'Optional: ')),
+          two ? h('dl', { class: 'rref' }, rows.map(r => [h('dt', null, r[0]), h('dd', null, r[1])]))
+            : h('div', { class: 'rcards' }, rows.map(r => h('div', { class: 'rcard' }, h('b', null, r[0]),
+              h('dl', { class: 'kv' }, t.cols.slice(1).map((c, j) => r[j + 1] ? [h('dt', null, c), h('dd', null, r[j + 1])] : null))))),
+          t.note && !q ? h('p', { class: 'small muted' }, t.note) : null]);
+      });
+      if (!list.firstChild) list.append(h('p', { class: 'muted center' }, 'Nothing matches that.'));
+    };
+    draw();
+    return h('div', null, h('div', { class: 'search' }, icon('search'), h('input', { class: 'in', type: 'search', placeholder: 'Search the rules', value: st.q, oninput: e => { st.q = e.target.value; draw(); } })), list);
+  });
+}
+
 /* ================= Table tools =================
    Turn order on players' phones, the GM calling for a roll, area damage, a Concentration reminder,
    encounter difficulty, one-tap starting equipment, and the party's shared loot.
@@ -9957,7 +10493,7 @@ const XP_BUDGET = [[50, 75, 100], [100, 150, 200], [150, 225, 400], [250, 375, 5
 function encDifficulty(e) {
   const inFight = e.list.filter(c => c.k === 'pc' && S.chars[c.ref]).map(c => S.chars[c.ref]);
   const party = inFight.length ? inFight : presentUids().map(u => S.chars[u]);
-  const xp = e.list.filter(c => c.k === 'mon').reduce((a, c) => { const m = getMon(c.ref); return a + ((m && +m.xp) || 0); }, 0);
+  const xp = e.list.filter(c => c.k === 'mon' && !c.ally).reduce((a, c) => { const m = getMon(c.ref); return a + ((m && +m.xp) || 0); }, 0);
   if (!party.length || !xp) return null;
   const b = [0, 0, 0]; party.forEach(c => XP_BUDGET[clamp(D(c).lvl, 1, 20) - 1].forEach((v, i) => b[i] += v));
   const k = xp < b[0] / 2 ? 0 : xp <= b[0] ? 1 : xp <= b[1] ? 2 : xp <= b[2] ? 3 : 4;
@@ -9971,16 +10507,21 @@ function difficultyRow(e) {
 }
 
 /* ---------- turn order on players' phones ---------- */
-const encHides = (e, c) => !!e.secret && c.k !== 'pc' && !c.shown;
-function publishTurn(e) {
+const encHides = (e, c) => !!e.secret && c.k !== 'pc' && !c.shown && !c.ally;
+function publishTurn(e, ifChanged) {
   if (!DB || S.role !== 'gm') return;
   if (e.turn) {
-    const al = e.list.filter(c => { const v = cbView(c); return !v.gone && !(c.k === 'mon' && v.hp <= 0); });
+    const al = e.list.filter(c => !cbView(c).gone && !cbOut(c));
     /* creatures hidden from players (e.secret, until a creature is revealed with c.shown): a run of them shows as one "The Game Master" turn */
     const list = []; let turn = e.turn;
     al.forEach(c => { const v = cbView(c);
       if (encHides(e, c)) { const last = list[list.length - 1]; if (!(last && last.hid)) list.push({ id: 'gm' + list.length, n: 'The Game Master', hid: true }); if (c.id === e.turn) turn = list[list.length - 1].id; return; }
-      list.push(Object.assign({ id: c.id, n: v.n, pc: c.k === 'pc' ? c.ref : null }, c.k !== 'pc' && !e.hideHp ? { h: hpTier(v.hp, v.max) } : {})); });
+      /* party members always show their health; anyone down shows their death saves (ds: [successes, failures, 1 stable / 2 dead]) */
+      const ds = v.max && v.hp <= 0 ? cbDs(c) : null;
+      list.push(Object.assign({ id: c.id, n: v.n, pc: c.k === 'pc' ? c.ref : null }, c.k !== 'pc' && (!e.hideHp || c.ally) ? { h: hpTier(v.hp, v.max) } : {}, c.ally ? { ally: 1 } : {},
+        ds ? { ds: [ds.s || 0, ds.f || 0, ds.dead ? 2 : ds.stable ? 1 : 0] } : {})); });
+    /* ifChanged: a character changed (say, a death save); only write when what players see is different */
+    const sig = JSON.stringify([e._id, e.secret, e.name, e.round, turn, list]); if (ifChanged && sig === S.turnSig) return; S.turnSig = sig;
     writeDoc('combat/turn', { enc: e._id, name: e.secret ? 'Combat' : e.name, round: e.round || 1, turn, list, at: Date.now() });
     S.turnPub = e._id;
   } else if (S.turnPub === e._id || (S.turnDoc && S.turnDoc.enc === e._id)) { delDoc('combat/turn'); S.turnPub = null; S.turnDoc = null; }
@@ -9996,9 +10537,9 @@ function turnCard() {
     mine ? econRow(S.char, setChar) : null,
     mine && repeatsOf(S.char).length ? h('div', { class: 'list', style: { marginTop: '10px' } }, repeatsOf(S.char).map(repeatRow)) : null,
     mine ? h('div', { class: 'row', style: { marginTop: '10px' } }, endTurnBtn('primary grow')) : null,
-    h('div', { class: 'turnstrip', role: 'list', 'aria-label': 'Turn order' }, t.list.map((c, k) => { const tier = c.h != null && !c.pc ? clamp(+c.h || 0, 0, 6) : null;
-      return h('span', { role: 'listitem', class: 'turnchip' + (k === i ? ' on' : '') + (c.pc === ME.id ? ' me' : '') + (tier != null ? ' hashp' : '') + (c.hid ? ' hid' : ''), 'aria-label': tier != null ? `${c.n}, ${HP_TIERS[tier][0].toLowerCase()}` : null, title: tier != null ? HP_TIERS[tier][0] : null },
-        c.pc === ME.id ? 'You' : c.n, tier != null ? h('span', { class: 'tchp', 'aria-hidden': 'true' }, h('i', { style: { width: TIER_WIDTH[tier] + '%', backgroundColor: tierColour(tier) } })) : null); })));
+    h('div', { class: 'turnstrip', role: 'list', 'aria-label': 'Turn order' }, t.list.map((c, k) => { const tier = c.h != null && !c.pc ? clamp(+c.h || 0, 0, 6) : null, ds = Array.isArray(c.ds) ? { s: +c.ds[0] || 0, f: +c.ds[1] || 0, stable: c.ds[2] === 1, dead: c.ds[2] === 2 } : null;
+      return h('span', { role: 'listitem', class: 'turnchip' + (k === i ? ' on' : '') + (c.pc === ME.id ? ' me' : '') + (tier != null || ds ? ' hashp' : '') + (c.hid ? ' hid' : '') + (c.ally ? ' ally' : ''), 'aria-label': ds ? null : tier != null ? `${c.n}, ${HP_TIERS[tier][0].toLowerCase()}` : null, title: ds ? null : tier != null ? HP_TIERS[tier][0] : null },
+        c.pc === ME.id ? 'You' : c.n, ds ? dsBar(ds) : tier != null ? h('span', { class: 'tchp', 'aria-hidden': 'true' }, h('i', { style: { width: TIER_WIDTH[tier] + '%', backgroundColor: tierColour(tier) } })) : null); })));
 }
 function onTurnDoc(t) {
   const was = S.turn; S.turn = t;
@@ -10075,7 +10616,7 @@ function openAreaDamage(encId) {
   openSheet('Area damage', rec => {
     const e0 = getEnc(encId); if (!e0) return h('p', { class: 'muted' }, 'Encounter not found.');
     const st = rec.state; if (!st.init) { st.init = true; st.amt = ''; st.type = ''; st.more = null; st.sel = new Set(); st.saved = new Set(); st.none = false; }
-    const rows = e0.list.map(c => ({ c, v: cbView(c) })).filter(x => !x.v.gone && !(x.c.k === 'mon' && x.v.hp <= 0));
+    const rows = e0.list.map(c => ({ c, v: cbView(c) })).filter(x => !x.v.gone && !cbOut(x.c));
     /* up to two damage types, each against each combatant's own resistances and immunities */
     const parts = [{ type: st.type, amount: Math.max(0, parseNum(st.amt) || 0) }].concat(st.more ? [{ type: st.more.type, amount: Math.max(0, parseNum(st.more.amt) || 0) }] : []).filter(p => p.amount > 0);
     const amt = parts.reduce((s, p) => s + p.amount, 0);
@@ -10089,7 +10630,7 @@ function openAreaDamage(encId) {
       const e = clone(getEnc(encId)); let n = 0;
       e.list.forEach(c => { if (!st.sel.has(c.id)) return; const dmg = taken(c.id); if (!dmg) return; n++;
         const v = cbView(c), fromTmp = Math.min(v.tmp || 0, dmg), rest = dmg - fromTmp, over = Math.max(0, rest - v.hp), cur = Math.max(0, v.hp - rest), tmp = (v.tmp || 0) - fromTmp;
-        if (c.k === 'pc') gmSetPCHP(c.ref, { cur, tmp }, { dmg: rest, over }); else { c.hp = cur; c.tmp = tmp; if (dmg > 0 && c.conc && cur > 0) queueConcCheck(e._id, c, dmg); } });
+        if (c.k === 'pc') gmSetPCHP(c.ref, { cur, tmp }, { dmg: rest, over }); else { c.tmp = tmp; cbSetHp(c, cur, { dmg: rest, over }); if (dmg > 0 && c.conc && cur > 0) queueConcCheck(e._id, c, dmg); } });
       saveEnc(e); drawDamagePrompts(); closeSheet(rec); toast(`${parts.map(p => `${p.amount}${p.type ? ' ' + p.type : ''}`).join(' + ')} damage dealt to ${n} combatant${n === 1 ? '' : 's'}${st.saved.size ? ', less for those who saved' : ''}${rows.some(x => st.sel.has(x.c.id) && defNote(tdOf(x.c).lines)) ? ', with resistances and immunities applied' : ''}.`, 3600);
     } }, st.sel.size ? `Deal damage to ${st.sel.size}` : 'Deal damage')]);
     return h('div', null,
@@ -10100,7 +10641,7 @@ function openAreaDamage(encId) {
           h('div', { class: 'grow' }, typeSel(st.more.type, v => st.more.type = v)), h('button', { class: 'icon-btn', 'aria-label': 'Remove the second damage type', onclick: () => { st.more = null; fillSheet(rec); } }, icon('close'))))
         : h('button', { class: 'btn sm ghost mt', onclick: () => { st.more = { amt: '', type: '' }; fillSheet(rec); } }, icon('plus'), 'Another damage type'),
       h('div', { class: 'row mt' }, h('span', { class: 'small muted grow' }, 'A successful save means'), h('div', { class: 'seg', style: { flex: 'none' } }, [[false, 'Half'], [true, 'None']].map(([v, l]) => h('button', { 'aria-pressed': st.none === v ? 'true' : 'false', onclick: () => { st.none = v; fillSheet(rec); } }, l)))),
-      h('div', { class: 'row mt' }, h('div', { class: 'lbl grow' }, 'Who is hit'), h('button', { class: 'btn sm ghost', onclick: () => { rows.forEach(x => { if (x.c.k === 'mon') st.sel.add(x.c.id); }); fillSheet(rec); } }, 'All creatures'), h('button', { class: 'btn sm ghost', onclick: () => { st.sel.clear(); st.saved.clear(); fillSheet(rec); } }, 'Clear')),
+      h('div', { class: 'row mt' }, h('div', { class: 'lbl grow' }, 'Who is hit'), h('button', { class: 'btn sm ghost', onclick: () => { rows.forEach(x => { if (x.c.k === 'mon' && !x.c.ally) st.sel.add(x.c.id); }); fillSheet(rec); } }, 'All creatures'), h('button', { class: 'btn sm ghost', onclick: () => { st.sel.clear(); st.saved.clear(); fillSheet(rec); } }, 'Clear')),
       h('div', { class: 'list mt' }, rows.map(({ c, v }) => { const on = st.sel.has(c.id);
         return h('div', { class: 'li arearow' + (on ? ' on' : ''), style: { cursor: 'default' } },
           h('label', { class: 'grow', style: { display: 'flex', gap: '12px', alignItems: 'center', cursor: 'pointer', minWidth: 0 } }, h('input', { type: 'checkbox', checked: on, 'aria-label': v.n, onchange: ev => { if (ev.target.checked) st.sel.add(c.id); else { st.sel.delete(c.id); st.saved.delete(c.id); } fillSheet(rec); } }),
@@ -10643,7 +11184,7 @@ function damageCard(grp) {
         const cs = condsOn(r.d.id, conds, r.pick === 'full'); if (cs.length) { gmAddConds(cc, cs, r.d.uid, r.d.ckey || null); if (cc.k !== 'pc') encChanged = true; }
         if (amt == null) return;
         if (cc.k === 'pc') gmDamagePC(cc.ref, amt);
-        else { const fromTmp = Math.min(cc.tmp || 0, amt); cc.tmp = (cc.tmp || 0) - fromTmp; cc.hp = Math.max(0, (cc.hp || 0) - (amt - fromTmp)); encChanged = true; if (amt > 0 && cc.conc && cc.hp > 0) queueConcCheck(e._id, cc, amt); }
+        else { const fromTmp = Math.min(cc.tmp || 0, amt), rest = amt - fromTmp; cc.tmp = (cc.tmp || 0) - fromTmp; cbSetHp(cc, Math.max(0, (cc.hp || 0) - rest), { dmg: rest, over: Math.max(0, rest - (cc.hp || 0)), crit: !!r.d.crit }); encChanged = true; if (amt > 0 && cc.conc && cc.hp > 0) queueConcCheck(e._id, cc, amt); }
         const note = [defNote((r.pick === 'half' ? r.half : r.full).lines), cs.length ? 'now ' + cs.join(' and ') : ''].filter(Boolean).join('; ');
         hits.push(Object.assign({ id: r.d.id, uid: r.d.uid, kind: 'dmg', amount: amt, tn: r.v.n, t: cc.id, down: cc.k !== 'pc' && cc.hp <= 0, at: Date.now() }, note ? { note } : {})); });
       if (encChanged) saveEnc(e); pushHits(hits);
@@ -11200,7 +11741,7 @@ function openTableDisplay() {
     if (ho) side.append(h('section', { class: 'tv-card tv-ho' }, h('div', { class: 'lbl' }, 'Handout'), h('div', { class: 'tv-ho-t' }, ho.title || ''), ho.img ? imgTag(ho.img, { class: 'tv-img' }) : null, ho.body ? h('div', { class: 'tv-ho-b' }, paras(ho.body)) : null));
     const party = Object.values(st.party).filter(p => p && p.name).sort((a, b) => a.name.localeCompare(b.name));
     if (party.length) side.append(h('section', { class: 'tv-card' }, h('div', { class: 'lbl' }, 'The party'), h('div', { class: 'tv-party' }, party.map(p => { const tier = p.hp && p.hp.tier != null ? p.hp.tier : 0, [n, col] = HP_TIERS[tier] || HP_TIERS[0];
-      return h('div', { class: 'tv-pc' }, h('span', { class: 'monogram' }, p.pic ? h('img', { src: p.pic, alt: '' }) : initials(p.name)), h('div', { class: 'grow' }, h('b', null, p.name), h('div', { class: 'small', style: { color: col } }, n)), (p.cond || []).length ? h('span', { class: 'small muted' }, p.cond.join(', ')) : null); }))));
+      return h('div', { class: 'tv-pc' }, h('span', { class: 'monogram' }, p.pic ? h('img', { src: p.pic, alt: '' }) : initials(p.name)), h('div', { class: 'grow' }, h('b', null, p.name), p.ds ? dsBar(p.ds) : h('div', { class: 'small', style: { color: col } }, n)), (p.cond || []).length ? h('span', { class: 'small muted' }, p.cond.join(', ')) : null); }))));
     if (!side.childNodes.length) side.append(h('div', { class: 'tv-empty small' }, 'Turn order, handouts and the party appear here.'));
   };
   const s = (ref, fn) => { try { subs.push(ref.onSnapshot(fn, e => console.warn('table display', e))); } catch (e) { console.warn(e); } };
@@ -11269,7 +11810,7 @@ const pushToggle = () => S.role === 'player' && pushAvailable() ? h('label', { c
    c.xp on the character; the campaign chooses XP or milestones (campaign/info.adv). Reaching the next level's XP,
    or the GM calling a milestone (c.lvlCall), prompts the player once (c.lvSeen / c.lvlCallSeen remember it). */
 /* campaign/info arrived: a change of levelling mode redraws the screen, not just the top bar */
-function onCampaignInfo(d) { const was = advMode(), wasAway = JSON.stringify((S.campaign || {}).away || {}); S.campaign = d || { name: '' }; if (S.role && (advMode() !== was || JSON.stringify(S.campaign.away || {}) !== wasAway)) { renderTop(); refresh(); return true; } return false; }
+function onCampaignInfo(d) { const was = advMode(), wasAway = JSON.stringify((S.campaign || {}).away || {}); S.campaign = d || { name: '' }; syncAddons(); if (S.role && (advMode() !== was || JSON.stringify(S.campaign.away || {}) !== wasAway)) { renderTop(); refresh(); return true; } return false; }
 const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
 const advMode = () => (S.campaign && S.campaign.adv) === 'milestone' ? 'milestone' : 'xp';
 const xpLevel = xp => { let l = 1; XP_TABLE.forEach((t, i) => { if ((+xp || 0) >= t) l = i + 1; }); return l; };
@@ -11429,6 +11970,7 @@ function itemInfoParts(i, who) {
         e.arm && ARMOR_INFO[e.n] ? [ARMOR_INFO[e.n][0] ? [h('dt', null, 'Strength needed'), h('dd', null, ARMOR_INFO[e.n][0] + ' (otherwise speed −10 ft)')] : null, h('dt', null, 'Stealth'), h('dd', null, ARMOR_INFO[e.n][1] ? 'Disadvantage' : 'No effect'), h('dt', null, 'Put on / take off'), h('dd', null, `${ARMOR_INFO[e.n][2]} / ${ARMOR_INFO[e.n][3]}`)] : null));
       if (e.d) bottom.push(h('div', { class: 'mt' }, richText(e.d, { label: i.n, who: who, spellLinks: true, spellCtx: itemSpellCtx(i) })));
     }
+    { const extra = addonItemRows(e, mi); if (extra.length) bottom.push(kv(extra)); }
     if (mi) {
       bottom.push(h('p', { class: 'muted mt' }, `${mi.ra} ${mi.k.replace(/s$/, '')}${mi.at ? ', requires attunement' + (mi.atBy ? ' ' + mi.atBy : '') : ''}${mi.cons ? ', consumable' : ''}`));
       if (mi.base || mi.price || mi.w) bottom.push(kv([['Form', mi.base], ['Guide price', mi.price ? gpText(mi.price) : ''], ['Weight', mi.w ? mi.w + ' lb' : '']]));
