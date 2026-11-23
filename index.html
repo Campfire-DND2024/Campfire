@@ -673,6 +673,11 @@ h2.sec{font:800 0.9375rem/1.2 var(--sans);letter-spacing:.01em;color:var(--ink-3
 .toast{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);border-color:transparent;background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 18px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:toastin .22s cubic-bezier(.2,.8,.2,1);text-align:center}
 @keyframes toastin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 .toast{border-radius:18px}
+/* the connection note: sits just above the tab bar while offline or while changes wait for the server */
+.syncpill{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 80px);transform:translateX(-50%);z-index:79;width:max-content;max-width:calc(100vw - 28px);padding:7px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2);color:var(--ink-2);font-size:.8125rem;font-weight:700;line-height:1.35;text-align:center;box-shadow:0 8px 22px rgba(0,0,0,.35);pointer-events:none}
+.syncpill.off{border-color:var(--ember-line);color:var(--ink)}
+.syncpill[hidden]{display:none}
+body.synconn .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 140px)}
 body:has(.toast) .rollcard{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
 body:has(.scrim) .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .rollcard{border-color:transparent;box-shadow:var(--shadow),inset 0 0 0 1px var(--line-2),0 0 40px var(--ember-glow)}
@@ -921,6 +926,17 @@ div.xpbar{cursor:default}
 .rcard>b{display:block;margin-bottom:4px}
 .rcard .kv{font-size:0.875rem;gap:4px 12px}
 
+/* the in-game date and time on the Camp page: a small sun or moon dial and the date */
+.clockcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.clockcard .clk-main{font-weight:800;font-size:1.0625rem;line-height:1.25}
+.clockcard .chips{margin:0}
+.sundial{flex:none;width:40px;height:40px;border-radius:50%;position:relative;background:conic-gradient(from 180deg,#1d2440 0deg 75deg,#c9773a 90deg,#f0c36a 120deg 240deg,#c9773a 270deg,#1d2440 285deg 360deg);box-shadow:inset 0 0 0 1px var(--line-2)}
+.sundial::after{content:'';position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 2px var(--surface);z-index:2;transform:rotate(var(--a)) translateY(14px)}
+.sundial::before{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--surface);z-index:1;box-shadow:0 0 0 1px var(--line-2)}
+.clklog{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.clklog li{display:flex;flex-direction:column;gap:1px;font-size:.9375rem}
+.tv-clock{font-size:1rem;color:var(--ink-2);margin-top:4px;font-weight:700}
+
 </style>
 </head>
 <body>
@@ -1125,6 +1141,7 @@ const ICONS = {
   items: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   journal: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/>',
   inbox: '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   camp: '<path d="M12 3c.8 3 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-2.4 1.4-3.6 2.2-5.2.4 1.2.9 2 1.8 2.2-.3-2.2-.2-4.2.5-6z"/><path d="M5 21l14-3M5 18l14 3"/>',
   turns: '<path d="M4 4l10 10M11.5 16.5l5-5M15 15l5 5M20 4L10 14M7.5 11.5l5 5M9 15l-5 5"/>',
   party: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/>',
@@ -1319,7 +1336,11 @@ function dbErr(e) {
   else if (c === 'resource_exhausted') toast('Saving too quickly. Your last change will be retried shortly.');
   else if (c !== 'revoked') toast('Couldn’t save that change. Check your connection.');
 }
+/* Firestore (the online campaigns) keeps its own ordered queue of writes, saved on the phone and shown here at once, so writes
+   go straight to it. Holding them back until the server answered would keep them only in memory while offline, where they'd be
+   lost if the app closed before the connection came back. Other stores use the queue below. */
 function writeDoc(path, data, mode = 'set') {
+  if (DB && DB.direct) { const ref = DB.doc(path), d = clone(data); trackWrite(mode === 'set' ? ref.set(d) : ref.update(d)); return; }
   let q = WQ.get(path);
   if (!q) { q = { busy: false, pend: null }; WQ.set(path, q); }
   const op = { mode, data: clone(data) };
@@ -1349,7 +1370,28 @@ async function runWrite(path, q, op) {
   q.busy = false;
   if (q.pend) { const n = q.pend; q.pend = null; runWrite(path, q, n); }
 }
-async function delDoc(path) { try { await DB.doc(path).delete(); } catch (e) { dbErr(e); } }
+async function delDoc(path) { if (DB && DB.direct) { trackWrite(DB.doc(path).delete()); return; } try { await DB.doc(path).delete(); } catch (e) { dbErr(e); } }
+/* ---------- the connection: a quiet note while offline or while changes are waiting for the server ---------- */
+const SYNC = { n: 0, since: 0, off: false, t: null, el: null };
+function trackWrite(pr) {
+  if (!SYNC.n) SYNC.since = Date.now();
+  SYNC.n++; syncStatus();
+  pr.then(() => { }, e => dbErr(e)).finally(() => { SYNC.n = Math.max(0, SYNC.n - 1); syncStatus(); });
+}
+function syncStatus() {
+  if (!(DB && DB.direct)) { if (SYNC.el) SYNC.el.hidden = true; document.body.classList.remove('synconn'); return; }
+  clearTimeout(SYNC.t);
+  const off = navigator.onLine === false;
+  if (off) SYNC.off = true;
+  const slow = !off && SYNC.n > 0 && Date.now() - SYNC.since > 6000;
+  if (!off && SYNC.n > 0 && !slow) SYNC.t = setTimeout(syncStatus, 6100 - (Date.now() - SYNC.since));
+  if (!SYNC.el) { SYNC.el = h('div', { class: 'syncpill', role: 'status', 'aria-live': 'polite', hidden: true }); document.body.append(SYNC.el); }
+  const el = SYNC.el, txt = off ? 'Offline. Your changes are saved on this phone and sync when you reconnect.' : slow ? 'Syncing your changes…' : '';
+  el.hidden = !txt; el.className = 'syncpill' + (off ? ' off' : ''); el.textContent = txt; document.body.classList.toggle('synconn', !!txt);
+  if (!off && !SYNC.n && SYNC.off) { SYNC.off = false; toast('Back online. Everything’s synced.', 2600); }
+}
+window.addEventListener('online', () => syncStatus());
+window.addEventListener('offline', () => syncStatus());
 
 /* names of people (resolved per render, never stored) */
 const NAMES = {}; let nameQ = new Set(), nameT = null;
@@ -1649,7 +1691,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && SHEETS.len
 function askText(title, initial = '', opts = {}) {
   return new Promise(res => {
     let done = false;
-    const rec = openSheet(title, r => {
+    openSheet(title, r => {
       const inp = opts.multiline ? h('textarea', { class: 'in', value: initial, placeholder: opts.placeholder || '' }) : h('input', { class: 'in', type: opts.type || 'text', autocomplete: opts.type === 'password' ? 'current-password' : 'off', value: initial, placeholder: opts.placeholder || '', maxlength: opts.max || 200 });
       const ok = () => { done = true; const v = inp.value.trim(); closeSheet(r); res(v); };
       inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !opts.multiline) ok(); });
@@ -4716,8 +4758,9 @@ function workingsSection(c, d) {
 }
 
 /* ================= Change log: every version of Campfire, newest first ================= */
-const APP_VERSION = '6.22';
+const APP_VERSION = '6.23';
 const CHANGELOG = [
+  ['6.23', 'November 2026', ['Random encounters: on Turns, tap Random encounter (or + Random in an encounter). Choose where (with the Creature index add-on on, any Monster Manual habitat), Low, Moderate or High, and the party’s size and level, which start from your characters. Campfire picks a lone creature, a group, or a leader with followers of the same kind inside the 2024 XP budget; reroll until you like it, then tap Make encounter and the party is already in it.', 'Creatures from the Creature index can go into encounters: tap Encounter on one, give it hit points, AC and initiative (Campfire suggests what’s typical for its challenge rating in the free rules), and its XP counts towards the difficulty and the XP award. The encounter’s + Creature list includes them too. Tap any creature’s AC in a fight to change it.', 'In-game date and time: on Camp, tap Date and time to start a Forgotten Realms calendar (the Calendar of Harptos, festival days and Shieldmeet included) or a simple day count. Everyone sees the date, the time of day and the day of the adventure on their Camp page and on the table display. The Game Master moves time on with +10 min, +1 hour, +8 hours and +1 day, calling a rest moves it on by an hour or eight, and Travel moves it on by days and hours at a slow, normal or fast pace with the distance covered. The last 20 changes are kept in the Date and time sheet.', 'Choose the table display’s map: in a map’s Share sheet, tick Show on the table display. The TV keeps showing that map while you work on others; untick it and the table display goes back to the live map you changed last.', 'Playing through a patchy connection: changes you make while offline are saved on your phone straight away and sync when the connection comes back, even if the app is closed in between. A note above the tabs says when you’re offline or when changes are waiting to sync, and you’re told when everything’s synced again. Before, changes made offline could be lost if the app was closed before it reconnected.', 'Species and classes from your books: add-ons can now carry whole species (with lineage or ancestry choices) and classes (hit die, saves, spell slots, features, subclasses and subclass spells). The format for making them from your books is in the DND App project.', 'Lighter: the claude.ai version no longer carries the add-ons inside the page; it fetches each one when you switch it on, which makes the page 12% smaller. The single-file version reads only the add-ons you switch on.']],
   ['6.22', 'November 2026', ['Party member NPCs: open a creature in an encounter and tap Make a party member (or tick Party member NPC on its map token). At 0 hit points it falls Unconscious and makes death saving throws instead of leaving the fight: it stays in the turn order, the Game Master rolls its saves from the Now card or its screen, damage while it’s down adds failures (two from a critical hit), and healing wakes it. Party members are tagged Party, always show their health to players, never hide with Hide creatures, and don’t count towards the encounter’s XP.', 'Player character tokens on the map now have health bars: exact for the Game Master and the token’s own player, the health band for everyone else.', 'When a player character or party member goes down, their health bar turns into their death saves: three pips that light green for successes and three that light red for failures. This shows in the Game Master’s turn order, on players’ turn order and party cards, on the table display and under map tokens, and updates with every roll.']],
   ['6.21', 'November 2026', ['New add-on, More 2024 spells: 174 spells the free rules leave out, from the rest of the Player’s Handbook (Toll the Dead, Hunger of Hadar, the smites and summons), Heroes of Faerûn, Forge of the Artificer, Arcana Unleashed and World of Warcraft. Each has its stat lines and class lists, so players can add them to their sheets, plus its damage types, saving throw and conditions and the book and page for the full rules.', 'New add-on, Legacy spells (2014 books): 135 spells from Xanathar’s, Tasha’s, Fizban’s, Wildemount and other 2014 books that were never reprinted for 2024, such as Booming Blade, Silvery Barbs and Shadow Blade, with the 2024 classes that can use them.', 'New add-on, Creature index: 576 creatures from the 2024 Monster Manual and every 2024 book with stat blocks, listed in the bestiary with their CR, XP, type, alignment, habitat and book. Filter the bestiary by book and habitat (the free-rules creatures get their Monster Manual habitats too). Tap one and Write its stat block to make it homebrew with its name, size, type, alignment and CR filled in.', 'The Artificer add-on now has the 2024 artificer spell list: 73 spells from the free rules and Homunculus Servant, plus the rest (such as Arcane Vigor and Thorn Whip) when More 2024 spells is on.', 'Spells from add-ons show their book as a tag in spell lists, and the Game Master’s spell reference can filter by the Artificer.']],
   ['6.20', 'November 2026', ['New add-on, More magic items and gear: 171 magic items from the books after the Dungeon Master’s Guide (Arcana Unleashed, World of Warcraft, Icecrown Citadel, Forge of the Artificer, Faerûn, Drops and more), each with a summary, price and crafting cost; three new weapons (Pitchfork, Bola, Weighted Chain); and 16 pieces of gear such as camouflage, Underdark clothing and Forgotten Realms poisons.', 'Built-in equipment now matches the 2024 Player’s Handbook: 32 corrections to costs, weights and stats (for example the javelin costs 5 SP, the trident deals 1d8 (1d10 two-handed), hide is medium armour and the entertainer’s pack weighs 58.5 lb).', 'Build advice now rates the four Project Lamordia backgrounds and the Upper Planes Pact feats, and suggests Lamordia backgrounds for barbarians and fighters.']],
@@ -5170,7 +5213,7 @@ function genTown(meta, seed, o = {}) {
   const wav = (x0, y0, x1, y1, n, amp) => { const p = []; for (let i = 0; i <= n; i++) { const t = i / n, nx = -(y1 - y0), ny = x1 - x0, L = Math.hypot(nx, ny) || 1, wv = i && i < n ? (r() - .5) * amp : 0; p.push(Math.round(x0 + (x1 - x0) * t + nx / L * wv), Math.round(y0 + (y1 - y0) * t + ny / L * wv)); } return p; };
   const streets = [{ t: 'path', st: 'street', p: wav(-30, cy, W + 30, cy + (r() - .5) * CS * 3, 6, CS * 1.2) }, { t: 'path', st: 'street', p: wav(cx, -30, cx + (r() - .5) * CS * 3, H + 30, 6, CS * 1.2) }];
   const nSide = small ? 1 : big ? 5 : 3;
-  for (let n = 0; n < nSide; n++) { const horiz = r() < 0.5, along = 0.2 + r() * 0.6, len = (0.18 + r() * 0.22) * (horiz ? W : H), dir = r() < 0.5 ? -1 : 1;
+  for (let n = 0; n < nSide; n++) { const horiz = r() < 0.5; r(); /* still drawn so saved maps come out the same */ const len = (0.18 + r() * 0.22) * (horiz ? W : H), dir = r() < 0.5 ? -1 : 1;
     if (horiz) { const y0 = cy + (r() < 0.5 ? -1 : 1) * (3 + r() * 5) * CS, x0 = cx; streets.push({ t: 'path', st: 'street', p: wav(x0, y0, x0 + dir * len, y0 + (r() - .5) * CS * 2, 3, CS * 0.6) }); }
     else { const x0 = cx + (r() < 0.5 ? -1 : 1) * (3 + r() * 6) * CS, y0 = cy; streets.push({ t: 'path', st: 'street', p: wav(x0, y0, x0 + (r() - .5) * CS * 2, y0 + dir * len, 3, CS * 0.6) }); } }
   /* a river with a bridge, if the town is by water */
@@ -5883,7 +5926,7 @@ function genFort(bk, meta, seed) {
   return g.out();
 }
 function genGarrison(bk, meta, seed) {
-  const g = planCtx(meta, seed, INSIDE[bk] || [16, 11]), { x0, y0, x1, y1, mx, my } = g;
+  const g = planCtx(meta, seed, INSIDE[bk] || [16, 11]), { x0, y0, x1, y1, my } = g;
   g.shell('wood', 'cobble'); g.windows();
   const sx = x0 + 9, sy = y0 + 5; g.wall('iwall', sx, y0, sx, y1 + 1); g.wall('iwall', sx, sy, x1 + 1, sy);
   g.door(sx, y0 + 2.5, 90); g.door(sx, sy + 2.5, 90); g.door(sx + 3.5, sy, 0); g.door(x0 + 4.5, y1 + 1, 0); g.reserve(x0 + 4.5, y1 + .3, 1);
@@ -5907,7 +5950,7 @@ function genArena(bk, meta, seed) {
   return g.out();
 }
 function genCamp(bk, meta, seed) {
-  const g = planCtx(meta, seed, INSIDE[bk] || [20, 16]), { x0, y0, x1, y1, mx, my, IW, IH, r } = g;
+  const g = planCtx(meta, seed, INSIDE[bk] || [20, 16]), { x0, y0, x1, mx, my, IW, IH, r } = g;
   g.all('grass'); for (let y = 0; y < g.R; y++) for (let x = 0; x < g.C; x++) if (Math.hypot((x + .5 - mx) / (IW / 2), (y + .5 - my) / (IH / 2)) < .7 + (wmHash(x, y, 4) - .5) * .25) g.ter[x + ',' + y] = 'earth';
   const war = bk === 'war_camp';
   if (!war) { const p = []; for (let a = 0; a <= 32; a++) { const t = Math.PI / 2 + .35 + a / 32 * (Math.PI * 2 - .7); p.push(mx + Math.cos(t) * IW * .47, my + Math.sin(t) * IH * .47); } g.wall('palisade', ...p); }
@@ -6025,7 +6068,7 @@ const ROOMS_FOR = {
 };
 function furnishRoom(g, role, box, top) {
   /* box in squares; the corridor door is on the side nearest the corridor, so furniture backs onto the far wall */
-  const { x, y, w, h } = box, back = top ? y + .55 : y + h - .55, inward = top ? 1 : -1, cx = x + w / 2, rot = top ? 0 : 180;
+  const { x, y, w, h } = box, back = top ? y + .55 : y + h - .55, inward = top ? 1 : -1, rot = top ? 0 : 180;
   const at = (u, d) => [x + u * w, back + inward * d];
   const P = (k, u, d, rr = rot, s = 1) => { const [px, py] = at(u, d); return g.place(k, px, py, rr, s); };
   switch (role) {
@@ -6049,7 +6092,7 @@ function furnishRoom(g, role, box, top) {
 }
 /* an upper floor: a corridor along the stairwell, with rooms either side */
 function genUpper(bk, meta, seed, fl, links) {
-  const kind = ENTER[bk] || 'house', g = planCtx(meta, seed, [meta.cols - 2, meta.rows - 2]), { x0, y0, x1, y1, mx, my, IW, IH } = g;
+  const kind = ENTER[bk] || 'house', g = planCtx(meta, seed, [meta.cols - 2, meta.rows - 2]), { x0, y0, x1, y1, my, IW } = g;
   const stone = ['keep', 'tower', 'gate', 'garrison', 'temple', 'hall'].includes(kind);
   if (isRoundB(bk)) return genRoundUpper(bk, g, fl, links, kind);
   g.shell(stone ? 'stone' : 'wood', 'void'); g.windows();
@@ -6308,6 +6351,7 @@ window.appPause = () => { try { if (S.jDraft) saveJournal.flush(); if (S.mapEd) 
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') window.appPause(); });
 const LEGAL = 'Includes material from the System Reference Document 5.2 by Wizards of the Coast LLC (CC-BY-4.0). Campfire is unofficial and not affiliated with Wizards of the Coast.';
 
+/* exported boot */   // started by the page itself (template.html)
 async function boot() {
   applyTheme();
   renderPortal(true);
@@ -7482,6 +7526,7 @@ function renderGParty() {
     camp.append(h('button', { class: 'tok' + (isAway(uid) ? ' away' : ''), type: 'button', style: { left: x + '%', top: y + '%' }, 'aria-pressed': on ? 'true' : 'false', 'aria-label': `${c.name || 'Unnamed'}, ${isAway(uid) ? 'away this session' : `${hp.cur} of ${hp.max} hit points`}`, onclick: () => { S.campSel = uid; renderMain(); } },
       h('span', { class: 'ring' + (on ? ' on' : '') + (c.insp ? ' insp' : '') + (hp.max && hp.cur <= 0 ? ((c.death || {}).dead ? ' dead' : (c.death || {}).stable ? ' stable' : ' dying') : '') }, h('span', { class: 'monogram' }, S.portraits[uid] ? h('img', { src: S.portraits[uid], alt: '' }) : initials(c.name))), h('span', { class: 'nm' }, (c.name || 'Unnamed').split(' ')[0])));
   });
+  { const ck = clockCard(); if (ck) root.append(ck); }
   root.append(camp, gmCampTools());
   { const rp = readiedPanel(); if (rp) root.append(h('div', { class: 'mt' }, rp)); }
   if (!uids.length) {
@@ -7791,25 +7836,107 @@ function addMonstersTo(e, m, count, hpMode) {
 }
 function addToEncounterSheet(m) {
   openSheet('Add ' + m.n, rec => {
-    const st = rec.state; if (!st.n) { st.n = 1; st.hp = 'avg'; const recent = S.encs.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0]; st.enc = S.encOpen || (recent ? recent._id : '_new'); }
+    const st = rec.state; if (!st.n) { st.n = 1; st.hp = 'avg'; const recent = S.encs.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0]; st.enc = S.encOpen || (recent ? recent._id : '_new'); if (m.idx) { const t = typicalStats(m.cr); st.hpv = t.hp; st.acv = t.ac; st.iv = t.init; } }
     add(rec.foot, [h('button', { class: 'btn primary', onclick: () => {
       let e = st.enc === '_new' ? newEncounter() : getEnc(st.enc); if (!e) e = newEncounter();
-      e = clone(e); addMonstersTo(e, m, st.n, st.hp); saveEnc(e);
+      e = clone(e); if (m.idx) addIndexTo(e, m, st.n, { hp: Math.max(1, Math.round(+st.hpv) || 1), ac: Math.round(+st.acv) || 10, init: Math.round(+st.iv) || 0 }); else addMonstersTo(e, m, st.n, st.hp); saveEnc(e);
       closeAllSheets(); S.encOpen = e._id; go('combat'); toast(`${st.n} × ${m.n} added to ${e.name}`);
     } }, `Add ${st.n} to encounter`)]);
     return h('div', null,
       h('div', { class: 'row' }, h('b', { class: 'grow' }, 'How many'), h('div', { class: 'stepper' }, h('button', { onclick: () => { st.n = Math.max(1, st.n - 1); fillSheet(rec); } }, '−'), h('span', { class: 'v' }, String(st.n)), h('button', { onclick: () => { st.n = Math.min(20, st.n + 1); fillSheet(rec); } }, '+'))),
-      h('label', { class: 'f' }, 'Hit points'), h('div', { class: 'seg' }, [['avg', `Average (${m.hp})`], ['roll', `Roll ${m.hd || ''}`]].map(([v, l]) => h('button', { 'aria-pressed': st.hp === v ? 'true' : 'false', disabled: v === 'roll' && !m.hd, onclick: () => { st.hp = v; fillSheet(rec); } }, l))),
+      m.idx ? h('div', null,
+        h('div', { class: 'row nowrap' }, [['hpv', 'Hit points'], ['acv', 'Armour Class'], ['iv', 'Initiative']].map(([k, l]) => h('div', { style: { flex: 1, minWidth: 0 } }, h('label', { class: 'f', for: 'ix-' + k }, l), h('input', { id: 'ix-' + k, class: 'in num', type: 'number', inputmode: 'numeric', value: st[k], oninput: ev => { st[k] = ev.target.value; } })))),
+        h('p', { class: 'small muted' }, m.cr == null ? `Its challenge rating depends on what creates it, so these are only a starting point. Its stat block is in ${crBook(m.src)}.` : `Typical for CR ${crStr(m.cr)} in the free rules; each is worth ${fmtN(m.xp)} XP. Check its stat block in ${crBook(m.src)} and change these to match.`))
+      : [h('label', { class: 'f' }, 'Hit points'), h('div', { class: 'seg' }, [['avg', `Average (${m.hp})`], ['roll', `Roll ${m.hd || ''}`]].map(([v, l]) => h('button', { 'aria-pressed': st.hp === v ? 'true' : 'false', disabled: v === 'roll' && !m.hd, onclick: () => { st.hp = v; fillSheet(rec); } }, l)))],
       h('label', { class: 'f' }, 'Encounter'),
       h('div', null, S.encs.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0)).map(e => h('label', { class: 'pick' }, h('input', { type: 'radio', name: 'enc', checked: st.enc === e._id, onchange: () => st.enc = e._id }), h('span', { class: 'grow' }, e.name), h('span', { class: 'small muted' }, `${e.list.length} in fight`))),
         h('label', { class: 'pick' }, h('input', { type: 'radio', name: 'enc', checked: st.enc === '_new', onchange: () => st.enc = '_new' }), h('span', { class: 'grow' }, 'A new encounter'))));
+  });
+}
+/* ---------- creatures from the index: their stat blocks are in the books, so the GM gives quick hit points and AC ---------- */
+function typicalStats(cr) {
+  if (!typicalStats.t) { const t = {}; MON.forEach(m => { const k = +m.cr || 0; (t[k] = t[k] || []).push(m); }); typicalStats.t = t; typicalStats.k = Object.keys(t).map(Number).sort((a, b) => a - b); }
+  const c = cr == null ? 0 : +cr, k = typicalStats.k.reduce((b, x) => Math.abs(x - c) < Math.abs(b - c) ? x : b, 0), ms = typicalStats.t[k];
+  const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
+  return { hp: med(ms.map(m => +m.hp || 1)), ac: med(ms.map(m => +m.ac || 10)), init: med(ms.map(m => m.init != null ? +m.init : mod((m.ab || [])[1] || 10))) };
+}
+function addIndexTo(e, m, count, st) {
+  const same = e.list.filter(c => c.k === 'mon' && c.ref === m.i).length;
+  for (let i = 0; i < count; i++) e.list.push({ id: nid(), k: 'mon', ref: m.i, idx: true, cr: m.cr, xp: +m.xp || 0, n: count + same > 1 ? `${m.n} ${same + i + 1}` : m.n, init: null, ac: st.ac, hp: st.hp, max: st.hp, tmp: 0, cond: [], dex: st.init });
+}
+const idxMon = ref => ref && ref.startsWith('ix:') ? ADDON.creatures.find(x => x.i === ref) || null : null;
+const cbXp = c => { const m = getMon(c.ref); return (m && +m.xp) || +c.xp || 0; };   // an index creature carries its XP with it
+
+/* ---------- random encounters: creatures from a habitat that fit the party's XP budget (2024 Dungeon Master's Guide) ---------- */
+function partyShape() {
+  const here = presentUids().map(u => S.chars[u]).filter(Boolean), all = here.length ? here : Object.values(S.chars);
+  return { n: all.length || 4, lvl: all.length ? Math.round(all.reduce((a, c) => a + clamp(D(c).lvl, 1, 20), 0) / all.length) : 1 };
+}
+const kin = m => String(m.t || '').split(' ')[0].toLowerCase();
+function rollEncounter(o) {
+  const row = XP_BUDGET[clamp(o.lvl, 1, 20) - 1], budget = row[o.k] * o.n, lo = o.k ? row[o.k - 1] * o.n : budget / 2;
+  const pool = (o.books ? bestiaryMons() : allMons()).filter(m => { const xp = +m.xp || 0; return xp > 0 && xp <= budget && habMatch(m, o.hab) && monCr(m) <= o.lvl + 3; });
+  if (!pool.length) return null;
+  const pick = a => a[Math.floor(Math.random() * a.length)], maxN = Math.max(3, o.n * 2);
+  let best = null;
+  for (let t = 0; t < 80; t++) {
+    const shape = pick(['solo', 'group', 'group', 'mixed', 'mixed', 'mixed']), groups = [];
+    if (shape === 'solo') { const c = pool.filter(m => m.xp > lo * 0.9); if (!c.length) continue; groups.push([pick(c), 1]); }
+    else if (shape === 'group') { const c = pool.filter(m => m.xp * 2 <= budget && m.xp * maxN >= lo); if (!c.length) continue; const m = pick(c); groups.push([m, Math.min(maxN, Math.floor(budget / m.xp))]); }
+    else {
+      const L = pool.filter(m => m.xp >= budget * 0.2 && m.xp <= budget * 0.6); if (!L.length) continue;
+      const lead = pick(L); groups.push([lead, 1]); const left = budget - lead.xp;
+      const F = pool.filter(m => m !== lead && m.xp < lead.xp && m.xp * 2 <= left), same = F.filter(m => kin(m) === kin(lead)), f = (same.length ? same : F).length ? pick(same.length ? same : F) : null;
+      if (f) groups.push([f, Math.max(1, Math.min(maxN - 1, Math.floor(left / f.xp)))]);
+    }
+    const total = groups.reduce((a, [m, n]) => a + m.xp * n, 0), r = { groups, total, budget, lo };
+    if (total <= budget && total > lo) return r;
+    if (total <= budget && (!best || total > best.total)) best = r;
+  }
+  return best;
+}
+function openRandomEncounter(target) {
+  openSheet('Random encounter', rec => {
+    const st = rec.state;
+    if (!st.k) { const p = partyShape(); Object.assign(st, { n: p.n, lvl: p.lvl, k: 1, hab: S.rhab || 'all', books: false, res: null }); st.res = rollEncounter(st); }
+    const habs = [...new Set(bestiaryMons().flatMap(m => m.hab || []))].filter(x => x !== 'Any').sort((a, b) => (a.startsWith('Planar') - b.startsWith('Planar')) || a.localeCompare(b));
+    const reroll = () => { st.res = rollEncounter(st); fillSheet(rec); };
+    const make = () => {
+      const r = st.res; if (!r) return;
+      let e = target ? getEnc(target._id) : null; const fresh = !e;
+      e = clone(e || newEncounter(st.hab === 'all' ? 'Random encounter' : `${st.hab} encounter`));
+      if (fresh) presentUids().forEach(u => e.list.push({ id: nid(), k: 'pc', ref: u, n: pcName(u), init: null, cond: [] }));
+      r.groups.forEach(([m, n]) => m.idx ? addIndexTo(e, m, n, typicalStats(m.cr)) : addMonstersTo(e, m, n, 'avg'));
+      saveEnc(e); closeAllSheets(); S.encOpen = e._id; go('combat');
+      toast(`${e.name}: ${r.groups.map(([m, n]) => `${n} × ${m.n}`).join(', ')}`, 3200);
+    };
+    add(rec.foot, [h('button', { class: 'btn', onclick: reroll }, icon('d20'), 'Reroll'), h('button', { class: 'btn primary', disabled: st.res ? null : true, onclick: make }, target ? 'Add to encounter' : 'Make encounter')]);
+    const step = (k, lo, hi) => h('div', { class: 'stepper' }, h('button', { 'aria-label': 'Fewer', onclick: () => { st[k] = Math.max(lo, st[k] - 1); reroll(); } }, '−'), h('span', { class: 'v' }, String(st[k])), h('button', { 'aria-label': 'More', onclick: () => { st[k] = Math.min(hi, st[k] + 1); reroll(); } }, '+'));
+    const r = st.res, f = n => Number(n).toLocaleString();
+    return h('div', null,
+      h('label', { class: 'f', for: 'rnd-hab' }, 'Where'),
+      h('select', { id: 'rnd-hab', class: 'in', onchange: ev => { st.hab = S.rhab = ev.target.value; reroll(); } }, [['all', 'Anywhere']].concat(habs.map(x => [x, x])).map(([v, l]) => h('option', { value: v, selected: st.hab === v ? true : null }, l))),
+      habs.length ? null : h('p', { class: 'small muted' }, 'Turn on the Creature index add-on to choose by habitat: it gives the free-rules creatures their Monster Manual habitats.'),
+      h('label', { class: 'f' }, 'Difficulty'),
+      h('div', { class: 'seg' }, ['Low', 'Moderate', 'High'].map((l, k) => h('button', { 'aria-pressed': st.k === k ? 'true' : 'false', onclick: () => { st.k = k; reroll(); } }, l))),
+      h('div', { class: 'row mt' }, h('b', { class: 'grow' }, 'Characters'), step('n', 1, 10)),
+      h('div', { class: 'row mt' }, h('b', { class: 'grow' }, 'Level'), step('lvl', 1, 20)),
+      ADDON.creatures.length ? h('label', { class: 'pick mt' }, h('input', { type: 'checkbox', checked: st.books, onchange: ev => { st.books = ev.target.checked; reroll(); } }), h('span', { class: 'grow' }, h('b', null, 'Include creatures from your books'), h('div', { class: 'small muted' }, 'Their stat blocks aren’t in Campfire, so they get typical hit points and AC that you can change.'))) : null,
+      h('div', { class: 'hr' }),
+      r ? h('div', { role: 'status', 'aria-live': 'polite' },
+        h('div', { class: 'list' }, r.groups.map(([m, n]) => h('button', { class: 'li', onclick: () => m.idx ? openIndexCreature(m) : openMonster(m.i) },
+          m.idx ? h('div', { class: 'mono-tile cr', 'aria-hidden': 'true' }, h('small', null, 'CR'), crStr(m.cr)) : monTile(m, S.best.art[m.i]),
+          h('div', { class: 'grow' }, h('div', { class: 't' }, `${n} × ${m.n}`, bookTag(m)), h('div', { class: 's' }, `CR ${crStr(monCr(m))}, ${monMeta(m).split(',')[0]}`)),
+          h('div', { class: 'end small muted' }, `${f(m.xp * n)} XP`)))),
+        h('p', { class: 'small muted' }, `${f(r.total)} XP of the ${f(r.budget)} XP budget for ${['a Low', 'a Moderate', 'a High'][st.k]} fight with ${st.n} level ${st.lvl} character${st.n === 1 ? '' : 's'}.${r.total <= r.lo ? ' Nothing here fills the budget, so this is easier than asked.' : ''}`))
+        : h('div', { class: 'empty' }, h('b', null, 'No creatures fit'), st.hab === 'all' ? 'Try a higher difficulty or level.' : 'No creatures from this habitat fit that budget. Try another difficulty, or include creatures from your books.'));
   });
 }
 function renderGCombat() {
   if (S.encOpen && getEnc(S.encOpen)) return encounterView(getEnc(S.encOpen));
   S.encOpen = null;
   const root = h('div');
-  root.append(h('div', { class: 'row', style: { marginBottom: '10px' } }, h('button', { class: 'btn primary', onclick: async () => { const n = await askText('Name the encounter', '', { placeholder: 'e.g. Goblin ambush', ok: 'Create' }); if (n == null) return; const e = newEncounter(n); S.encOpen = e._id; renderMain(); } }, icon('plus'), 'New encounter')));
+  root.append(h('div', { class: 'row', style: { marginBottom: '10px' } }, h('button', { class: 'btn primary', onclick: async () => { const n = await askText('Name the encounter', '', { placeholder: 'e.g. Goblin ambush', ok: 'Create' }); if (n == null) return; const e = newEncounter(n); S.encOpen = e._id; renderMain(); } }, icon('plus'), 'New encounter'), h('button', { class: 'btn', onclick: () => openRandomEncounter(null) }, icon('d20'), 'Random encounter')));
   const list = S.encs.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0));
   if (!list.length) root.append(h('div', { class: 'empty' }, h('b', null, 'No encounters yet'), 'Build a fight: add the party and creatures, roll initiative, then step through turns while tracking hit points and conditions.'));
   else root.append(h('div', { class: 'list' }, list.map(e => { const open = () => { S.encOpen = e._id; renderMain(); $('main').scrollTop = 0; }, m = e.map && S.maps.find(x => x._id === e.map);
@@ -7861,6 +7988,7 @@ function encounterView(e0) {
       });
     } }, '+ Party'),
     h('button', { class: 'chip', onclick: () => pickCreatureFor(e) }, '+ Creature'),
+    h('button', { class: 'chip', onclick: () => openRandomEncounter(e) }, '+ Random'),
     h('button', { class: 'chip', onclick: () => {
       e.list.forEach(c => { if (c.k !== 'pc' && c.init == null) { const m = getMon(c.ref); const b = m && m.init != null ? m.init : c.dex || 0; c.init = roll('1d20' + (b >= 0 ? '+' : '') + b, { d20: false }).total; } });
       sortEnc(e); save();
@@ -7874,7 +8002,7 @@ function encounterView(e0) {
     e.list.length ? h('button', { class: 'chip', onclick: () => openAreaDamage(e._id) }, 'Area damage') : null,
     e.list.some(c => c.k !== 'pc') ? h('button', { class: 'chip ico', 'aria-pressed': e.secret ? 'true' : 'false', title: 'Players see only “The Game Master” for creatures’ turns until you reveal them', onclick: () => { e.secret = !e.secret; save(); toast(e.secret ? 'Creatures hidden from players. Tap the eye on a creature to reveal it.' : 'Players see every creature in the turn order.', 3200); } }, icon(e.secret ? 'eye-off' : 'eye'), e.secret ? 'Creatures hidden' : 'Hide creatures') : null,
     e.list.some(c => c.k === 'mon') ? h('button', { class: 'chip', 'aria-pressed': e.hideHp ? 'false' : 'true', title: 'Whether players see a health bar for each creature', onclick: () => { e.hideHp = !e.hideHp; save(); toast(e.hideHp ? 'Players no longer see creatures’ health.' : 'Players see a health bar for each creature (never the numbers).', 2800); } }, e.hideHp ? 'Health hidden from players' : 'Players see health') : null,
-    advMode() === 'xp' && e.list.some(c => c.k === 'mon' && !c.ally) ? h('button', { class: 'chip', onclick: () => { const xp = e.list.filter(c => c.k === 'mon' && !c.ally).reduce((a, c) => a + ((getMon(c.ref) || {}).xp || 0), 0); openAwardXp(xp, e.list.filter(c => c.k === 'pc').map(c => c.ref), `For ${e.name || 'this encounter'}: ${fmtN(xp)} XP from its creatures.`); } }, 'Award XP') : null,
+    advMode() === 'xp' && e.list.some(c => c.k === 'mon' && !c.ally) ? h('button', { class: 'chip', onclick: () => { const xp = e.list.filter(c => c.k === 'mon' && !c.ally).reduce((a, c) => a + cbXp(c), 0); openAwardXp(xp, e.list.filter(c => c.k === 'pc').map(c => c.ref), `For ${e.name || 'this encounter'}: ${fmtN(xp)} XP from its creatures.`); } }, 'Award XP') : null,
     h('button', { class: 'chip', onclick: () => { sortEnc(e); save(); } }, 'Sort'),
     e.turn ? h('button', { class: 'chip', onclick: async () => { if (await confirmSheet('Reset encounter?', 'Clears initiative and goes back to round 1. Hit points stay as they are.', 'Reset', false)) { e.turn = null; e.round = 1; e.list.forEach(c => { c.init = null; c.auto = false; c.resPid = null; }); save(); if (S.gmPrompt && S.gmPrompt.enc === e._id) delDoc('combat/prompt'); } } }, 'Reset') : null));
   if (e.list.length) root.append(h('h2', { class: 'sec', style: { marginTop: '8px' } }, 'Turn order'));
@@ -7903,9 +8031,12 @@ function pickCreatureFor(e) {
     const listEl = h('div', { class: 'list' }); const cnt = h('span', { class: 'small muted' });
     const draw = () => {
       listEl.textContent = ''; const q = st.q.toLowerCase(); const band = CR_BANDS.find(b => b[0] === st.cr) || CR_BANDS[0];
-      const res = allMons().filter(m => (!q || m.n.toLowerCase().includes(q)) && band[2](+m.cr || 0) && (st.type === 'all' || (m.t || '').toLowerCase().startsWith(st.type)));
-      res.forEach(m => listEl.append(h('button', { class: 'li', onclick: () => { closeSheet(rec); addToEncounterSheet(m); } }, monTile(m, S.best.art[m.i]),
-        h('div', { class: 'grow' }, h('div', { class: 't' }, m.n, m.custom ? h('span', { class: 'tag' }, 'Homebrew') : null), h('div', { class: 's' }, `CR ${crStr(+m.cr || 0)}, ${monMeta(m).split(',')[0]}`)), h('div', { class: 'end small muted' }, `AC ${m.ac}`, h('br'), `HP ${m.hp}`))));
+      if (!st.lim) st.lim = 60;
+      const res = bestiaryMons().filter(m => (!q || m.n.toLowerCase().includes(q)) && band[2](monCr(m)) && (st.type === 'all' || (m.t || '').toLowerCase().startsWith(st.type)));
+      res.slice(0, st.lim).forEach(m => listEl.append(h('button', { class: 'li', onclick: () => { closeSheet(rec); addToEncounterSheet(m); } }, m.idx ? h('div', { class: 'mono-tile cr', 'aria-hidden': 'true' }, h('small', null, 'CR'), m.cr == null ? '—' : crStr(m.cr)) : monTile(m, S.best.art[m.i]),
+        h('div', { class: 'grow' }, h('div', { class: 't' }, m.n, m.custom ? h('span', { class: 'tag' }, 'Homebrew') : bookTag(m)), h('div', { class: 's' }, m.idx ? `${m.cr == null ? 'CR varies' : 'CR ' + crStr(m.cr)}, ${monMeta(m).split(',')[0]}` : `CR ${crStr(+m.cr || 0)}, ${monMeta(m).split(',')[0]}`)),
+        m.idx ? h('div', { class: 'end small muted' }, m.xp != null ? `${fmtN(m.xp)} XP` : '') : h('div', { class: 'end small muted' }, `AC ${m.ac}`, h('br'), `HP ${m.hp}`))));
+      if (res.length > st.lim) listEl.append(h('div', { class: 'center mt' }, h('button', { class: 'btn', onclick: () => { st.lim += 80; draw(); } }, `Show more (${res.length - st.lim} left)`)));
       if (!res.length) listEl.append(h('p', { class: 'muted center' }, 'No creatures match.'));
       cnt.textContent = `${res.length} creature${res.length === 1 ? '' : 's'}`;
     };
@@ -7929,7 +8060,7 @@ function openCombatant(encId, cbId) {
     const body = h('div');
     body.append(h('div', { class: 'vitals', style: { gridTemplateColumns: '1.6fr 1fr 1fr' } },
       h('button', { class: 'vital hp', onclick: () => openHP(v.n + ': hit points', getHP, setHP) }, h('div', { class: 'k' }, 'Hit points'), h('div', { class: 'v' }, String(v.hp), h('span', null, ' / ' + v.max)), v.tmp ? h('span', { class: 'tmp' }, '+' + v.tmp) : null, hpBar(v.hp, v.max)),
-      h('div', { class: 'vital' }, h('div', { class: 'v' }, String(v.ac)), h('div', { class: 'k' }, 'AC')),
+      c.k === 'mon' ? h('button', { class: 'vital', 'aria-label': `Armour Class ${v.ac}, change`, onclick: async () => { const n = await askText('Armour Class', String(v.ac), { ok: 'Set' }); if (n != null && n !== '' && !isNaN(+n)) { c.ac = Math.max(0, Math.round(+n)); save(); } } }, h('div', { class: 'v' }, String(v.ac)), h('div', { class: 'k' }, 'AC')) : h('div', { class: 'vital' }, h('div', { class: 'v' }, String(v.ac)), h('div', { class: 'k' }, 'AC')),
       h('button', { class: 'vital', onclick: async () => { const n = await askText('Initiative', v.init == null ? '' : String(v.init), { ok: 'Set' }); if (n != null && n !== '' && !isNaN(+n)) { c.init = +n; c.auto = false; save(); } } }, h('div', { class: 'v' }, v.init == null ? '–' : String(v.init)), h('div', { class: 'k' }, 'Initiative'))));
     if (c.k === 'mon' && c.ally && c.hp <= 0) { const ctl = allyDeathCtl(encId, cbId, v.n); body.append(deathPanel(ctl.ch, ctl.o, v.n)); }
     if ((c.marks || []).length) body.append(h('div', { class: 'panel mt' }, h('div', { class: 'lbl' }, 'Marked by'), c.marks.map(mk => h('div', { class: 'row nowrap', style: { marginTop: '6px' } }, h('div', { class: 'grow small' }, markText(mk)),
@@ -7947,6 +8078,11 @@ function openCombatant(encId, cbId) {
       h('button', { class: 'btn sm danger', onclick: () => { if (e.turn === c.id) e.turn = null; e.list.splice(idx, 1); save(); closeSheet(rec); } }, 'Remove')));
     body.append(h('div', { class: 'hr' }));
     if (c.k === 'pc') { const ch = S.chars[c.ref]; if (ch) body.append(sheetView(ch, { ro: true, gmEdit: true, set: p => gmSetChar(c.ref, p), portrait: S.portraits[c.ref], setHP: (p, info) => gmSetPCHP(c.ref, p, info), getHP: () => S.chars[c.ref].hp })); }
+    else if (c.idx) { const x = idxMon(c.ref);
+      body.append(...[h('dl', { class: 'kv' }, h('dt', null, 'Challenge'), h('dd', null, c.cr == null ? 'Set by what creates it' : `${crStr(c.cr)} (${fmtN(c.xp || 0)} XP)`), x ? [h('dt', null, 'Stat block'), h('dd', null, crBook(x.src))] : null),
+        S.best.notes[c.ref] ? h('div', { class: 'gmnote mt' }, S.best.notes[c.ref]) : null,
+        h('p', { class: 'small muted' }, 'Campfire doesn’t have this creature’s stat block. Its hit points and AC are the ones you gave it: tap them above to change them.'),
+        x ? h('button', { class: 'btn sm', onclick: () => openIndexCreature(x) }, 'Book entry and notes') : null].filter(Boolean)); }
     else { const m = getMon(c.ref); if (m) body.append(statBlock(m, { who: v.n, art: S.best.art[m.i], notesEl: S.best.notes[m.i] ? h('div', { class: 'gmnote' }, S.best.notes[m.i]) : null })); }
     return body;
   }, { live: true });
@@ -8241,6 +8377,7 @@ async function deleteMap(m) {
   if (!(await confirmSheet('Delete map?', `“${m.name || 'This map'}” will be deleted for good${mapSentText(m) ? ', and taken back from the players who have it' : ''}.`))) return false;
   sentDests(m.sent).forEach(d => withdrawHandout(mapShareId(m._id), d));
   if (m.live) { delDoc('live/' + m._id); delDoc('livedata/' + m._id); dropImg(m.liveBg); }
+  if (tableMapId() === m._id) writeDoc('campaign/table', { map: null, at: Date.now() }, 'update');
   await delDoc(dataPath(m._id)); await delDoc(metaPath(m._id));
   dropImg(m.bg); dropImg(m.shareImg);
   S.maps = S.maps.filter(x => x._id !== m._id);
@@ -8270,7 +8407,7 @@ function renderGMaps(main) {
   const list = S.maps.filter(m => !(m.bld && (m.fl || 0) !== 0 && S.maps.some(x => x.bld === m.bld && (x.fl || 0) === 0))).sort((a, b) => (b.upd || 0) - (a.upd || 0));
   if (!list.length) root.append(h('div', { class: 'empty' }, h('b', null, 'No maps yet'), 'Draw a dungeon square by square, or upload a battle map image and lay a grid over it. Place tokens, then share the finished map with your players.'));
   else root.append(h('div', { class: 'list' }, list.map(m => h('div', { class: 'li', role: 'button', tabindex: 0, onclick: () => { S.mapOpen = m._id; renderMain(); }, onkeydown: e => { if (e.key === 'Enter') { S.mapOpen = m._id; renderMain(); } } }, h('div', { class: 'mapthumb' }, m.bg ? imgTag(m.bg, { alt: '' }) : isWM(m) ? kindPreview(m.kind) : icon('maps')),
-    h('div', { class: 'grow' }, h('div', { class: 't' }, m.name), h('div', { class: 's' }, m.kind === 'interior' ? `${m.bld && floorsOf(m).length > 1 ? floorsOf(m).length + ' floors, inside' : 'Inside'} a building${m.parent && S.maps.some(x => x._id === m.parent) ? ' in ' + S.maps.find(x => x._id === m.parent).name : ''}, edited ${timeAgo(m.upd || 0)}` : m.kind === 'world' ? `World map, edited ${timeAgo(m.upd || 0)}` : m.kind === 'town' ? `Town map${m.parent && S.maps.some(x => x._id === m.parent) ? ' in ' + S.maps.find(x => x._id === m.parent).name : ''}, edited ${timeAgo(m.upd || 0)}` : `${m.cols} × ${m.rows} squares${m.bg ? ', with picture' : ''}, edited ${timeAgo(m.upd || 0)}`), m.live ? h('div', { class: 'sentto', style: { marginTop: '2px', color: 'var(--ember)' } }, 'Live for players') : null, mapSentText(m) ? h('div', { class: 'sentto', style: { marginTop: '2px' } }, mapSentText(m)) : null),
+    h('div', { class: 'grow' }, h('div', { class: 't' }, m.name), h('div', { class: 's' }, m.kind === 'interior' ? `${m.bld && floorsOf(m).length > 1 ? floorsOf(m).length + ' floors, inside' : 'Inside'} a building${m.parent && S.maps.some(x => x._id === m.parent) ? ' in ' + S.maps.find(x => x._id === m.parent).name : ''}, edited ${timeAgo(m.upd || 0)}` : m.kind === 'world' ? `World map, edited ${timeAgo(m.upd || 0)}` : m.kind === 'town' ? `Town map${m.parent && S.maps.some(x => x._id === m.parent) ? ' in ' + S.maps.find(x => x._id === m.parent).name : ''}, edited ${timeAgo(m.upd || 0)}` : `${m.cols} × ${m.rows} squares${m.bg ? ', with picture' : ''}, edited ${timeAgo(m.upd || 0)}`), m.live ? h('div', { class: 'sentto', style: { marginTop: '2px', color: 'var(--ember)' } }, tableMapId() === m._id ? 'Live for players, on the table display' : 'Live for players') : null, mapSentText(m) ? h('div', { class: 'sentto', style: { marginTop: '2px' } }, mapSentText(m)) : null),
     h('button', { class: 'icon-btn', style: { color: 'var(--red)' }, 'aria-label': 'Delete ' + m.name, title: 'Delete map', onclick: e => { e.stopPropagation(); deleteMap(m); } }, icon('trash'))))));
   return root;
 }
@@ -8839,11 +8976,18 @@ function MapEditor(meta0, opts = {}) {
   async function setLive(on) {
     ed.meta.live = !!on;
     if (on) { ed.flush(); writeDoc('livedata/' + ed.id, ed.data); await mirrorLive(); toast('Players can now open this map and watch it change live', 3200); }
-    else { delDoc('live/' + ed.id); delDoc('livedata/' + ed.id); if (ed.meta.liveBg) { dropImg(ed.meta.liveBg); ed.meta.liveBg = null; ed.meta.liveBgFrom = null; } toast('Map hidden from players'); }
+    else { if (tableMapId() === ed.id) { writeDoc('campaign/table', { map: null, at: Date.now() }, 'update'); S.tableDoc = Object.assign({}, S.tableDoc, { map: null }); } delDoc('live/' + ed.id); delDoc('livedata/' + ed.id); if (ed.meta.liveBg) { dropImg(ed.meta.liveBg); ed.meta.liveBg = null; ed.meta.liveBgFrom = null; } toast('Map hidden from players'); }
     writeDoc(metaPath(ed.id), { live: ed.meta.live, liveBg: ed.meta.liveBg || null, liveBgFrom: ed.meta.liveBgFrom || null }, 'update');
     const i = S.maps.findIndex(m => m._id === ed.id); if (i >= 0) S.maps[i] = Object.assign({ _id: ed.id }, ed.meta);
   }
   ed.setLive = setLive;
+  /* the table display keeps showing the map pinned here, rather than whichever live map changed last */
+  async function setOnTable(on) {
+    if (on && !ed.meta.live) await setLive(true);
+    writeDoc('campaign/table', { map: on ? ed.id : null, at: Date.now() }, 'update');
+    S.tableDoc = Object.assign({}, S.tableDoc, { map: on ? ed.id : null });
+    toast(on ? 'Showing this map on the table display' : 'The table display shows the live map you changed last', 3000);
+  }
   function shareSheet() {
     openSheet('Share “' + ed.meta.name + '”', rec => {
       const st = rec.state; if (!st.sel) st.sel = new Set();
@@ -8852,7 +8996,8 @@ function MapEditor(meta0, opts = {}) {
         h('button', { class: 'btn primary', onclick: () => { closeSheet(rec); shareTo(['party']); } }, 'Send to party')]);
       return h('div', null,
         h('div', { class: 'panel', style: { marginBottom: '14px' } },
-          h('label', { class: 'pick', style: { background: 'transparent', padding: 0, minHeight: 0 } }, h('input', { type: 'checkbox', checked: !!ed.meta.live, onchange: async e => { await setLive(e.target.checked); fillSheet(rec); } }), h('span', { class: 'grow' }, h('b', null, 'Live map'), h('div', { class: 'small muted' }, 'Players open it from their Camp page and see every change as you make it. Tokens you assign to a player can be moved by that player.')))),
+          h('label', { class: 'pick', style: { background: 'transparent', padding: 0, minHeight: 0 } }, h('input', { type: 'checkbox', checked: !!ed.meta.live, onchange: async e => { await setLive(e.target.checked); fillSheet(rec); } }), h('span', { class: 'grow' }, h('b', null, 'Live map'), h('div', { class: 'small muted' }, 'Players open it from their Camp page and see every change as you make it. Tokens you assign to a player can be moved by that player.'))),
+          h('label', { class: 'pick mt', style: { background: 'transparent', padding: 0, minHeight: 0 } }, h('input', { type: 'checkbox', checked: tableMapId() === ed.id, onchange: async e => { await setOnTable(e.target.checked); fillSheet(rec); } }), h('span', { class: 'grow' }, h('b', null, 'Show on the table display'), h('div', { class: 'small muted' }, tableMapId() && tableMapId() !== ed.id && S.maps.some(m => m._id === tableMapId()) ? `The table display shows ${S.maps.find(m => m._id === tableMapId()).name} now. Tick this to show this map instead (it becomes live for players too).` : 'Keeps this map on the TV or second screen. Without it, the table display shows whichever live map you changed last.' + (ed.meta.live ? '' : ' Turns on Live map too.'))))),
         h('div', { class: 'lbl', style: { marginBottom: '6px' } }, 'Or send a picture'),
         h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Players get a picture of the map as it looks now, in the Maps part of their inbox. Share again after changes to update their copy.'),
         mapSentText(ed.meta) ? h('p', { class: 'sentto' }, mapSentText(ed.meta)) : null,
@@ -9006,7 +9151,7 @@ const legalLinks = () => h('div', null, h('div', { class: 'center', style: { mar
 
 /* ---------- sharing a short text (campfire code) ---------- */
 async function shareText(text, short) {
-  try { if (window.CampfireAndroid && CampfireAndroid.shareText) { CampfireAndroid.shareText(text); return; } } catch (e) { }
+  try { if (window.CampfireAndroid && window.CampfireAndroid.shareText) { window.CampfireAndroid.shareText(text); return; } } catch (e) { }
   try { if (navigator.share) { await navigator.share({ text }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(text); toast('Copied. Paste it to your players.'); return; } catch (e) { }
   toast('Your campfire code is ' + short, 5000);
@@ -9187,7 +9332,7 @@ function CloudDB(cid) {
       onSnapshot: (next, err) => F().onSnapshot(r, s => next(qsnap(s)), e => err && err(cloudErr(e))),
     };
   };
-  return { doc: dref, collection: cref };
+  return { doc: dref, collection: cref, direct: true };   // writeDoc hands writes straight to Firestore's saved queue
 }
 /* names come from each campaign's member list (the GM can read it; players can read their own) */
 function cloudUserCap(cid) {
@@ -9233,11 +9378,11 @@ function authMsg(e) {
 }
 
 /* ---------- Google sign-in through the Android app ---------- */
-const hasGoogle = () => { try { return !!(window.CampfireAndroid && CampfireAndroid.googleAvailable && CampfireAndroid.googleAvailable()); } catch (e) { return false; } };
+const hasGoogle = () => { try { return !!(window.CampfireAndroid && window.CampfireAndroid.googleAvailable && window.CampfireAndroid.googleAvailable()); } catch (e) { return false; } };
 let gWait = null;
 window.cfGoogleResult = t => { if (gWait) { const w = gWait; gWait = null; w.res(t); } };
 window.cfGoogleError = m => { if (gWait) { const w = gWait; gWait = null; w.rej({ code: /cancel/i.test(m || '') ? 'cancelled' : 'google', message: m || '' }); } };
-const googleToken = () => new Promise((res, rej) => { gWait = { res, rej }; try { CampfireAndroid.googleSignIn(); } catch (e) { gWait = null; rej(e); } });
+const googleToken = () => new Promise((res, rej) => { gWait = { res, rej }; try { window.CampfireAndroid.googleSignIn(); } catch (e) { gWait = null; rej(e); } });
 
 /* ---------- home: sign in, then choose a campaign ---------- */
 function homeShell() {
@@ -9413,7 +9558,7 @@ async function enterCampaign(cid) {
   try { camp = await fget('campaigns/' + cid); } catch (e) { camp = null; }
   if (!camp) { toast('This campaign isn’t available any more.', 3600); CLOUD.fires = null; renderHome(); return; }
   CLOUD.cid = cid; CLOUD.camp = camp;
-  DB = CloudDB(cid); CAP.local = false; CAP.cloud = true; CAP.downloads = null;
+  DB = CloudDB(cid); CAP.local = false; CAP.cloud = true; CAP.downloads = null; syncStatus();
   const u = CLOUD.user;
   ME.id = u.uid; ME.name = myName(); ME.avatar = u.photoURL || ''; ME.owner = camp.ownerUid === u.uid;
   CAP.user = cloudUserCap(cid);
@@ -9427,13 +9572,13 @@ function exitCampaign() {
   closeAllSheets(); unsubAll();
   if (S.mapEd) { S.mapEd.destroy(); S.mapEd = null; }
   if (CLOUD.infoUnsub) { try { CLOUD.infoUnsub(); } catch (e) { } CLOUD.infoUnsub = null; }
-  S.role = null; rollHook = null; CLOUD.cid = null; CLOUD.camp = null; CAP.cloud = false; DB = null; ME.id = null; ME.owner = false;
+  S.role = null; rollHook = null; CLOUD.cid = null; CLOUD.camp = null; CAP.cloud = false; DB = null; ME.id = null; ME.owner = false; syncStatus();
   renderHome();
 }
 function useDeviceOnly() { CAP.local = true; try { localStorage.setItem('cf-mode', 'device'); } catch (e) { } openDevice(); }
 function leaveDeviceOnly() { try { localStorage.removeItem('cf-mode'); } catch (e) { } closeAllSheets(); unsubAll(); closeLocalCampaign(); LOCAL_CAMP = null; DEV_LIST_OPEN = false; CAP.local = false; DB = null; ME.id = null; S.role = null; renderHome(); }
 async function cloudSignOut() {
-  try { if (window.CampfireAndroid && CampfireAndroid.googleSignOut) CampfireAndroid.googleSignOut(); } catch (e) { }
+  try { if (window.CampfireAndroid && window.CampfireAndroid.googleSignOut) window.CampfireAndroid.googleSignOut(); } catch (e) { }
   if (CLOUD.cid) exitCampaign();
   await F().signOut(CLOUD.auth); CLOUD.fires = null; CLOUD.agree = false; CLOUD.view = 'signin'; renderHome();
 }
@@ -9518,7 +9663,7 @@ async function deleteAccount() {
     await fdel('users/' + u.uid).catch(() => { });
     await F().deleteUser(u);
   } catch (e) { toast(authMsg(e), 4200); return; }
-  try { if (window.CampfireAndroid && CampfireAndroid.googleSignOut) CampfireAndroid.googleSignOut(); } catch (e) { }
+  try { if (window.CampfireAndroid && window.CampfireAndroid.googleSignOut) window.CampfireAndroid.googleSignOut(); } catch (e) { }
   closeAllSheets(); if (CLOUD.cid) exitCampaign();
   CLOUD.fires = null; CLOUD.agree = false; CLOUD.view = 'signin'; toast('Your account has been deleted.', 3600); renderHome();
 }
@@ -10271,8 +10416,11 @@ let ADDON_EMBED;
 const addonInfo = id => ADDON_CATALOG.find(a => a.id === id) || null;
 const addonsWanted = () => { const a = (S.campaign || {}).addons || {}; return ADDON_CATALOG.map(x => x.id).filter(id => a[id]); };
 const addonOn = id => !!ADDON.applied[id];
+/* the single-file app carries each add-on in its own tag, read only when that add-on is switched on */
 function addonEmbedded(id) {
-  if (ADDON_EMBED === undefined) { const el = document.getElementById('addon-data'); try { ADDON_EMBED = el ? JSON.parse(el.textContent) : null; } catch (e) { ADDON_EMBED = null; } }
+  const el = document.getElementById('addon-' + id);
+  if (el) { try { return JSON.parse(el.textContent); } catch (e) { return null; } }
+  if (ADDON_EMBED === undefined) { const all = document.getElementById('addon-data'); try { ADDON_EMBED = all ? JSON.parse(all.textContent) : null; } catch (e) { ADDON_EMBED = null; } }   // older builds: one tag for all
   return ADDON_EMBED && ADDON_EMBED[id];
 }
 async function fetchAddon(id) {
@@ -10311,6 +10459,10 @@ function applyAddon(p) {
   Object.assign(BOOK_FEAT_TEXT, d.featText || {});
   Object.assign(BOOK_BG_NOTE, d.bgNotes || {});
   Object.assign(FX, d.featFx || {});
+  /* whole classes and species from a book (their structure plus summaries; the format is in the project's notes) */
+  (d.classes || []).forEach(addBookClass);
+  (d.species || []).forEach(addBookSpecies);
+  (d.languages || []).forEach(l => { if (typeof ALL_LANGS !== 'undefined' && !ALL_LANGS.includes(l)) ALL_LANGS.push(l); });
   /* class and subclass features: [class, level, name, text, subclass?] */
   (d.classFeatures || []).forEach(([c, l, n, t, s]) => {
     if (SRD.fea.some(f => f.c === c && f.l === l && f.n === n && (f.s || '') === (s || ''))) return;
@@ -10365,13 +10517,32 @@ function addBookSpell(sp) {
 /* the book a spell or creature comes from, as a tag in lists */
 const bookTag = x => x && x.tg ? h('span', { class: 'tag book' }, x.tg) : null;
 /* a creature book's name, or its short name for tags: creatureBooks is { code: [name, short] } */
+/* a class from a book: hit die, saves, proficiencies, spellcasting and its level table; features come as classFeatures.
+   caster 'full', 'half' or 'pact' borrows the Wizard's, Paladin's or Warlock's spell slots; lv (20 rows) overrides any of it */
+function addBookClass(x) {
+  if (!x || !x.i || !x.n || CLS_BY[x.i]) return;
+  const ref = CLS_BY[{ full: 'wizard', half: 'paladin', pact: 'warlock' }[x.caster] || ''];
+  const lv = Array.from({ length: 20 }, (_, i) => { const r = (x.lv || [])[i] || {};
+    return { pb: r.pb || Math.ceil((i + 1) / 4) + 1, sl: r.sl || (ref ? ref.lv[i].sl.slice() : Array(9).fill(0)), ca: r.ca != null ? r.ca : +(x.cantrips || [])[i] || 0, pr: r.pr != null ? r.pr : +(x.prepared || [])[i] || 0, cs: Object.assign({}, r.cs) }; });
+  const book = BOOK_SRC[x.src] || x.book || x.src || 'your book';
+  const k = { i: x.i, n: x.n, hd: +x.hd || 8, sv: x.sv || [], sa: x.sa || null, pf: x.pf || [], skN: +x.skN || 2, skF: x.skF || [], sub: [], eq: x.eq || `Starting equipment is in your book (${book}).`, book, lv };
+  const at = SRD.cls.findIndex(c => c.n.localeCompare(k.n) > 0); SRD.cls.splice(at < 0 ? SRD.cls.length : at, 0, k); CLS_BY[k.i] = k;
+}
+/* a species from a book: size, speed, traits and any lineage or ancestry choices (sub), like the free-rules species */
+function addBookSpecies(x) {
+  if (!x || !x.i || !x.n || SPC_BY[x.i]) return;
+  const book = BOOK_SRC[x.src] || x.book || x.src || '';
+  const sp = { i: x.i, n: x.n, sz: x.sz || 'Medium', sp: +x.sp || 30, tr: (x.tr || []).map(t => ({ n: t.n, d: t.d || '' })), sub: (x.sub || []).map(o => ({ n: o.n, t: (o.t || []).map(t => ({ n: t.n, d: t.d || '' })) })), book };
+  if (book) sp.label = `${x.n} (${book})`;
+  const at = SRD.spc.findIndex(c => c.n.localeCompare(sp.n) > 0); SRD.spc.splice(at < 0 ? SRD.spc.length : at, 0, sp); SPC_BY[sp.i] = sp;
+}
 const crBook = (code, short) => { const b = ADDON.crBooks[code]; return b ? (Array.isArray(b) ? b[short ? 1 : 0] : b) : code; };
 /* a creature from the index: what's known about it and where its stat block is */
 function openIndexCreature(x) {
   openSheet(x.n, rec => {
     const pb = x.cr == null ? null : Math.max(2, Math.ceil((x.cr || 0) / 4) + 1);
     const notes = h('textarea', { class: 'in', placeholder: 'Description, lore, tactics, where the party met it…', value: S.best.notes[x.i] || '', onchange: e => { S.best.notes[x.i] = e.target.value; writeDoc('gm/bestiary', { notes: { [x.i]: e.target.value } }, 'update'); toast('Notes saved', 1200); } });
-    add(rec.foot, [h('button', { class: 'btn primary', onclick: () => { closeSheet(rec); editCustom(null, indexPrefill(x)); } }, icon('edit'), 'Write its stat block')]);
+    add(rec.foot, [h('button', { class: 'btn', onclick: () => { closeSheet(rec); editCustom(null, indexPrefill(x)); } }, icon('edit'), 'Write its stat block'), h('button', { class: 'btn primary', onclick: () => { closeSheet(rec); addToEncounterSheet(x); } }, icon('plus'), 'Encounter')]);
     const row = (k, v) => v ? [h('dt', null, k), h('dd', null, v)] : null;
     return h('div', null,
       h('p', { class: 'meta', style: { fontStyle: 'italic', color: 'var(--ink-2)', margin: '0 0 8px' } }, monMeta(x) + (x.tags.length ? ` (${x.tags.join(', ')})` : '')),
@@ -10379,7 +10550,7 @@ function openIndexCreature(x) {
         row('Challenge', x.cr == null ? 'Set by the spell or feature that creates it' : `${crStr(x.cr)} (${fmtN(x.xp)} XP)`),
         row('Proficiency Bonus', pb ? '+' + pb : ''), row('Legendary', x.leg ? 'Yes: it has legendary actions' : ''),
         row('Habitat', x.hab.join(', ')), row('Stat block', crBook(x.src))),
-      h('p', { class: 'small muted' }, 'Campfire has the stat blocks from the free rules only. Write this one in from your book and it joins your bestiary as homebrew, ready for encounters.'),
+      h('p', { class: 'small muted' }, 'Campfire has the stat blocks from the free rules only. Add it to an encounter with quick hit points and AC, or write its stat block in from your book and it joins your bestiary as homebrew.'),
       h('label', { class: 'f' }, 'Notes'), notes);
   });
 }
@@ -10493,7 +10664,7 @@ const XP_BUDGET = [[50, 75, 100], [100, 150, 200], [150, 225, 400], [250, 375, 5
 function encDifficulty(e) {
   const inFight = e.list.filter(c => c.k === 'pc' && S.chars[c.ref]).map(c => S.chars[c.ref]);
   const party = inFight.length ? inFight : presentUids().map(u => S.chars[u]);
-  const xp = e.list.filter(c => c.k === 'mon' && !c.ally).reduce((a, c) => { const m = getMon(c.ref); return a + ((m && +m.xp) || 0); }, 0);
+  const xp = e.list.filter(c => c.k === 'mon' && !c.ally).reduce((a, c) => a + cbXp(c), 0);
   if (!party.length || !xp) return null;
   const b = [0, 0, 0]; party.forEach(c => XP_BUDGET[clamp(D(c).lvl, 1, 20) - 1].forEach((v, i) => b[i] += v));
   const k = xp < b[0] / 2 ? 0 : xp <= b[0] ? 1 : xp <= b[1] ? 2 : xp <= b[2] ? 3 : 4;
@@ -10868,9 +11039,9 @@ function onInitResponses() {
   refreshSheets();
 }
 /* cards at the top of the player's Camp page, and the row of table tools above the roll feed */
-function campTopCards() { return [amAway() ? h('div', { class: 'awaynote small' }, h('b', null, 'You’re down as away this session. '), 'The Game Master won’t add you to fights or ask you to roll until you’re back.') : null, turnCard(), ...readiedCards(S.char), recapCard()].filter(Boolean); }
+function campTopCards() { return [clockCard(), amAway() ? h('div', { class: 'awaynote small' }, h('b', null, 'You’re down as away this session. '), 'The Game Master won’t add you to fights or ask you to roll until you’re back.') : null, turnCard(), ...readiedCards(S.char), recapCard()].filter(Boolean); }
 const campToolsRow = () => h('div', { class: 'row tablerow' }, lootButton(), loreOf().length ? loreButton() : null);
-const gmCampTools = () => h('div', { class: 'row tablerow' }, h('button', { class: 'btn sm', onclick: openXpPanel }, icon('crown'), 'Experience'), h('button', { class: 'btn sm', onclick: openRollCall }, icon('d20'), 'Call for a roll'), h('button', { class: 'btn sm', onclick: callRest }, icon('camp'), 'Call a rest'), lootButton(),
+const gmCampTools = () => h('div', { class: 'row tablerow' }, h('button', { class: 'btn sm', onclick: openXpPanel }, icon('crown'), 'Experience'), h('button', { class: 'btn sm', onclick: openRollCall }, icon('d20'), 'Call for a roll'), h('button', { class: 'btn sm', onclick: callRest }, icon('camp'), 'Call a rest'), S.clock ? null : h('button', { class: 'btn sm', onclick: openClock }, icon('clock'), 'Date and time'), lootButton(),
   h('button', { class: 'btn sm', onclick: openNotes }, icon('journal'), 'Campaign notes'), h('button', { class: 'btn sm', onclick: openRecapEditor }, icon('edit'), 'Session recap'));
 
 /* ---------- desktop layout: the sheet and the encounter split into two columns (CSS does the rest) ---------- */
@@ -11668,11 +11839,107 @@ function openLore() {
 }
 const loreButton = () => h('button', { class: 'btn sm', onclick: openLore }, icon('journal'), 'What we know', loreNew() ? h('span', { class: 'countdot' }, String(loreNew())) : null);
 
+/* ---------- in-game time: the date and time in the world, moved on by the GM (rests and travel move it too) ----------
+   campaign/clock { cal: 'harptos'|'days', base: first year, t: minutes since the start of that year, t0: when the adventure began, log: [{ t, w }] } */
+const HARPTOS = [['Hammer', 30], ['Midwinter', 1], ['Alturiak', 30], ['Ches', 30], ['Tarsakh', 30], ['Greengrass', 1], ['Mirtul', 30], ['Kythorn', 30], ['Flamerule', 30], ['Midsummer', 1], ['Shieldmeet', 1, 'leap'], ['Eleasis', 30], ['Eleint', 30], ['Highharvestide', 1], ['Marpenoth', 30], ['Uktar', 30], ['Feast of the Moon', 1], ['Nightal', 30]];
+const harptosLeap = y => y % 4 === 0, yearLen = y => harptosLeap(y) ? 366 : 365;
+const harptosMonths = y => HARPTOS.filter(m => !m[2] || harptosLeap(y));
+function clockParts(c) {
+  const t = Math.max(0, Math.round(+c.t || 0)), min = t % 1440; let days = Math.floor(t / 1440);
+  const out = { hh: Math.floor(min / 60), mm: min % 60, min, day: Math.floor(t / 1440) - Math.floor(Math.max(0, +c.t0 || 0) / 1440) + 1 };
+  if (c.cal === 'harptos') {
+    let y = Math.round(+c.base || 1492); while (days >= yearLen(y)) { days -= yearLen(y); y++; }
+    out.y = y; out.doy = days;
+    for (const [n, len] of harptosMonths(y)) { if (days < len) { out.month = n; out.d = len === 1 ? 0 : days + 1; break; } days -= len; }
+  }
+  return out;
+}
+const dayPart = m => m < 300 ? 'Night' : m < 420 ? 'Dawn' : m < 720 ? 'Morning' : m < 840 ? 'Midday' : m < 1080 ? 'Afternoon' : m < 1260 ? 'Evening' : 'Night';
+const clockTime = p => `${String(p.hh).padStart(2, '0')}:${String(p.mm).padStart(2, '0')}`;
+const clockDate = (c, p) => c.cal === 'harptos' ? `${p.d ? p.d + ' ' : ''}${p.month} ${p.y} DR` : `Day ${p.day}`;
+function clockLine(c) { const p = clockParts(c); return `${dayPart(p.min)}, ${clockDate(c, p)}`; }
+const clockLineLower = c => clockLine(c).replace(/^\w/, x => x.toLowerCase());   // for the middle of a sentence: 'evening, 5 Flamerule'
+const fmtSpan = m => { const d = Math.floor(m / 1440), hr = Math.floor((m % 1440) / 60), mi = m % 60;
+  return [d ? `${d} day${d === 1 ? '' : 's'}` : '', hr ? `${hr} hour${hr === 1 ? '' : 's'}` : '', mi ? `${mi} minute${mi === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ').replace(/ and (?=.* and )/, ', ') || 'no time'; };
+/* the GM moves time on; what happened goes in a short log the GM can look back over */
+function advanceClock(mins, what) {
+  const c = S.clock; if (!c || !mins) return;
+  const n = Object.assign({}, c, { t: Math.max(0, (+c.t || 0) + Math.round(mins)), upd: Date.now() });
+  n.log = [{ t: n.t, w: what || `${fmtSpan(Math.round(mins))} passed` }].concat(c.log || []).slice(0, 20);
+  S.clock = n; writeDoc('campaign/clock', n); refresh(); refreshSheets();
+}
+function clockCard() {
+  const c = S.clock; if (!c) return null;
+  const p = clockParts(c), gm = S.role === 'gm', dial = h('span', { class: 'sundial', 'aria-hidden': 'true' }); dial.style.setProperty('--a', (p.min / 1440 * 360) + 'deg');
+  const sub = c.cal === 'harptos' ? `${clockTime(p)}, day ${p.day} of the adventure` : clockTime(p);
+  return h('section', { class: 'clockcard' + (gm ? '' : ' ro'), 'aria-label': 'In-game date and time' },
+    h('div', { class: 'row nowrap' }, dial,
+      h('div', { class: 'grow', style: { minWidth: 0 } }, h('div', { class: 'clk-main' }, clockLine(c)), h('div', { class: 'small muted' }, sub)),
+      gm ? h('button', { class: 'icon-btn', 'aria-label': 'Set the date and time', title: 'Set the date and time', onclick: openClock }, icon('edit')) : null),
+    gm ? h('div', { class: 'chips' }, [[10, '+10 min'], [60, '+1 hour'], [480, '+8 hours'], [1440, '+1 day']].map(([m, l]) => h('button', { class: 'chip', onclick: () => advanceClock(m) }, l)),
+      h('button', { class: 'chip', onclick: openTravel }, 'Travel')) : null);
+}
+function openClock() {
+  openSheet('Date and time', rec => {
+    const st = rec.state, c = S.clock;
+    if (!st.cal) { const p = c ? clockParts(c) : null; Object.assign(st, c ? { cal: c.cal, y: p.y || Math.round(+c.base || 1492), mi: c.cal === 'harptos' ? harptosMonths(p.y).findIndex(m => m[0] === p.month) : 0, d: p.d || 1, day: p.day, time: clockTime(p) } : { cal: 'harptos', y: 1492, mi: 0, d: 1, day: 1, time: '08:00' }); }
+    const months = harptosMonths(+st.y || 1492), mo = months[clamp(st.mi, 0, months.length - 1)] || months[0];
+    const save = () => {
+      const [hh, mm] = String(st.time || '08:00').split(':').map(x => +x || 0), min = clamp(hh, 0, 23) * 60 + clamp(mm, 0, 59), fresh = !c || c.cal !== st.cal;
+      let n;
+      if (st.cal === 'harptos') {
+        const y = Math.round(+st.y) || 1492; let base = fresh ? y : Math.round(+c.base || y), t0 = fresh ? 0 : +c.t0 || 0;
+        if (y < base) { let shift = 0; for (let k = y; k < base; k++) shift += yearLen(k); t0 += shift * 1440; base = y; }   // an earlier year: count from it instead
+        let days = 0; for (let k = base; k < y; k++) days += yearLen(k);
+        for (const [nm, len] of harptosMonths(y)) { if (nm === mo[0]) break; days += len; }
+        days += mo[1] === 1 ? 0 : clamp(Math.round(+st.d) || 1, 1, 30) - 1;
+        const t = days * 1440 + min; if (fresh || t < t0) t0 = t - (t % 1440);
+        n = { cal: 'harptos', base, t, t0 };
+      } else n = { cal: 'days', base: 0, t: (Math.max(1, Math.round(+st.day) || 1) - 1) * 1440 + min, t0: 0 };
+      n.log = [{ t: n.t, w: fresh ? 'The calendar began' : 'The GM set the date and time' }].concat(fresh ? [] : c.log || []).slice(0, 20); n.upd = Date.now();
+      S.clock = n; writeDoc('campaign/clock', n); closeSheet(rec); refresh(); toast(clockLine(n));
+    };
+    add(rec.foot, [c ? h('button', { class: 'btn', onclick: async () => { if (!(await confirmSheet('Stop keeping time?', 'Removes the date and time from everyone’s Camp page. You can start again any time.', 'Stop', true))) return; S.clock = null; delDoc('campaign/clock'); closeSheet(rec); refresh(); } }, 'Stop keeping time') : null,
+      h('button', { class: 'btn primary', onclick: save }, c ? 'Save' : 'Start the calendar')].filter(Boolean));
+    const num = (k, l, min, max) => h('div', { style: { flex: 1, minWidth: 0 } }, h('label', { class: 'f', for: 'clk-' + k }, l), h('input', { id: 'clk-' + k, class: 'in num', type: 'number', inputmode: 'numeric', min, max, value: st[k], oninput: ev => { st[k] = ev.target.value; } }));
+    return h('div', null,
+      c ? null : h('p', { class: 'small muted', style: { marginTop: 0 } }, 'Keep track of the date and time in your world. Everyone sees it on their Camp page; rests and travel move it on.'),
+      h('label', { class: 'f' }, 'Calendar'),
+      h('div', { class: 'seg' }, [['harptos', 'Forgotten Realms'], ['days', 'Day count']].map(([v, l]) => h('button', { 'aria-pressed': st.cal === v ? 'true' : 'false', onclick: () => { st.cal = v; fillSheet(rec); } }, l))),
+      st.cal === 'harptos' ? [
+        h('p', { class: 'small muted' }, 'The Calendar of Harptos: twelve months of 30 days, five festival days between them, and Shieldmeet after Midsummer every fourth year.'),
+        h('div', { class: 'row nowrap', style: { alignItems: 'flex-end' } }, mo[1] === 1 ? null : h('div', { style: { width: '84px', flex: 'none' } }, num('d', 'Day', 1, 30)),
+          h('div', { style: { flex: 1, minWidth: 0 } }, h('label', { class: 'f', for: 'clk-mo' }, 'Month or festival'),
+            h('select', { id: 'clk-mo', class: 'in', onchange: ev => { st.mi = +ev.target.value; fillSheet(rec); } }, months.map((m, k) => h('option', { value: k, selected: k === st.mi ? true : null }, m[1] === 1 ? `${m[0]} (festival day)` : m[0]))))),
+        h('div', { class: 'row nowrap' }, num('y', 'Year (DR)', 1, 9999))
+      ] : [h('p', { class: 'small muted' }, 'Counts days from the start of the adventure, with no months.'), h('div', { class: 'row nowrap' }, num('day', 'Day', 1, 99999))],
+      h('label', { class: 'f', for: 'clk-time' }, 'Time'),
+      h('input', { id: 'clk-time', class: 'in', type: 'time', value: st.time, oninput: ev => { st.time = ev.target.value; } }),
+      c && (c.log || []).length ? [h('div', { class: 'lbl mt2' }, 'Recently'), h('ul', { class: 'clklog' }, c.log.slice(0, 8).map(x => h('li', null, h('span', null, x.w), h('span', { class: 'small muted' }, clockLine(Object.assign({}, c, { t: x.t }))))))] : null);
+  });
+}
+/* travel: days and hours on the road at the 2024 travel paces; time moves on and the log keeps the distance */
+const PACES = [['slow', 'Slow', 2, 18], ['normal', 'Normal', 3, 24], ['fast', 'Fast', 4, 30]];
+function openTravel() {
+  openSheet('Travel', rec => {
+    const st = rec.state; if (!st.pace) Object.assign(st, { pace: 'normal', d: 1, hr: 0 });
+    const pc = PACES.find(x => x[0] === st.pace), miles = st.d * pc[3] + st.hr * pc[2], mins = st.d * 1440 + st.hr * 60;
+    const step = (k, lo, hi, l) => h('div', { class: 'row mt' }, h('b', { class: 'grow' }, l), h('div', { class: 'stepper' }, h('button', { 'aria-label': 'Fewer ' + l.toLowerCase(), onclick: () => { st[k] = Math.max(lo, st[k] - 1); fillSheet(rec); } }, '−'), h('span', { class: 'v' }, String(st[k])), h('button', { 'aria-label': 'More ' + l.toLowerCase(), onclick: () => { st[k] = Math.min(hi, st[k] + 1); fillSheet(rec); } }, '+')));
+    add(rec.foot, [h('button', { class: 'btn primary', disabled: mins ? null : true, onclick: () => { closeSheet(rec); advanceClock(mins, `Travelled ${fmtSpan(mins)} at a ${pc[1].toLowerCase()} pace, about ${miles} miles`); toast(`About ${miles} miles. It’s now ${clockLineLower(S.clock)}.`, 3200); } }, 'Travel')]);
+    return h('div', null,
+      h('label', { class: 'f' }, 'Pace'),
+      h('div', { class: 'seg' }, PACES.map(([v, l]) => h('button', { 'aria-pressed': st.pace === v ? 'true' : 'false', onclick: () => { st.pace = v; fillSheet(rec); } }, l))),
+      h('p', { class: 'small muted' }, pc[0] === 'fast' ? 'Fast: 4 miles an hour, 30 miles a day. Disadvantage on Wisdom (Perception or Survival) checks.' : pc[0] === 'slow' ? 'Slow: 2 miles an hour, 18 miles a day. Advantage on Wisdom (Perception or Survival) checks.' : 'Normal: 3 miles an hour, 24 miles a day. Disadvantage on Dexterity (Stealth) checks.'),
+      step('d', 0, 60, 'Days'), step('hr', 0, 23, 'Hours'),
+      h('p', { class: 'mt', role: 'status' }, mins ? `About ${miles} miles. The clock moves on ${fmtSpan(mins)}, to ${clockLineLower(Object.assign({}, S.clock, { t: (+S.clock.t || 0) + mins }))}.` : 'Choose how long the party travels.'));
+  });
+}
+
 /* ---------- party rests ---------- */
 function callRest() {
   pickOne('Call a rest for the party', ['Short rest', 'Long rest'], k => {
     const r = { id: nid(), kind: /Long/.test(k) ? 'long' : 'short', at: Date.now(), uids: presentUids() };
-    S.restCall = r; writeDoc('combat/rest', r); openRestStatus();
+    S.restCall = r; writeDoc('combat/rest', r); if (S.clock) advanceClock(r.kind === 'long' ? 480 : 60, r.kind === 'long' ? 'Long rest' : 'Short rest'); openRestStatus();
   });
 }
 function openRestStatus() {
@@ -11714,6 +11981,7 @@ function showOnTable(x) {
     toast('Showing on the table display.');
   })();
 }
+const tableMapId = () => (S.tableDoc && S.tableDoc.map) || null;   // the map the GM pinned to the table display
 function clearTable() { writeDoc('campaign/table', { handout: null, at: Date.now() }, 'update'); toast('Handout taken off the table display.'); }
 function openTableDisplay() {
   if (TV || !DB) return;
@@ -11723,7 +11991,7 @@ function openTableDisplay() {
   const ov = h('div', { class: 'tvscreen', role: 'dialog', 'aria-label': 'Table display' }, head, h('div', { class: 'tv-body' }, mapBox, side));
   const close = () => { subs.forEach(u => { try { u(); } catch (e) { } }); if (st.ed) try { st.ed.destroy(); } catch (e) { } ov.remove(); TV = null; try { st.lock && st.lock.release(); } catch (e) { } try { document.fullscreenElement && document.exitFullscreen(); } catch (e) { } if (location.hash === '#table') history.replaceState(null, '', location.pathname + location.search); document.removeEventListener('keydown', esc); };
   const esc = e => { if (e.key === 'Escape') close(); };
-  const drawHead = () => { head.textContent = ''; head.append(flameSvg('flame small'), h('div', { class: 'grow' }, h('div', { class: 'tv-camp' }, (S.campaign && S.campaign.name) || 'Campfire')), h('button', { class: 'icon-btn', 'aria-label': 'Close the table display', onclick: close }, icon('close'))); };
+  const drawHead = () => { head.textContent = ''; head.append(flameSvg('flame small'), h('div', { class: 'grow' }, h('div', { class: 'tv-camp' }, (S.campaign && S.campaign.name) || 'Campfire')), st.clock ? h('div', { class: 'tv-clock' }, clockLine(st.clock)) : null, h('button', { class: 'icon-btn', 'aria-label': 'Close the table display', onclick: close }, icon('close'))); };
   const pickMap = () => { const pinned = st.table && st.table.map && st.live.find(m => m._id === st.table.map); return pinned || st.live.slice().sort((a, b) => (b.at || b.upd || 0) - (a.at || a.upd || 0))[0] || null; };
   const drawMap = () => {
     const m = pickMap(), id = m ? m._id : null; if (id === st.mapId) return;
@@ -11748,6 +12016,7 @@ function openTableDisplay() {
   s(DB.collection('live'), q => { st.live = docsOf(q); drawMap(); });
   s(DB.doc('campaign/table'), d => { st.table = d.exists ? d.data() : null; drawMap(); drawSide(); });
   s(DB.doc('combat/turn'), d => { st.turn = d.exists ? d.data() : null; drawSide(); });
+  s(DB.doc('campaign/clock'), d => { st.clock = d.exists ? d.data() : null; drawHead(); });
   s(DB.collection('party'), q => { const o = {}; q.docs.forEach(d => { if (d.exists) o[d.id] = d.data(); }); st.party = o; drawSide(); });
   drawHead(); drawMap(); drawSide();
   document.body.append(ov); TV = { close }; document.addEventListener('keydown', esc);
@@ -11758,21 +12027,23 @@ function openTableDisplay() {
 
 /* ---------- subscriptions ---------- */
 function playerCampSubs(me) {
-  S.recap = null; S.lore = null; S.restCall = null;
+  S.recap = null; S.lore = null; S.restCall = null; S.clock = null;
   sub(DB.doc('campaign/recap'), s => { S.recap = s.exists ? s.data() : null; refresh(); setTimeout(maybeShowRecap, 600); });
   sub(DB.doc('campaign/lore'), s => { S.lore = s.exists ? s.data() : null; refresh(); refreshSheets(); });
   sub(DB.doc('combat/rest'), s => { S.restCall = s.exists ? s.data() : null; maybeRestPrompt(); });
   sub(DB.doc('combat/trigger'), s => { if (s.exists) onTriggerDoc(s.data()); });
+  sub(DB.doc('campaign/clock'), s => { S.clock = s.exists ? s.data() : null; refresh(); });
   if (location.hash === '#table') setTimeout(openTableDisplay, 900);
 }
 function gmCampSubs() {
-  S.recap = null; S.lore = null; S.gmNotes = null; S.restCall = null; S.gmItems = [];
+  S.recap = null; S.lore = null; S.gmNotes = null; S.restCall = null; S.gmItems = []; S.clock = null;
   sub(DB.doc('campaign/recap'), s => { S.recap = s.exists ? s.data() : null; });
   sub(DB.doc('campaign/lore'), s => { S.lore = s.exists ? s.data() : null; });
   sub(DB.doc('gm/notes'), s => { S.gmNotes = s.exists ? s.data() : null; refreshSheets(); });
   sub(DB.doc('gm/items'), s => { S.gmItems = s.exists ? (s.data().list || []) : []; if (S.tab === 'items') refresh(); refreshSheets(); });
   sub(DB.doc('combat/rest'), s => { S.restCall = s.exists ? s.data() : null; refreshSheets(); });
   sub(DB.doc('campaign/table'), s => { S.tableDoc = s.exists ? s.data() : null; refreshSheets(); });
+  sub(DB.doc('campaign/clock'), s => { S.clock = s.exists ? s.data() : null; if (S.tab === 'camp' || S.tab === 'party') refresh(); refreshSheets(); });
   if (location.hash === '#table') setTimeout(openTableDisplay, 900);
 }
 
