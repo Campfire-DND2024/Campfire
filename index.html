@@ -944,6 +944,39 @@ div.xpbar{cursor:default}
 .shoprow .price{font-weight:800;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
 div.shoprow{cursor:default}
 .bigprice{font:800 1.75rem/1.1 var(--sans);font-variant-numeric:tabular-nums}
+/* the GM's turn bar on a map with a running encounter */
+.mapturn{position:absolute;left:8px;right:8px;top:8px;z-index:6;display:flex;align-items:center;gap:8px;padding:6px 6px 6px 8px;border-radius:16px;background:rgba(20,16,13,.88);border:1px solid rgba(255,210,90,.55);box-shadow:0 8px 22px rgba(0,0,0,.35);color:#F4EADB}
+.mapturn[hidden]{display:none}
+.mapturn .tb-now{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:44px;padding:4px 10px;border-radius:12px;background:#FFD25A;color:#2B2118;border:0;font:inherit;text-align:left;max-width:46%;cursor:pointer}
+.mapturn .tb-k{font-size:.75rem;font-weight:700;opacity:.8;line-height:1.1}
+.mapturn .tb-n{font-weight:800;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.mapturn{flex-wrap:wrap}
+.mapturn .tb-next{display:flex;flex-direction:column;min-width:0;flex:1 1 3.5rem;line-height:1.15}
+.mapturn .tb-acts{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.mapturn .tb-nn{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mapturn .icon-btn{color:#F4EADB;flex:none}
+.mapturn .btn{flex:none}
+/* targets on a roll card: a short list that scrolls, grouped, with All, OK and Skip underneath */
+.tgtrow{flex-direction:column;align-items:stretch;flex-wrap:nowrap}
+.tgthead{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:34px}
+.tgthead .tgtlab{flex:1;min-width:0}
+.tgthead:has(.tgtlist.compact) .tgtlab{flex:0 0 auto}
+.tgtlist.compact{display:contents}
+.tgtrow .tgtlist.compact .chip.tgt{width:auto;min-height:34px;border-radius:999px;padding:4px 12px;gap:6px;justify-content:flex-start}
+.tgtlist.compact .tgt .ts{margin-left:0}
+.tgthead .tgtskip{margin-left:auto}
+.tgtextra{display:flex;flex-wrap:wrap;gap:6px}
+.tgtextra[hidden]{display:none}
+.tgtlist{display:flex;flex-direction:column;gap:4px;max-height:min(14rem,36vh);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid var(--line)}
+.tgtlist.long{box-shadow:inset 0 -14px 12px -12px rgba(0,0,0,.45)}
+.tgtlist .tgtgrp{position:sticky;top:-4px;z-index:1;margin:0 -4px;padding:4px 10px 3px;font-size:.75rem;font-weight:800;color:var(--ink-3);background:var(--surface-2)}
+.tgtrow .chip.tgt{display:flex;align-items:center;width:100%;min-height:40px;justify-content:space-between;gap:10px;border-radius:10px;padding:6px 12px;font-size:.875rem;text-align:left;flex:none}
+.tgtlist .tgt .tn{flex:1 1 auto;text-align:left;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tgtlist .tgt .ts{margin-left:auto;font-size:.75rem;font-weight:600;color:var(--ink-3);white-space:nowrap;flex:none}
+.tgt[aria-pressed]::before{content:'';flex:none;width:18px;height:18px;border-radius:5px;border:2px solid var(--line-2);margin-right:-2px}
+.tgt[aria-pressed="true"]::before{background:var(--ember);border-color:var(--ember);box-shadow:inset 0 0 0 3px var(--surface)}
+.tgtfoot{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+
 
 </style>
 </head>
@@ -1162,6 +1195,7 @@ const ICONS = {
   sound: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   spark: '<path d="M12 3l1.8 5.5L19.5 10l-5.7 1.6L12 17l-1.8-5.4L4.5 10l5.7-1.5z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
   print: '<path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/>',
+  ping: '<circle cx="12" cy="12" r="2.6" fill="currentColor"/><circle cx="12" cy="12" r="6.5"/><path d="M12 1.5v2.5M12 20v2.5M1.5 12h2.5M20 12h2.5"/>',
   aoe: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
   d20: '<path d="M12 2.5l8.5 4.9v9.2L12 21.5l-8.5-4.9V7.4z"/><path d="M12 2.5L7.6 14.3h8.8zM3.5 7.4l4.1 6.9M20.5 7.4l-4.1 6.9M7.6 14.3L12 21.5l4.4-7.2M3.5 16.6l4.1-2.3M20.5 16.6l-4.1-2.3"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -4767,8 +4801,9 @@ function workingsSection(c, d) {
 }
 
 /* ================= Change log: every version of Campfire, newest first ================= */
-const APP_VERSION = '6.24';
+const APP_VERSION = '6.25';
 const CHANGELOG = [
+  ['6.25', 'November 2026', ['Whose turn it is, on the map: when a running encounter is bound to a map, the Game Master sees the acting token ringed in gold with Now above it (it pulses when the turn changes) and the next one with a dashed ring and Next. A bar across the top of the map shows the round, who’s acting and who’s next, with Next turn and Back, so you can run the fight without leaving the map. Tap the name to jump to their token.', 'Every target in the list: a roll card that asks who you’re attacking or damaging now lists everyone it could be. Players see every creature they can see, then their own side (other players and party members), so an area spell can catch an ally. The Game Master, rolling for a creature, sees the player characters, party members and the other creatures, with their AC and hit points, and damage to a creature or party member goes straight onto it, after resistances. Before, players saw at most 8 or 12 creatures and the Game Master only the player characters.', 'The target list is a short list that scrolls inside the roll card, grouped, rather than a wall of buttons filling the screen, for players and the Game Master.', 'Look here: a new map tool for everyone. Tap Look here, then tap the map: a short burst of ripples and sparks appears there on every screen looking at the map, the table display included, in the colour of your token (gold for the Game Master), with your name on it. It fades after about two seconds.']],
   ['6.24', 'November 2026', ['Shops for the Game Master: on Items, open Shops and tap New shop. Choose a general store, magic shop, blacksmith, fletcher, inn or tavern, and a high, mid, low or dismal budget. Campfire stocks the shelves from the 2024 equipment and magic items, prices everything and makes up the owner (a name, who they are and a quirk) and the name over the door. Reroll for a different shop, or New owner for a different owner with the same stock.', 'The budget decides how much is on the shelves, how dear things are (about a quarter over the book in a high-budget shop, a fifth under in a dismal one, with secondhand goods), the rarest magic item you can find (Very Rare at most in a high-budget magic shop, Common in a dismal one) and, at inns and taverns, which rooms and meals are on offer. Magic items are priced by rarity as in the 2024 Dungeon Master’s Guide; spell scrolls at twice their scribing cost. Inns and taverns get the 2024 prices for rooms, meals, ale and wine, house specials and brews, and something going on tonight.', 'Selling from a saved shop: tap anything, then Sell to… and choose who’s buying. The money comes out of their purse (with change) and the item goes in their pack. For rooms, meals and drink, Charge… takes the money from each player you choose. You can change prices and stock, add something to the party loot, Restock the shelves, and make a Price list handout to send to the players or show on the table display.', 'Corrected equipment prices that were wrong in the rules data: Alchemist’s Fire (50 GP), Basket (4 SP), Bedroll (1 GP), Blanket (5 SP), Caltrops (1 GP), Chest (5 GP), Traveler’s Clothes (2 GP), Component Pouch (25 GP), Parchment (1 SP), Dart (5 CP), Javelin (5 SP), Spear (1 GP), Longbow (50 GP), Hand Crossbow (75 GP) and Poisoner’s Kit (50 GP).']],
   ['6.23', 'November 2026', ['Random encounters: on Turns, tap Random encounter (or + Random in an encounter). Choose where (with the Creature index add-on on, any Monster Manual habitat), Low, Moderate or High, and the party’s size and level, which start from your characters. Campfire picks a lone creature, a group, or a leader with followers of the same kind inside the 2024 XP budget; reroll until you like it, then tap Make encounter and the party is already in it.', 'Creatures from the Creature index can go into encounters: tap Encounter on one, give it hit points, AC and initiative (Campfire suggests what’s typical for its challenge rating in the free rules), and its XP counts towards the difficulty and the XP award. The encounter’s + Creature list includes them too. Tap any creature’s AC in a fight to change it.', 'In-game date and time: on Camp, tap Date and time to start a Forgotten Realms calendar (the Calendar of Harptos, festival days and Shieldmeet included) or a simple day count. Everyone sees the date, the time of day and the day of the adventure on their Camp page and on the table display. The Game Master moves time on with +10 min, +1 hour, +8 hours and +1 day, calling a rest moves it on by an hour or eight, and Travel moves it on by days and hours at a slow, normal or fast pace with the distance covered. The last 20 changes are kept in the Date and time sheet.', 'Choose the table display’s map: in a map’s Share sheet, tick Show on the table display. The TV keeps showing that map while you work on others; untick it and the table display goes back to the live map you changed last.', 'Playing through a patchy connection: changes you make while offline are saved on your phone straight away and sync when the connection comes back, even if the app is closed in between. A note above the tabs says when you’re offline or when changes are waiting to sync, and you’re told when everything’s synced again. Before, changes made offline could be lost if the app was closed before it reconnected.', 'Species and classes from your books: add-ons can now carry whole species (with lineage or ancestry choices) and classes (hit die, saves, spell slots, features, subclasses and subclass spells). The format for making them from your books is in the DND App project.', 'Lighter: the claude.ai version no longer carries the add-ons inside the page; it fetches each one when you switch it on, which makes the page 12% smaller. The single-file version reads only the add-ons you switch on.']],
   ['6.22', 'November 2026', ['Party member NPCs: open a creature in an encounter and tap Make a party member (or tick Party member NPC on its map token). At 0 hit points it falls Unconscious and makes death saving throws instead of leaving the fight: it stays in the turn order, the Game Master rolls its saves from the Now card or its screen, damage while it’s down adds failures (two from a critical hit), and healing wakes it. Party members are tagged Party, always show their health to players, never hide with Hide creatures, and don’t count towards the encounter’s XP.', 'Player character tokens on the map now have health bars: exact for the Game Master and the token’s own player, the health band for everyone else.', 'When a player character or party member goes down, their health bar turns into their death saves: three pips that light green for successes and three that light red for failures. This shows in the Game Master’s turn order, on players’ turn order and party cards, on the table display and under map tokens, and updates with every roll.']],
@@ -5071,7 +5106,7 @@ function wmPaintOver(x, ed, exporting) {
 }
 
 /* ---------- tools ---------- */
-const WM_TOOLS = kind => kind === 'interior' ? [['pan', 'Select', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['terrain', 'Floor', 'paint'], ['stamp', 'Furniture', 'marker'], ['path', 'Walls', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['token', 'Add token', 'token'], ['fog', 'Fog', 'fog']] : [['pan', 'Select', 'pan'], ['terrain', kind === 'world' ? 'Land' : 'Ground', 'paint'], ['stamp', kind === 'world' ? 'Places' : 'Buildings', 'marker'], ['path', kind === 'world' ? 'Roads' : 'Streets', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['ruler', 'Ruler', 'ruler']];
+const WM_TOOLS = kind => kind === 'interior' ? [['pan', 'Select', 'pan'], ['look', 'Look here', 'ping'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['terrain', 'Floor', 'paint'], ['stamp', 'Furniture', 'marker'], ['path', 'Walls', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['token', 'Add token', 'token'], ['fog', 'Fog', 'fog']] : [['pan', 'Select', 'pan'], ['look', 'Look here', 'ping'], ['terrain', kind === 'world' ? 'Land' : 'Ground', 'paint'], ['stamp', kind === 'world' ? 'Places' : 'Buildings', 'marker'], ['path', kind === 'world' ? 'Roads' : 'Streets', 'line'], ['text', 'Label', 'text'], ['erase', 'Erase', 'erase'], ['ruler', 'Ruler', 'ruler']];
 function assetThumb(k, px = 44) { const c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = px * d; c.height = px * d; c.style.width = px + 'px'; c.style.height = px + 'px'; const x = c.getContext('2d'); const a = WM_ASSETS[k]; x.scale(d, d); x.translate(px / 2, px / 2 + 2); const sc = Math.min(1, (px - 6) / a.sz) * a.sz / 56; x.scale(sc, sc); a.draw(x, 0.3); return c; }
 function terSwatch(kind, k, px = 30) { const c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = px * d; c.height = px * d; c.style.width = px + 'px'; c.style.height = px + 'px'; const x = c.getContext('2d'); x.scale(d * px / CS, d * px / CS); const fake = { meta: { kind, cols: 1, rows: 1 }, data: { ter: { '0,0': k } } }; terBase(x, fake, 0, 0); terGlyph(x, fake, 0, 0); return c; }
 function wmToolbar(A) {
@@ -8280,7 +8315,7 @@ function awardInspiration(uid) {
 /* ================= Battle maps ================= */
 const CS = 48;
 const MAP_COLORS = [['#2B2118', 'Ink'], ['#7D7468', 'Stone'], ['#D6BF92', 'Sand'], ['#4F8FB8', 'Water'], ['#6E9455', 'Grass'], ['#B8402E', 'Ember red'], ['#E08A3A', 'Ember'], ['#FBF6EC', 'Chalk']];
-const PLAYER_MAP_TOOLS = [['pan', 'Move', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe']];
+const PLAYER_MAP_TOOLS = [['pan', 'Move', 'pan'], ['look', 'Look here', 'ping'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe']];
 /* areas of effect: circles, cones and lines anyone can lay over the map */
 const AOE_COLORS = [['#E2553A', 'Fire'], ['#F2C94C', 'Light'], ['#6FBF4A', 'Acid'], ['#4FA3E0', 'Cold'], ['#9B6BD6', 'Force'], ['#2E2E36', 'Darkness']];
 const AOE_SHAPES = [['circle', 'Circle'], ['cone', 'Cone'], ['line', 'Line']];
@@ -8319,7 +8354,39 @@ function tokHealth(t, player) {
 }
 /* open maps with player character tokens redraw when the party's health changes */
 function redrawPartyTokens() {
-  [S.mapEd, S.liveView && S.liveView.ed].forEach(m => { try { if (m && m.draw && m.data && (m.data.tokens || []).some(t => t.uid)) m.draw(); } catch (e) { } });
+  [S.mapEd, S.liveView && S.liveView.ed].forEach(m => { try { if (m && m.draw && m.data && (m.data.tokens || []).some(t => t.uid || t.cb)) m.draw(); } catch (e) { } });
+}
+/* ---------- whose turn it is, on a map an encounter is bound to (the GM's view): the acting token lights up ---------- */
+function mapTurn(mid) {
+  const bound = (S.encs || []).filter(e => e.turn && (e.map === mid || e.list.some(c => c.tok && c.tok.map === mid)));
+  if (!bound.length) return null;
+  const run = S.turnDoc && turnLive(S.turnDoc) ? bound.find(e => e._id === S.turnDoc.enc) : null;
+  const e = run || bound.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0];
+  const al = e.list.filter(c => !cbOut(c)), i = al.findIndex(c => c.id === e.turn); if (i < 0) return null;
+  return { e, cur: al[i], next: al.length > 1 ? al[(i + 1) % al.length] : null };
+}
+const tokForCb = (tokens, e, c) => c ? (tokens || []).find(t => c.k === 'pc' ? t.uid === c.ref : !!(t.cb && t.cb.enc === e._id && t.cb.id === c.id)) || null : null;
+/* ---------- Look here: a tap on the map sends a short burst everyone viewing it sees, in the colour of your token ---------- */
+const PING_MS = 2200;
+const reduceMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+function drawPing(x, p, k, s) {
+  const u = 1 / s, still = reduceMotion();
+  x.save();
+  if (!still) {
+    for (let i = 0; i < 3; i++) { const kk = k * 1.3 - i * 0.17; if (kk <= 0 || kk >= 1) continue;   // three ripples, one after another
+      x.globalAlpha = (1 - kk) * 0.9; x.beginPath(); x.arc(p.x, p.y, (7 + kk * 38) * u, 0, Math.PI * 2); x.lineWidth = (4 - kk * 2.5) * u; x.strokeStyle = p.col; x.stroke(); }
+    const sk = Math.min(1, k * 1.7);
+    if (sk < 1) for (let i = 0; i < 8; i++) {   // and eight sparks flying out
+      const a = i * Math.PI / 4 + 0.39, d = (10 + sk * 30) * u, sz = (3.4 * (1 - sk) + 0.8) * u, cx = p.x + Math.cos(a) * d, cy = p.y + Math.sin(a) * d;
+      x.globalAlpha = 1 - sk; x.fillStyle = p.col; x.beginPath(); x.moveTo(cx, cy - sz * 1.7); x.lineTo(cx + sz, cy); x.lineTo(cx, cy + sz * 1.7); x.lineTo(cx - sz, cy); x.closePath(); x.fill(); }
+  } else { x.globalAlpha = 1 - k; x.beginPath(); x.arc(p.x, p.y, 22 * u, 0, Math.PI * 2); x.lineWidth = 3 * u; x.strokeStyle = p.col; x.stroke(); }
+  const fade = k < 0.7 ? 1 : Math.max(0, (1 - k) / 0.3), pop = still ? 1 : Math.min(1, k * 8);
+  x.globalAlpha = fade; x.beginPath(); x.arc(p.x, p.y, 7 * u * (0.6 + 0.4 * pop), 0, Math.PI * 2); x.fillStyle = p.col; x.fill(); x.lineWidth = 2.5 * u; x.strokeStyle = '#FFFFFF'; x.stroke();
+  if (p.who) {
+    x.font = `800 ${13 * u}px "CF Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    const tw = x.measureText(p.who).width, by = p.y - 26 * u; x.fillStyle = 'rgba(20,16,13,.85)'; x.fillRect(p.x - tw / 2 - 6 * u, by - 10 * u, tw + 12 * u, 20 * u); x.fillStyle = '#FFFFFF'; x.fillText(p.who, p.x, by + 1 * u);
+  }
+  x.restore();
 }
 /* death saves under a downed token: three pips that light green for successes and three that light red for failures */
 function drawTokDs(x, cx, top, r, ds) {
@@ -8372,7 +8439,7 @@ function openTokCreature(t) {
   if (k.c) openCombatant(k.e._id, k.c.id); else openSheet(k.n, () => statBlock(k.m, { who: k.n, art: S.best && S.best.art[k.m.i] }));
 }
 const tokR = t => CS * tokZ(t) * (tokSz(t) === 'sm' ? 0.34 : 0.42);
-const MAP_TOOLS = [['pan', 'Select', 'pan'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['paint', 'Fill', 'paint'], ['pen', 'Pen', 'pen'], ['line', 'Wall', 'line'], ['rect', 'Room', 'rect'], ['erase', 'Erase', 'erase'], ['text', 'Label', 'text'], ['token', 'Add token', 'token'], ['fog', 'Fog', 'fog']];
+const MAP_TOOLS = [['pan', 'Select', 'pan'], ['look', 'Look here', 'ping'], ['ruler', 'Ruler', 'ruler'], ['aoe', 'Area', 'aoe'], ['paint', 'Fill', 'paint'], ['pen', 'Pen', 'pen'], ['line', 'Wall', 'line'], ['rect', 'Room', 'rect'], ['erase', 'Erase', 'erase'], ['text', 'Label', 'text'], ['token', 'Add token', 'token'], ['fog', 'Fog', 'fog']];
 const metaPath = id => 'gm/meta/maps/' + id, dataPath = id => 'gm/meta/mapdata/' + id;
 /* Maps are shared with players straight from the Maps section; they never appear in the Handouts library. */
 const mapShareId = id => 'map-' + id;
@@ -8432,7 +8499,8 @@ function MapEditor(meta0, opts = {}) {
   const ctx = cvs.getContext('2d');
   const selbar = h('div', { class: 'selbar', role: 'toolbar', 'aria-label': 'Selected token', hidden: true });
   const enterChip = h('div', { class: 'enterchip', hidden: true });
-  const wrap = h('div', { class: 'mapwrap' }, cvs, selbar, enterChip);
+  const turnBar = h('div', { class: 'mapturn', role: 'region', 'aria-label': 'Whose turn it is', hidden: true });
+  const wrap = h('div', { class: 'mapwrap' }, cvs, selbar, enterChip, turnBar);
   const WMAP = () => isWM(ed.meta);
   const A = { ed, PLAYER, get wrap() { return wrap; }, changed: () => changed(), pushUndo: () => pushUndo(), draw: () => draw(), drawTools: () => drawTools(), toW: q => toW(q), inMap: q => inMap(q), flush: () => ed.flush(), openMap: id => { ed.flush(); ed.destroy(); S.mapEd = null; S.mapOpen = id; renderMain(); } };
   const tbar = h('div', { class: 'maptools', role: 'toolbar', 'aria-label': 'Map tools' });
@@ -8459,7 +8527,7 @@ function MapEditor(meta0, opts = {}) {
     if (ed.tool === 'aoe') { tbar.append(...aoeTools()); if (PLAYER) return; }
     if (ed.tool === 'fog' && !PLAYER) tbar.append(...fogTools());
     if (PLAYER && WMAP() && ed.meta.kind === 'town') tbar.append(h('span', { class: 'sep' }), h('button', { onclick: () => openKeyPlaces(A) }, keyPinIcon(), 'Key places'));
-    if (PLAYER) { tbar.append(h('span', { class: 'sep' }), h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, (ed.data.tokens || []).some(t => t.uid === ME.id) ? 'Drag your token to move it.' : 'Pinch or drag to look around.')); return; }
+    if (PLAYER) { tbar.append(h('span', { class: 'sep' }), h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, ed.tool === 'look' ? 'Tap the map to show everyone where to look.' : (ed.data.tokens || []).some(t => t.uid === ME.id) ? 'Drag your token to move it.' : 'Pinch or drag to look around.')); return; }
     const selT = ed.sel && (ed.data.tokens || []).find(t => t.id === ed.sel);
     if (!selT) ed.sel = null;
     selbar.textContent = ''; selbar.hidden = !selT;
@@ -8477,6 +8545,7 @@ function MapEditor(meta0, opts = {}) {
         h('button', { 'aria-label': 'Deselect', title: 'Deselect', onclick: () => selectTok(null) }, icon('close')));
     }
     tbar.append(h('span', { class: 'sep' }));
+    if (ed.tool === 'look') tbar.append(h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, 'Tap the map to show everyone where to look.'));
     if (ed.tool === 'token' && !selT) tbar.append(h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, 'Tap an empty square to add.'));
     if (ed.tool === 'pan' && !selT && (ed.data.tokens || []).length) tbar.append(h('span', { class: 'small muted', style: { whiteSpace: 'nowrap', alignSelf: 'center', padding: '0 6px' } }, 'Tap a token to select it, drag to move.'));
     if (ed.tool === 'token') tbar.append(h('select', { class: 'tsize', 'aria-label': 'Size of new tokens', title: 'Size of new tokens', onchange: e => { ed.tokSize = e.target.value; } }, TOKEN_SIZES.map(([k, n]) => h('option', { value: k, selected: (ed.tokSize || 'med') === k ? true : null }, n))), h('span', { class: 'sep' }));
@@ -8508,7 +8577,55 @@ function MapEditor(meta0, opts = {}) {
   }
   const toW = p => ({ x: (p.x - ed.view.tx) / ed.view.s, y: (p.y - ed.view.ty) / ed.view.s });
   let raf = 0;
-  function draw() { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; paint(ctx, false); if (WMAP()) wmEnterChip(A, enterChip); }); }
+  function draw() { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; syncTurn(); paint(ctx, false); if (WMAP()) wmEnterChip(A, enterChip); }); }
+  /* the GM's turn bar on a map with a running encounter: who's acting (tap to find their token), who's next, and Next turn */
+  ed.pings = []; ed.pingSeen = new Set(); ed.pingReady = false;
+  function centreOn(t) { const tp = tokPos(t), z = tokZ(t), W = wrap.clientWidth, H = wrap.clientHeight, s = ed.view.s; ed.view.tx = W / 2 - (tp.gx + z / 2) * CS * s; ed.view.ty = H / 2 - (tp.gy + z / 2) * CS * s; }
+  function onScreen(t) { const tp = tokPos(t), z = tokZ(t), s = ed.view.s, px = (tp.gx + z / 2) * CS * s + ed.view.tx, py = (tp.gy + z / 2) * CS * s + ed.view.ty; return px > 30 && py > 70 && px < wrap.clientWidth - 30 && py < wrap.clientHeight - 30; }
+  function advanceTurn(dir) {
+    const mt = mapTurn(ed.id); if (!mt) return;
+    const n = stepEnc(mt.e._id, dir), m2 = mapTurn(ed.id), t = m2 && tokForCb(ed.data.tokens, m2.e, m2.cur);
+    if (t && !onScreen(t)) centreOn(t);
+    ed.pulse = performance.now(); draw(); if (n) toast(`${n}’s turn`, 1300);
+  }
+  function syncTurn() {
+    if (PLAYER || opts.tv) return;
+    const mt = mapTurn(ed.id), cv = mt && cbView(mt.cur), nv = mt && mt.next && cbView(mt.next), t = mt && tokForCb(ed.data.tokens, mt.e, mt.cur);
+    const sig = mt ? JSON.stringify([mt.e._id, mt.e.turn, mt.e.round, cv.n, nv && nv.n, !!t]) : '';
+    if (sig === ed.turnSig) return;
+    if (mt && (!ed.turnSig || JSON.parse(ed.turnSig)[1] !== mt.e.turn)) ed.pulse = performance.now();
+    ed.turnSig = sig; turnBar.textContent = ''; turnBar.hidden = !mt; wrap.classList.toggle('hasturn', !!mt); if (!mt) return;
+    turnBar.append(
+      h('button', { class: 'tb-now', 'aria-label': t ? `${cv.n}’s turn, round ${mt.e.round}. Find their token` : `${cv.n}’s turn, round ${mt.e.round}`, onclick: () => { if (!t) { toast(`${cv.n} has no token on this map.`, 2200); return; } centreOn(t); ed.pulse = performance.now(); draw(); } },
+        h('span', { class: 'tb-k' }, `Round ${mt.e.round}`), h('span', { class: 'tb-n' }, cv.n), t ? null : h('span', { class: 'tb-k' }, 'No token here')),
+      h('div', { class: 'tb-next grow' }, nv ? [h('span', { class: 'tb-k' }, 'Next'), h('span', { class: 'tb-nn' }, nv.n)] : null),
+      h('div', { class: 'tb-acts' }, h('button', { class: 'icon-btn', 'aria-label': 'Back a turn', title: 'Back a turn', onclick: () => advanceTurn(-1) }, icon('back')),
+        h('button', { class: 'btn primary sm', onclick: () => advanceTurn(1) }, 'Next turn')));
+  }
+  ed.syncTurn = syncTurn;
+  /* Look here */
+  function pingColour() {
+    const t = (ed.data.tokens || []).find(k => k.uid === ME.id);
+    if (t) return (MAP_COLORS[t.c] || MAP_COLORS[5])[0];
+    if (!PLAYER) return '#F2C14E';
+    let n = 0; for (const ch of String(ME.id || '')) n = (n * 31 + ch.charCodeAt(0)) >>> 0; return MAP_COLORS[n % MAP_COLORS.length][0];
+  }
+  function addPing(gx, gy, col, who) { ed.pings = ed.pings.concat([{ x: gx * CS, y: gy * CS, col, who, t0: performance.now() }]).slice(-12); draw(); }
+  function sendPing(w) {
+    if (!inMap(w) || Date.now() - (ed.lastPing || 0) < 500) return; ed.lastPing = Date.now();
+    const gx = +(w.x / CS).toFixed(2), gy = +(w.y / CS).toFixed(2), col = pingColour();
+    addPing(gx, gy, col, '');
+    if (opts.tv || !DB || !ME || !ME.id) return;
+    writeDoc('ptok/' + (PLAYER ? ME.id : 'gm'), { ping: { m: ed.id, x: gx, y: gy, c: col, id: nid(), at: Date.now() } }, 'update');
+  }
+  /* other people's pings arrive with everyone's token positions; the first look only notes what's already there */
+  function takePings(docs) {
+    const mine = PLAYER ? ME.id : 'gm';
+    docs.forEach(([u, v]) => { const g = v && v.ping; if (!g || g.m !== ed.id || !g.id || ed.pingSeen.has(g.id)) return; ed.pingSeen.add(g.id);
+      if (!ed.pingReady || u === mine || !/^#[0-9a-f]{3,8}$/i.test(String(g.c))) return;
+      addPing(clamp(+g.x || 0, 0, ed.meta.cols), clamp(+g.y || 0, 0, ed.meta.rows), g.c, u === 'gm' ? 'GM' : playerFirst(u)); });
+    ed.pingReady = true;
+  }
   ed.draw = draw; ed.drawTools = () => drawTools();
   function paint(x, exporting, sc = 1) {
     const dpr = exporting ? 1 : (window.devicePixelRatio || 1);
@@ -8565,6 +8682,19 @@ function MapEditor(meta0, opts = {}) {
       if (!exporting && (t.cb || t.uid)) { const hb = tokHealth(t, PLAYER); if (hb && hb.ds) drawTokDs(x, cx, cy + r + 4 + (t.uid ? 4 : 0), r, hb.ds); else if (hb) { const bw = Math.max(r * 1.7, 16), bh = Math.max(4, r * 0.2), bx = cx - bw / 2, by = cy + r + 4 + (t.uid ? 4 : 0); x.fillStyle = 'rgba(20,16,13,.8)'; x.fillRect(bx - 1.5, by - 1.5, bw + 3, bh + 3); x.fillStyle = hb.col; x.fillRect(bx, by, bw * hb.w, bh); } }
       if (!exporting && !PLAYER && ed.sel === t.id) { x.save(); x.beginPath(); x.arc(cx, cy, r + 7 / Math.max(ed.view.s, 0.2), 0, Math.PI * 2); x.setLineDash([8 / ed.view.s, 6 / ed.view.s]); x.lineWidth = 3 / ed.view.s; x.strokeStyle = '#F08A3C'; x.stroke(); x.restore(); }
     });
+    if (!exporting && !PLAYER && !opts.tv) {   // the acting token: a bright ring (pulsing when the turn changes) and Now; who's next: a dashed ring
+      const mt = mapTurn(ed.id), s1 = ed.view.s, u = 1 / s1;
+      if (mt) [[mt.next, 'Next'], [mt.cur, 'Now']].forEach(([c, tag]) => {
+        const t = tokForCb(ed.data.tokens, mt.e, c); if (!t || (tag === 'Next' && c === mt.cur)) return;
+        const tp = tokPos(t), z = tokZ(t), cx = (tp.gx + z / 2) * CS, cy = (tp.gy + z / 2) * CS, r = tokR(t) + (t.uid ? 5 : 0), now = tag === 'Now';
+        x.save(); x.beginPath(); x.arc(cx, cy, r + 6 * u, 0, Math.PI * 2);
+        if (now) { x.shadowColor = '#FFD25A'; x.shadowBlur = 14; x.lineWidth = 5 * u; x.strokeStyle = '#FFD25A'; } else { x.setLineDash([7 * u, 5 * u]); x.lineWidth = 3 * u; x.strokeStyle = 'rgba(255,210,90,.85)'; }
+        x.stroke(); x.restore();
+        if (now && ed.pulse && !reduceMotion()) { const k = (performance.now() - ed.pulse) / 1600; if (k < 1) { x.save(); x.globalAlpha = 1 - k; x.beginPath(); x.arc(cx, cy, r + (6 + k * 40) * u, 0, Math.PI * 2); x.lineWidth = 4 * u; x.strokeStyle = '#FFD25A'; x.stroke(); x.restore(); draw(); } }
+        x.save(); x.font = `800 ${12 * u}px "CF Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+        const tw = x.measureText(tag).width, by = now ? cy - r - 16 * u : cy + r + (t.uid ? 30 : 24) * u; /* Now above the token, Next below its health bar, so neighbours' tags don't collide */ x.fillStyle = now ? '#FFD25A' : 'rgba(20,16,13,.85)'; x.fillRect(cx - tw / 2 - 6 * u, by - 9 * u, tw + 12 * u, 18 * u); x.fillStyle = now ? '#2B2118' : '#FFD25A'; x.fillText(tag, cx, by + 1 * u); x.restore();
+      });
+    }
     if (!exporting) {
       let list = allAoes(); const live = ed.cur && ed.cur.aoe ? ed.cur.aoe : ed.aoePrev && document.body.contains(ed.aoePrev.rec.foot) ? ed.aoePrev.a : null;
       if (live) list = list.filter(a => a.id !== live.id).concat(live.s ? [live] : []);
@@ -8582,6 +8712,7 @@ function MapEditor(meta0, opts = {}) {
     /* players' rulers, for the GM and the table display */
     if ((!PLAYER || opts.tv) && !exporting) Object.entries(ed.pr || {}).forEach(([u, r]) => { if (Date.now() - (r.at || 0) > 15 * 60000) return; const q = rulerFromShare(r); paintRuler(x, q.pts, q.b, ['#2F6F9F', '#7FB8E0'], `${playerFirst(u)}: ${rulerTextOf(q)}`); });
     if (ed.ruler && !exporting) paintRuler(x, ed.ruler.pts, ed.ruler.b, ['#B9531A', '#F08A3C'], rulerText());
+    if (!exporting && ed.pings.length) { const now = performance.now(); ed.pings = ed.pings.filter(p => now - p.t0 < PING_MS); ed.pings.forEach(p => drawPing(x, p, (now - p.t0) / PING_MS, ed.view.s)); if (ed.pings.length) draw(); }
   }
   /* ---- areas of effect ---- */
   const ftSq = () => ed.meta.ft || 5;
@@ -8698,7 +8829,7 @@ function MapEditor(meta0, opts = {}) {
     const json = JSON.stringify(d); if (json === JSON.stringify(ed.data)) return;
     takeData(clone(d)); draw();
   }, () => { ed.loaded = true; if (!PLAYER) toast('Couldn’t load this map.'); }));
-  ed.unsubs.push(DB.collection('ptok').onSnapshot(s => { const o = {}, pa = {}, pr = {}; s.docs.forEach(d => { if (d.exists) { const v = d.data() || {}; o[d.id] = clone(v.pos || {}); const l = (v.aoe || {})[ed.id]; if (l && l.length) pa[d.id] = clone(l); const r = (v.ruler || {})[ed.id]; if (r && Array.isArray(r.pts) && Array.isArray(r.b)) pr[d.id] = clone(r); } }); ed.pt = o; ed.pa = pa; ed.pr = pr; if (!(ed.cur && ed.cur.type === 'token')) draw(); }, () => { }));
+  ed.unsubs.push(DB.collection('ptok').onSnapshot(s => { const o = {}, pa = {}, pr = {}; s.docs.forEach(d => { if (d.exists) { const v = d.data() || {}; o[d.id] = clone(v.pos || {}); const l = (v.aoe || {})[ed.id]; if (l && l.length) pa[d.id] = clone(l); const r = (v.ruler || {})[ed.id]; if (r && Array.isArray(r.pts) && Array.isArray(r.b)) pr[d.id] = clone(r); } }); ed.pt = o; ed.pa = pa; ed.pr = pr; takePings(s.docs.filter(d => d.exists).map(d => [d.id, d.data()])); if (!(ed.cur && ed.cur.type === 'token')) draw(); }, () => { }));
   if (PLAYER) ed.unsubs.push(DB.doc('live/' + ed.id).onSnapshot(s => {
     if (!s.exists) { toast('The GM has stopped showing this map.'); opts.onClose && opts.onClose(); return; }
     const m = s.data(); const bgChanged = JSON.stringify(m.bg) !== JSON.stringify(ed.meta.bg);
@@ -8755,6 +8886,7 @@ function MapEditor(meta0, opts = {}) {
   function selectTok(t) { ed.sel = t ? t.id : null; drawTools(); draw(); }
   function begin(p) {
     const w = toW(p); const tool = ed.tool;
+    if (tool === 'look') { ed.cur = { type: 'look', p0: p, w, tx: ed.view.tx, ty: ed.view.ty }; return; }
     const cellC = q => ({ x: (clamp(Math.floor(q.x / CS), 0, ed.meta.cols - 1) + 0.5) * CS, y: (clamp(Math.floor(q.y / CS), 0, ed.meta.rows - 1) + 0.5) * CS });
     if (tool === 'ruler') {
       /* start from the end of the last measurement to add a turn; anywhere else starts a new one */
@@ -8784,6 +8916,7 @@ function MapEditor(meta0, opts = {}) {
   function paintCell(w) { if (!inMap(w)) return; const k = cellKey(w); if (ed.data.cells[k] !== ed.color) { ed.data.cells[k] = ed.color; ed.cur.any = true; draw(); } }
   function move(p) {
     const c = ed.cur; if (!c) return; const w = toW(p);
+    if (c.type === 'look') { if (!c.dragging && Math.hypot(p.x - c.p0.x, p.y - c.p0.y) < 8) return; c.dragging = true; ed.view.tx = c.tx + (p.x - c.p0.x); ed.view.ty = c.ty + (p.y - c.p0.y); draw(); return; }
     if (WMAP() && wmMove(A, w, p)) return;
     if (c.type === 'pan' || c.type === 'add') { if (c.type === 'add' && Math.hypot(p.x - c.p0.x, p.y - c.p0.y) < 8 && !c.dragging) return; c.dragging = true; ed.view.tx = c.tx + (p.x - c.p0.x); ed.view.ty = c.ty + (p.y - c.p0.y); draw(); }
     else if (c.type === 'ruler') { const nb = c.cellC(w); if (nb.x !== ed.ruler.b.x || nb.y !== ed.ruler.b.y) { ed.ruler.b = nb; shareRuler(); } drawTools(); draw(); }
@@ -8803,6 +8936,7 @@ function MapEditor(meta0, opts = {}) {
     }
   }
   async function end(p) {
+    if (ed.cur && ed.cur.type === 'look') { const c = ed.cur; ed.cur = null; if (!c.dragging) sendPing(c.w); return; }
     if (WMAP() && wmEnd(A, p)) return;
     const c = ed.cur; ed.cur = null; if (!c) return;
     if (c.type === 'ruler') { shareRuler(true); return; }
@@ -11197,44 +11331,70 @@ const scaled = (amt, f) => f === 0.5 ? Math.floor(amt / 2) : Math.round(amt * f)
 
 /* ---------- attacks against a target: the roll card grows target buttons ---------- */
 let lastTarget = null, lastDmgTargets = [];
-/* choose several targets, then OK: chips toggle, an All chip, and an OK button that shows how many */
-function multiPick(el, items, key, onOk, keep) {
-  const sel = new Set(), ok = h('button', { class: 'btn sm primary tgtok', disabled: true, onclick: () => { if (sel.size) onOk(items.filter(x => sel.has(key(x)))); } }, 'OK');
-  const chips = items.map(x => { const b = h('button', { class: 'chip', 'aria-pressed': 'false', onclick: () => { keep(); if (sel.has(key(x))) sel.delete(key(x)); else sel.add(key(x)); sync(); } }, x.label); b._k = key(x); return b; });
-  const all = items.length > 2 ? h('button', { class: 'chip', onclick: () => { keep(); if (sel.size === items.length) sel.clear(); else items.forEach(x => sel.add(key(x))); sync(); } }, 'All') : null;
-  function sync() { chips.forEach(b => { const on = sel.has(b._k); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }); ok.disabled = !sel.size; ok.textContent = sel.size > 1 ? `OK (${sel.size})` : 'OK'; if (all) all.textContent = sel.size === items.length ? 'None' : 'All'; }
-  add(el, [chips, all, ok]);
-  return { sel, sync };
+/* the targets on a roll card: a short scrolling list, so a big fight doesn't fill the screen, grouped (creatures, your side),
+   with All, OK and Skip underneath. One tap picks for an attack; damage can go to several, then OK */
+function targetPick(el, items, o) {
+  /* three or fewer: chips on one line with the label, as small as the card can be; more: the scrolling list */
+  const compact = items.length <= 3;
+  const sel = new Set(o.sel || []), btns = [], list = h('div', { class: 'tgtlist' + (compact ? ' compact' : ''), role: 'group', 'aria-label': o.label || 'Targets' });
+  let grp;
+  items.forEach(x => {
+    if (!compact && x.grp && x.grp !== grp) { grp = x.grp; list.append(h('div', { class: 'tgtgrp' }, grp)); }
+    const b = h('button', { class: 'chip tgt', type: 'button', 'aria-pressed': o.multi ? 'false' : null, onclick: () => { o.keep(); if (!o.multi) { o.onPick(x); return; } if (sel.has(x.key)) sel.delete(x.key); else sel.add(x.key); sync(); } },
+      h('span', { class: 'tn' }, x.label), x.sub ? h('span', { class: 'ts' }, x.sub) : null);
+    b._k = x.key; btns.push(b); list.append(b);
+  });
+  const foot = el.querySelector('.tgthead') || h('div', { class: 'tgtfoot' }), extra = h('div', { class: 'tgtextra', hidden: true });
+  const ok = o.multi ? h('button', { class: 'btn sm primary tgtok', disabled: true, onclick: () => { if (sel.size) o.onOk(items.filter(x => sel.has(x.key))); } }, 'OK') : null;
+  const all = o.multi && items.length > 2 ? h('button', { class: 'chip', type: 'button', onclick: () => { o.keep(); if (sel.size === items.length) sel.clear(); else items.forEach(x => sel.add(x.key)); sync(); } }, 'All') : null;
+  if (all) foot.append(all); if (ok) foot.append(ok);
+  function sync() {
+    btns.forEach(b => { const on = sel.has(b._k); b.classList.toggle('on', on); if (o.multi) b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    if (ok) { ok.disabled = !sel.size; ok.textContent = sel.size > 1 ? `OK (${sel.size})` : 'OK'; } if (all) all.textContent = sel.size === items.length ? 'None' : 'All';
+  }
+  if (!foot.parentNode) el.append(foot);
+  if (compact && foot.classList.contains('tgthead')) foot.insertBefore(list, foot.children[1] || null); else el.append(list);
+  el.append(extra); sync();
+  list.classList.toggle('long', items.length > 5);
+  /* extras (your Hex die, a spell's condition) go under the list */
+  const addExtra = n => { extra.hidden = false; extra.append(n); };
+  return { sel, sync, foot, ok, list, addExtra };
 }
+/* a remembered target goes first in its group */
+const firstIn = (xs, key) => { const i = xs.findIndex(x => x.key === key); return i > 0 ? [xs[i]].concat(xs.slice(0, i), xs.slice(i + 1)) : xs; };
 function rollCardExtras(card, r, o) {
   if (!S.role || o.applied || !(o.kind === 'atk' || o.kind === 'dmg')) return;
   const box = card.querySelector('.grow'); if (!box) return;
   /* during a fight, a card asking for a target only closes from its own buttons (a choice, or Skip) */
   const fight = S.role === 'player' ? !!liveTurn() : !!runningEnc();
   const keep = () => { if (card.classList.contains('pending')) return; clearTimeout(rcTimer); rcTimer = setTimeout(() => card.remove(), 15000); };
-  const row = (label, items) => { if (fight) card.classList.add('pending'); keep(); const el = h('div', { class: 'tgtrow' }, h('span', { class: 'tiny muted' }, label), items); el.addEventListener('click', e => e.stopPropagation()); box.append(el); return el; };
-  const skip = el => { if (fight) el.append(h('button', { class: 'btn sm ghost tgtskip', onclick: ev => { ev.stopPropagation(); card.remove(); tidyHeld(); } }, 'Skip')); };
+  const row = label => { if (fight) card.classList.add('pending'); keep(); const el = h('div', { class: 'tgtrow' }, h('div', { class: 'tgthead' }, h('span', { class: 'tiny muted tgtlab' }, label))); el.addEventListener('click', e => e.stopPropagation()); box.append(el); return el; };
+  const skip = el => { if (fight) (el.querySelector('.tgthead') || el).append(h('button', { class: 'btn sm ghost tgtskip', onclick: ev => { ev.stopPropagation(); card.remove(); tidyHeld(); } }, 'Skip')); };
   const done = (el, text) => { el.textContent = ''; el.append(h('span', { class: 'small' }, text)); if (card.classList.contains('pending')) { card.classList.remove('pending'); setTimeout(() => { card.remove(); tidyHeld(); }, 5000); } };
   if (S.role === 'player') {
     const t = liveTurn(); if (!t) return;
-    const foes = t.list.filter(c => !c.pc && !c.hid); if (!foes.length) return;
-    const order = lastTarget && foes.some(f => f.id === lastTarget) ? [foes.find(f => f.id === lastTarget)].concat(foes.filter(f => f.id !== lastTarget)) : foes;
+    const vis = t.list.filter(c => !c.hid && c.pc !== ME.id), foes = vis.filter(c => !c.pc && !c.ally), side = vis.filter(c => c.pc || c.ally);
+    if (!vis.length) return;
+    const tierOf = c => Array.isArray(c.ds) ? 'Down' : c.h != null ? (HP_TIERS[c.h] || [''])[0] : '';
+    const order = firstIn(foes.map(c => ({ key: c.id, id: c.id, n: c.n, label: c.n, sub: tierOf(c), grp: side.length ? 'Creatures' : null })), lastTarget)
+      .concat(firstIn(side.map(c => ({ key: c.id, id: c.id, n: c.n, label: c.n, sub: c.ally ? 'Party member' : 'Player character', grp: 'Your side' })), lastTarget));
     if (o.kind === 'atk') {
-      const el = row('Against', order.slice(0, 8).map(f => h('button', { class: 'chip', onclick: () => {
+      const el = row('Against');
+      targetPick(el, order, { label: 'Attack against', keep, onPick: f => {
         lastTarget = f.id; const id = nid();
         writeDoc('initres/' + ME.id, { atk: { id, t: f.id, tn: f.n, total: r.total, d20: r.d20 || null, label: r.label, at: Date.now() } }, 'update');
         S.atkWait = id; done(el, `Sent to the Game Master: ${r.total} against ${f.n}.`);
-      } }, f.n)));
+      } });
       skip(el); return el;
     }
     const type = dmgTypeOf(o, r.label);
-    const el = row('Damage to', []);
+    const el = row('Damage to');
     /* a spell that also puts a condition on its target (Ray of Sickness, Ensnaring Strike…) sends it along for the GM to apply */
     const spl = o.spell && SPL.find(s => s.n === o.spell), sconds = spl ? spellConds(spl) : [], condOn = new Set(sconds);
     /* your Hex or Hunter's Mark adds its die when the marked creature is one of the targets */
     const mk = myMarks().find(e => e.mark.t && order.some(f => f.id === e.mark.t)), mi = mk && CURSE_SPELLS[mk.mark.n];
     let markOn = !!mk;
-    const mp = multiPick(el, order.slice(0, 12).map(f => ({ id: f.id, n: f.n, label: f.n })), f => f.id, picked => {
+    const mp = targetPick(el, order, { multi: true, label: 'Damage to', keep, onOk: picked => {
       lastTarget = picked[0].id; lastDmgTargets = picked.map(f => f.id);
       const extra = [];
       if (mk && markOn && picked.some(f => f.id === mk.mark.t)) { const die = r.crit ? mi.die.replace(/^(\d+)d/, (m, n) => (2 * +n) + 'd') : mi.die, xr = doRoll(die, { label: `${mk.mark.n}: ${mi.type} damage`, who: S.char.name, kind: 'dmg', applied: true, dtype: mi.type, snd: 'spell' });
@@ -11243,33 +11403,50 @@ function rollCardExtras(card, r, o) {
       writeDoc('initres/' + ME.id, { dmg: Object.assign({ id: nid(), t: picked[0].id, tn: picked[0].n, ts: picked.map(f => ({ t: f.id, tn: f.n })), amount: Math.max(0, r.total), type: pt, parts, label: r.label, crit: !!r.crit, extra, at: Date.now() }, condOn.size ? { cond: [...condOn], src: spl.n, ckey: concKeyFor(spl.n) } : {}) }, 'update');
       const said = parts.length > 1 ? parts.map(p => `${p.amount}${p.type ? ' ' + p.type : ''}`).join(' + ') : `${Math.max(0, r.total)}${pt ? ' ' + pt : ''}`;
       done(el, `Sent: ${said} damage to ${picked.map(f => f.n).join(', ')}${extra.length ? ` and ${extra[0].amount} ${extra[0].type} (${extra[0].label}) to ${extra[0].tn}` : ''}. The Game Master applies it.`);
-    }, keep);
-    if (mk) el.insertBefore(h('label', { class: 'chip markadd' }, h('input', { type: 'checkbox', checked: true, onchange: ev => { keep(); markOn = ev.target.checked; } }), ` +${mi.die} ${mi.type} on ${mk.mark.tn} (${mk.mark.n})`), el.querySelector('.tgtok'));
-    sconds.forEach(n => el.insertBefore(h('label', { class: 'chip markadd' }, h('input', { type: 'checkbox', checked: true, onchange: ev => { keep(); ev.target.checked ? condOn.add(n) : condOn.delete(n); } }), ` and ${n} if it fails`), el.querySelector('.tgtok')));
+    } });
+    if (mk) mp.addExtra(h('label', { class: 'chip markadd' }, h('input', { type: 'checkbox', checked: true, onchange: ev => { keep(); markOn = ev.target.checked; } }), ` +${mi.die} ${mi.type} on ${mk.mark.tn} (${mk.mark.n})`));
+    sconds.forEach(n => mp.addExtra(h('label', { class: 'chip markadd' }, h('input', { type: 'checkbox', checked: true, onchange: ev => { keep(); ev.target.checked ? condOn.add(n) : condOn.delete(n); } }), ` and ${n} if it fails`)));
     (lastDmgTargets.length ? lastDmgTargets : [lastTarget]).forEach(id => { if (id && order.some(f => f.id === id)) mp.sel.add(id); }); mp.sync();
     skip(el); return el;
   }
-  /* the GM rolling for a creature: roll against a player's AC, then put the damage on their sheet */
-  const uids = Object.keys(S.chars || {}); if (!uids.length || !o.who || S.chars[uids.find(u => S.chars[u].name === o.who)]) return;
-  const tgt = S.gmTarget || (S.gmTarget = {});
-  const order = tgt[o.who] && S.chars[tgt[o.who]] ? [tgt[o.who]].concat(uids.filter(u => u !== tgt[o.who])) : uids;
+  /* the GM rolling for a creature: in a fight, against anyone in it (player characters, party members, other creatures);
+     otherwise against the player characters. Hits are worked out against AC; damage goes straight on, after resistances */
+  if (!o.who || Object.values(S.chars || {}).some(c => c && c.name === o.who)) return;
+  const tgt = S.gmTarget || (S.gmTarget = {}), e = runningEnc();
+  let order;
+  if (e) {
+    const rows = e.list.filter(c => cbView(c).n !== o.who && !cbView(c).gone).map(c => { const v = cbView(c); return { key: c.id, c, n: v.n, label: v.n, ac: v.ac, sub: `AC ${v.ac}, ${v.hp}/${v.max} HP`, grp: c.k === 'pc' ? 'Player characters' : c.ally ? 'Party members' : 'Creatures' }; });
+    order = ['Player characters', 'Party members', 'Creatures'].flatMap(g => firstIn(rows.filter(x => x.grp === g), tgt[o.who]));
+  } else order = firstIn(Object.keys(S.chars || {}).filter(u => S.chars[u] && S.chars[u].name).map(u => { const ac = D(S.chars[u]).ac; return { key: u, u, n: pcName(u), label: pcName(u), ac, sub: `AC ${ac}` }; }), tgt[o.who]);
+  if (!order.length) return;
   if (o.kind === 'atk') {
-    const el = row('Against', order.map(u => { const ac = D(S.chars[u]).ac; return h('button', { class: 'chip', onclick: () => {
-      tgt[o.who] = u; const crit = r.d20 === 20, fumble = r.d20 === 1, hit = !fumble && (crit || r.total >= ac);
-      done(el, `${pcName(u)} (AC ${ac}): ${crit ? 'critical hit' : hit ? 'hit' : 'miss'}${fumble ? ' (natural 1)' : ''}.`);
-    } }, `${pcName(u)} · AC ${ac}`); }));
+    const el = row('Against');
+    targetPick(el, order, { label: 'Attack against', keep, onPick: x => {
+      tgt[o.who] = x.key; const crit = r.d20 === 20, fumble = r.d20 === 1, hit = !fumble && (crit || r.total >= x.ac);
+      done(el, `${x.n} (AC ${x.ac}): ${crit ? 'critical hit' : hit ? 'hit' : 'miss'}${fumble ? ' (natural 1)' : ''}.`);
+    } });
     skip(el); return el;
   }
   const type = dmgTypeOf(o, r.label + ' ' + (o.text || ''));
-  const el = row('Damage to', []);
-  const mp = multiPick(el, order.map(u => ({ u, label: pcName(u) })), x => x.u, picked => {
-    tgt[o.who] = picked[0].u;
-    const parts = rollParts(r, type);
-    const lines = picked.map(({ u }) => { const c = S.chars[u], td = typedDamage(parts, t => pcDefence(c, t), false); gmDamagePC(u, td.total);
-      return `${pcName(u)} takes ${td.total}${td.lines.length > 1 || td.lines.some(l => l.f !== 1) ? ': ' + typedText(td.lines) : (td.lines[0] && td.lines[0].type ? ' ' + td.lines[0].type : '')}`; });
+  const el = row('Damage to');
+  const sel0 = tgt[o.who] && order.some(x => x.key === tgt[o.who]) ? [tgt[o.who]] : [];
+  targetPick(el, order, { multi: true, label: 'Damage to', keep, sel: sel0, onOk: picked => {
+    tgt[o.who] = picked[0].key;
+    const parts = rollParts(r, type), lines = [];
+    const e1 = e ? clone(getEnc(e._id)) : null; let changed = false;
+    picked.forEach(x => {
+      const u = x.u || (x.c && x.c.k === 'pc' ? x.c.ref : null);
+      if (u) { const c = S.chars[u]; if (!c) return; const td = typedDamage(parts, t => pcDefence(c, t), false); gmDamagePC(u, td.total);
+        lines.push(`${pcName(u)} takes ${td.total}${td.lines.length > 1 || td.lines.some(l => l.f !== 1) ? ': ' + typedText(td.lines) : (td.lines[0] && td.lines[0].type ? ' ' + td.lines[0].type : '')}`); return; }
+      const cc = e1 && e1.list.find(y => y.id === x.c.id); if (!cc) return;
+      const td = typedDamage(parts, t => monDefence(getMon(cc.ref), t, cc.cond), false), amt = td.total, fromTmp = Math.min(cc.tmp || 0, amt), rest = amt - fromTmp, before = cc.hp || 0;
+      cc.tmp = (cc.tmp || 0) - fromTmp; cbSetHp(cc, Math.max(0, before - rest), { dmg: rest, over: Math.max(0, rest - before), crit: !!r.crit }); changed = true;
+      if (amt > 0 && cc.conc && cc.hp > 0) queueConcCheck(e1._id, cc, amt);
+      lines.push(`${x.n} takes ${amt}${td.lines.some(l => l.f !== 1) ? ': ' + typedText(td.lines) : ''}${cc.k !== 'pc' && !cc.ally && cc.hp <= 0 ? ' and drops' : ''}`);
+    });
+    if (changed) saveEnc(e1);
     done(el, lines.join('. ') + '.');
-  }, keep);
-  if (tgt[o.who] && S.chars[tgt[o.who]]) { mp.sel.add(tgt[o.who]); mp.sync(); }
+  } });
   skip(el); return el;
 }
 function gmDamagePC(uid, dmg) {
